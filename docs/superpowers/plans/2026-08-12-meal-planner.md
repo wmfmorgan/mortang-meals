@@ -81,6 +81,7 @@ src/app/shopping-list/page.tsx
 src/app/meals/[id]/page.tsx
 src/app/settings/page.tsx
 src/app/developer/page.tsx
+src/app/developer/visibility.ts
 src/app/api/generate/route.ts
 src/app/api/swap/route.ts
 src/app/api/settings/route.ts
@@ -1328,7 +1329,7 @@ git commit -m "feat: show the week calendar, recipes, and meal swap"
 ### Task 12: Shopping list, Settings, Developer log
 
 **Files:**
-- Create: `src/app/shopping-list/page.tsx`, `src/app/settings/page.tsx`, `src/app/developer/page.tsx`
+- Create: `src/app/shopping-list/page.tsx`, `src/app/settings/page.tsx`, `src/app/developer/page.tsx`, `src/app/developer/visibility.ts`
 
 **Interfaces:**
 - Consumes: `mergeShoppingList`, settings + traces APIs
