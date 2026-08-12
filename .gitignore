@@ -19,3 +19,6 @@ data/
 
 # brainstorm companion (regenerated locally)
 .superpowers/
+
+# isolated git worktrees
+.worktrees/
