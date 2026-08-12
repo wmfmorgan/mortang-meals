@@ -152,7 +152,11 @@ Read/write provider config in SQLite (mode, base URL, model, optional custom key
 
 ## AI contract
 
-The model must return JSON only, matching a fixed schema.
+There is no chat UI. The only AI traffic is a server-side HTTP request to an OpenAI-compatible endpoint (`/v1/chat/completions` or `/v1/responses`). The user never sees the raw model text.
+
+**Request:** a system brief (household, slots, do-not-repeat list, hard rules) plus a **JSON Schema**. On Grok we use structured outputs: `response_format.type = "json_schema"` so the model is constrained to that schema ([xAI structured outputs](https://docs.x.ai/developers/model-capabilities/text/structured-outputs)). Local OpenAI-compatible servers that do not support `json_schema` get `json_object` (or a “JSON only” prompt) and we still parse + validate on our side.
+
+**Response:** a single JSON object. Generate returns `{ "meals": [ ... ] }`. Swap returns `{ "meal": { ... } }`. We parse it with Zod. Markdown, prose, or extra keys are invalid.
 
 Each meal includes: `day`, `slot`, `title`, `whyItFits`, `cookMinutes`, `method`, `ingredients[]` (`name`, `quantity`, `unit`, `aisle`), `steps[]`.
 
@@ -201,5 +205,6 @@ No live provider calls in automated tests. The adapter is mocked.
 
 - Keep API keys server-side only
 - Confirm current Grok model and SDK usage from https://docs.x.ai before wiring the adapter
+- Prefer xAI structured outputs (`json_schema`) via the OpenAI-compatible SDK; fall back to parse-and-validate for local models
 - Add `.superpowers/` to `.gitignore` (brainstorm companion output)
 - One command to run: `npm run dev`
