@@ -1,0 +1,21 @@
+# dependencies
+node_modules/
+
+# next / env
+.next/
+out/
+.env
+.env.local
+.env*.local
+
+# local data
+data/
+*.db
+*.db-journal
+
+# os / editor
+.DS_Store
+*.swp
+
+# brainstorm companion (regenerated locally)
+.superpowers/
