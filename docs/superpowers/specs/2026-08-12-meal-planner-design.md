@@ -41,7 +41,7 @@ App modules:
 | Kitchen | Appliances and cooking methods to prefer |
 | Schedule | 7-day breakfast / lunch / dinner slot mask |
 | Planner | Generate, save, swap one meal, derive shopping list |
-| AI | Provider adapter, brief builder, JSON schema, validation |
+| AI | Provider adapter, brief builder, JSON schema, validation, request/response log |
 
 ## Data model
 
@@ -109,18 +109,36 @@ Not stored as an authored document. Derived from the **open** plan (the week on 
 
 Swap rebuilds the list from the whole plan.
 
+### Settings row
+
+Stored with provider config:
+
+- `developerTools`: boolean, default off. When on, the Developer screen appears in nav.
+
+### AI trace
+
+One row per provider call (including the automatic retry). Always recorded, last 25 kept, oldest deleted. Used by the Developer screen.
+
+- Timestamp
+- Kind: `generate` | `generate-retry` | `swap` | `swap-retry` | `test`
+- Provider mode, base URL, model
+- Request: system brief + user payload (the text we sent). No API keys, no `Authorization` header
+- Response: raw body text, or the error string if the call failed
+- Validation: `ok` | `invalid-json` | `schema` | `allergen` | `duplicate` | `transport`
+
 ## Screens
 
-Six screens. Desktop **This Week** is a 7-column calendar (days as columns, breakfast / lunch / dinner as rows). Empty slots are dashed and not generated. Narrow viewports stack into an agenda (day sections with up to three cards).
+Seven screens. Desktop **This Week** is a 7-column calendar (days as columns, breakfast / lunch / dinner as rows). Empty slots are dashed and not generated. Narrow viewports stack into an agenda (day sections with up to three cards).
 
 1. **This Week** — home. Week picker (by start date) to open the current plan or a saved one, week grid, generate / regenerate, swap, link to shopping list. Generating for a week that already has a plan creates a new current version; the previous version stays available in the picker.
 2. **Recipe** — from a card. Title, servings, time, method, ingredients, steps.
 3. **Shopping list** — merged, aisle-grouped list for the open plan.
 4. **Household** — diet style, notes, people, per-person allergies and avoidances, servings.
 5. **Kitchen** — appliances and methods checklist.
-6. **Settings** — provider mode (Grok vs custom), base URL, model, optional custom API key, test-connection action.
+6. **Settings** — provider mode (Grok vs custom), base URL, model, optional custom API key, test-connection action, **Developer tools** toggle.
+7. **Developer** — hidden unless the toggle is on. Read-only log of the last 25 AI calls. Each row expands to show the prompt we sent, the raw response (or transport error), model, kind, and validation result. A “Clear log” action empties traces. This is not a chat UI; you cannot edit and resend from here.
 
-First launch: Household → Kitchen → slot grid → Generate. After setup, the default landing screen is This Week.
+First launch: Household → Kitchen → slot grid → Generate. After setup, the default landing screen is This Week. The Developer item is absent until the toggle is turned on.
 
 ## Data flow
 
@@ -148,11 +166,13 @@ Generate uses the same duplicate rule inside a single plan: two slots in one res
 
 ### Settings
 
-Read/write provider config in SQLite (mode, base URL, model, optional custom key). Grok key comes from `XAI_API_KEY` in the environment, never from the browser bundle or the database. Test connection pings the configured endpoint with a tiny request.
+Read/write provider config in SQLite (mode, base URL, model, optional custom key, `developerTools`). Grok key comes from `XAI_API_KEY` in the environment, never from the browser bundle or the database. Test connection pings the configured endpoint with a tiny request and writes a `test` trace like any other call.
+
+Every adapter call (generate, swap, retry, test) writes an AI trace before the UI is updated. Recording does not depend on the toggle, so you can turn Developer tools on after a failed generate and still see what was sent and returned.
 
 ## AI contract
 
-There is no chat UI. The only AI traffic is a server-side HTTP request to an OpenAI-compatible endpoint (`/v1/chat/completions` or `/v1/responses`). The user never sees the raw model text.
+There is no chat UI. The only AI traffic is a server-side HTTP request to an OpenAI-compatible endpoint (`/v1/chat/completions` or `/v1/responses`). Prompts and raw responses are visible only on the Developer screen when the Settings toggle is on.
 
 **Request:** a system brief (household, slots, do-not-repeat list, hard rules) plus a **JSON Schema**. On Grok we use structured outputs: `response_format.type = "json_schema"` so the model is constrained to that schema ([xAI structured outputs](https://docs.x.ai/developers/model-capabilities/text/structured-outputs)). Local OpenAI-compatible servers that do not support `json_schema` get `json_object` (or a “JSON only” prompt) and we still parse + validate on our side.
 
@@ -200,10 +220,11 @@ No live provider calls in automated tests. The adapter is mocked.
 - Schema accept/reject fixtures; invalid JSON is not persisted
 - Adapter: success, timeout, bad JSON, retry-then-fail for generate and swap
 - Smoke: seed household → mock generate → cards present → recipe reads storage → swap one slot → list rebuilds
+- AI traces: a mocked generate writes a redacted trace; API keys never appear in stored request text; Developer screen is omitted from nav when the toggle is off
 
 ## Implementation notes
 
-- Keep API keys server-side only
+- Keep API keys server-side only; redact them from AI traces
 - Confirm current Grok model and SDK usage from https://docs.x.ai before wiring the adapter
 - Prefer xAI structured outputs (`json_schema`) via the OpenAI-compatible SDK; fall back to parse-and-validate for local models
 - Add `.superpowers/` to `.gitignore` (brainstorm companion output)
