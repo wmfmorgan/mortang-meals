@@ -137,10 +137,14 @@ First launch: Household → Kitchen → slot grid → Generate. After setup, the
 ### Swap
 
 1. User clicks Swap on a card.
-2. Server sends the same brief, the other meals that week (to avoid duplicates), and the slot to fill.
+2. Server sends the same brief, the slot to fill, and a **do-not-repeat list**: normalized titles of every other meal in the open plan, plus the meal being replaced.
 3. Adapter returns one meal JSON.
-4. Same validate → allergen check → one retry.
-5. Replace that meal only. Rebuild the shopping list. Leave other cards untouched.
+4. Validate schema → allergen check → **duplicate check**. A meal is a duplicate if its normalized title matches any title on the do-not-repeat list (lowercase, strip punctuation, collapse whitespace). Near-misses like “Lemon herb salmon” vs “Herb lemon salmon” are treated as duplicates only when the normalized strings match; v1 does not do fuzzy recipe matching.
+5. On any of those failures: retry once, including the validation error and the do-not-repeat list.
+6. If the retry is still a duplicate or otherwise invalid: leave the original card in place and show “couldn’t find a different meal, try again.”
+7. On success: replace that meal only. Rebuild the shopping list. Leave other cards untouched.
+
+Generate uses the same duplicate rule inside a single plan: two slots in one response may not share a normalized title. If they do, the whole generate is invalid and follows the one-retry path.
 
 ### Settings
 
@@ -160,6 +164,8 @@ Hard rules in the prompt and in server validation:
 - No allergy ingredients (reject if present)
 - Honor avoidances as soft constraints
 - Valid JSON, no markdown wrapper
+- No two meals in a plan share a normalized title
+- A swapped meal must not match the replaced title or any other title in the open plan
 
 Default provider is Grok via SpaceXAI / xAI (`XAI_API_KEY`, `https://api.x.ai/v1`). Model name is confirmed from live docs at implementation time, not hardcoded from memory.
 
@@ -174,6 +180,7 @@ The last good plan is never replaced by a partial or invalid result.
 | Timeout / network | “The model didn’t respond”; plan unchanged |
 | Invalid JSON / schema | One retry; then “couldn’t get a usable plan, try again” |
 | Allergy ingredient in output | Treat as invalid; same retry; do not save |
+| Swap or generate returns a duplicate title | Treat as invalid; retry once with the do-not-repeat list; keep the last good meal |
 | Local model too weak | Same validation; message suggests switching to Grok |
 | SQLite file unreadable | Launch error, not a blank screen |
 | Swap failure | Original card remains |
@@ -185,6 +192,7 @@ No live provider calls in automated tests. The adapter is mocked.
 - Shopping list merge/normalize from fixture recipes
 - Brief builder snapshot from a fixture household
 - Allergen checker rejects a fixture meal that contains a listed allergy
+- Duplicate checker rejects a swap whose normalized title matches the replaced meal or another meal in the plan
 - Schema accept/reject fixtures; invalid JSON is not persisted
 - Adapter: success, timeout, bad JSON, retry-then-fail for generate and swap
 - Smoke: seed household → mock generate → cards present → recipe reads storage → swap one slot → list rebuilds
