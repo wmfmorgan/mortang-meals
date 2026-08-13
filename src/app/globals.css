@@ -3,3 +3,64 @@
 body {
   margin: 0;
 }
+
+.week-grid {
+  display: grid;
+  grid-template-columns: auto repeat(7, minmax(0, 1fr));
+  column-gap: 0.5rem;
+  row-gap: 0.5rem;
+}
+
+.week-grid-day {
+  display: contents;
+}
+
+.week-grid-day-heading {
+  display: none;
+}
+
+.week-cell {
+  min-height: 6rem;
+}
+
+.week-cell-empty {
+  border: 1px dashed #a1a1aa;
+  border-radius: 0.375rem;
+}
+
+.week-cell-slot-label {
+  display: none;
+}
+
+@media (max-width: 800px) {
+  .week-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .week-grid-desktop-label {
+    display: none;
+  }
+
+  .week-grid-day {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .week-grid-day-heading {
+    display: block;
+  }
+
+  .week-cell-slot-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.25rem 0;
+  }
+
+  .week-cell-empty .week-cell-slot-label {
+    padding: 0.5rem;
+  }
+}
