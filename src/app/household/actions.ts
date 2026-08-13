@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { normalizePeople } from "@/household/normalize-people";
 import { getHousehold, replacePeople, upsertHousehold } from "@/household/repo";
 import type { Sex } from "@/lib/types";
 
@@ -18,21 +19,8 @@ export type HouseholdSaveInput = {
   }[];
 };
 
-function splitCsv(value: string): string[] {
-  return value
-    .split(",")
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0);
-}
-
 export async function saveHouseholdAction(input: HouseholdSaveInput) {
-  const people = input.people.map((person) => ({
-    name: person.name.trim(),
-    age: Number.parseInt(person.age, 10) || 0,
-    sex: person.sex === "" ? null : person.sex,
-    allergies: splitCsv(person.allergies),
-    avoidances: splitCsv(person.avoidances),
-  }));
+  const people = normalizePeople(input.people);
 
   const servingsRaw = input.servings.trim();
   const servings =

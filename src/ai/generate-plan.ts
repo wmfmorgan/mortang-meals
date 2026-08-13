@@ -56,6 +56,7 @@ function slotsMatchRequested(
   meals: GeneratedMeal[],
   requested: { day: DayOfWeek; slot: MealSlot }[],
 ): boolean {
+  if (meals.length !== requested.length) return false;
   const got = new Set(meals.map((meal) => formatSlot(meal)));
   const want = new Set(requested.map(formatSlot));
   if (got.size !== want.size) return false;

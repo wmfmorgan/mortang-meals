@@ -164,6 +164,34 @@ describe("generateWeekPlan", () => {
     expect(src).not.toMatch(/saveGeneratedPlan/);
   });
 
+  it("treats two meals on the same requested slot as schema and retries", async () => {
+    const extraOnSameSlot: GeneratedMeal = {
+      ...validMondayDinner,
+      title: "Garlic roast chicken",
+    };
+    const adapter = fakeAdapter([
+      { ok: true, text: mealsText([validMondayDinner, extraOnSameSlot]) },
+      { ok: true, text: mealsText([validMondayDinner]) },
+    ]);
+    const traces: Omit<AiTrace, "id" | "createdAt">[] = [];
+
+    const result = await generateWeekPlan({
+      household,
+      kitchen,
+      slotMask: mondayDinnerMask(),
+      adapter,
+      logTrace: (t) => traces.push(t),
+      settings,
+    });
+
+    expect(result).toEqual({ ok: true, meals: [validMondayDinner] });
+    expect(tracesOf(traces)).toEqual([
+      { kind: "generate", validation: "schema" },
+      { kind: "generate-retry", validation: "ok" },
+    ]);
+    expect(adapter.requests).toHaveLength(2);
+  });
+
   it("logs duplicate and retries once when two meals share a title", async () => {
     const slotMask = emptyMask();
     slotMask.monday.dinner = true;
