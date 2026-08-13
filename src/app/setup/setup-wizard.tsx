@@ -8,35 +8,11 @@ import {
   type HouseholdDraft,
 } from "@/components/household-fields";
 import { KitchenChecklist } from "@/components/kitchen-checklist";
-import type { DayOfWeek, Household, KitchenItem, MealSlot, SlotMask } from "@/lib/types";
-import { DAYS, SLOTS } from "@/lib/types";
+import { SlotPicker } from "@/components/slot-picker";
+import type { Household, KitchenItem, SlotMask } from "@/lib/types";
+import { defaultSlotMask, writeSessionMask } from "@/lib/slot-mask";
 import { saveHouseholdAction } from "@/app/household/actions";
 import { saveKitchenEnabledStates } from "@/app/kitchen/actions";
-
-const DAY_LABELS: Record<DayOfWeek, string> = {
-  monday: "Mon",
-  tuesday: "Tue",
-  wednesday: "Wed",
-  thursday: "Thu",
-  friday: "Fri",
-  saturday: "Sat",
-  sunday: "Sun",
-};
-
-const SLOT_LABELS: Record<MealSlot, string> = {
-  breakfast: "B",
-  lunch: "L",
-  dinner: "D",
-};
-
-function defaultSlotMask(): SlotMask {
-  return Object.fromEntries(
-    DAYS.map((day) => [
-      day,
-      { breakfast: false, lunch: false, dinner: true },
-    ]),
-  ) as SlotMask;
-}
 
 export function SetupWizard({
   household,
@@ -60,13 +36,6 @@ export function SetupWizard({
     );
   }
 
-  function toggleSlot(day: DayOfWeek, slot: MealSlot, enabled: boolean) {
-    setSlotMask((current) => ({
-      ...current,
-      [day]: { ...current[day], [slot]: enabled },
-    }));
-  }
-
   async function finish() {
     setPending(true);
     try {
@@ -86,7 +55,7 @@ export function SetupWizard({
       await saveKitchenEnabledStates(
         kitchen.map((item) => ({ id: item.id, enabled: item.enabled })),
       );
-      sessionStorage.setItem("mortang.slotMask", JSON.stringify(slotMask));
+      writeSessionMask(slotMask);
       router.push("/");
     } finally {
       setPending(false);
@@ -116,50 +85,7 @@ export function SetupWizard({
         </div>
       ) : null}
 
-      {step === 3 ? (
-        <div className="space-y-3">
-          <h2 className="text-xl font-medium tracking-[-0.03em]">Meal slots</h2>
-          <div className="surface overflow-x-auto p-4">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr>
-                  <th className="p-2 text-left font-mono text-[0.68rem] uppercase tracking-[0.12em] text-herb" />
-                  {DAYS.map((day) => (
-                    <th
-                      key={day}
-                      className="p-2 text-center font-mono text-[0.68rem] uppercase tracking-[0.12em] text-herb"
-                    >
-                      {DAY_LABELS[day]}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {SLOTS.map((slot) => (
-                  <tr key={slot}>
-                    <th className="p-2 text-left font-mono text-[0.68rem] uppercase tracking-[0.12em] text-herb">
-                      {SLOT_LABELS[slot]}
-                    </th>
-                    {DAYS.map((day) => (
-                      <td key={day} className="p-2 text-center">
-                        <input
-                          className="h-5 w-5 accent-[var(--color-olive)]"
-                          type="checkbox"
-                          checked={slotMask[day][slot]}
-                          aria-label={`${day} ${slot}`}
-                          onChange={(event) =>
-                            toggleSlot(day, slot, event.target.checked)
-                          }
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : null}
+      {step === 3 ? <SlotPicker value={slotMask} onChange={setSlotMask} /> : null}
 
       <div className="flex flex-wrap gap-2">
         {step > 1 ? (

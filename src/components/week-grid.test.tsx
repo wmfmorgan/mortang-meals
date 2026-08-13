@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SlotMask, WeekPlan } from "@/lib/types";
 import { DAYS, SLOTS } from "@/lib/types";
@@ -62,10 +62,13 @@ describe("WeekGrid", () => {
     expect(emptyTuesdayDinner.textContent).not.toMatch(/lemon herb salmon/i);
   });
 
-  it("links a filled card to /meals/{id}", () => {
-    render(<WeekGrid plan={mondayDinnerPlan()} />);
+  it("opens a filled card through onSelectMeal", () => {
+    const onSelectMeal = vi.fn();
+    render(<WeekGrid plan={mondayDinnerPlan()} onSelectMeal={onSelectMeal} />);
 
-    const link = screen.getByRole("link", { name: /lemon herb salmon/i });
-    expect(link.getAttribute("href")).toBe("/meals/meal-salmon");
+    fireEvent.click(screen.getByRole("button", { name: /lemon herb salmon/i }));
+    expect(onSelectMeal).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "meal-salmon" }),
+    );
   });
 });

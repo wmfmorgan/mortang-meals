@@ -36,7 +36,13 @@ function mealAt(
   return meals.find((meal) => meal.day === day && meal.slot === slot);
 }
 
-export function WeekGrid({ plan }: { plan: WeekPlan | null }) {
+export function WeekGrid({
+  plan,
+  onSelectMeal,
+}: {
+  plan: WeekPlan | null;
+  onSelectMeal?: (meal: Meal) => void;
+}) {
   const meals = plan?.meals ?? [];
 
   return (
@@ -88,7 +94,7 @@ export function WeekGrid({ plan }: { plan: WeekPlan | null }) {
                 <span className="week-cell-slot-label">
                   {SLOT_LABELS[slot]}
                 </span>
-                {meal ? <MealCard meal={meal} /> : null}
+                {meal ? <MealCard meal={meal} onOpen={onSelectMeal} /> : null}
               </div>
             );
           })}

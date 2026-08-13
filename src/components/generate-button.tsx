@@ -2,47 +2,17 @@
 
 import { useState } from "react";
 import type { SlotMask } from "@/lib/types";
-import { DAYS, SLOTS } from "@/lib/types";
+import { hasAnySlot } from "@/lib/slot-mask";
 import { useGeneration } from "./generation-provider";
-
-const SLOT_MASK_KEY = "mortang.slotMask";
-
-function defaultSlotMask(): SlotMask {
-  return Object.fromEntries(
-    DAYS.map((day) => [
-      day,
-      { breakfast: false, lunch: false, dinner: true },
-    ]),
-  ) as SlotMask;
-}
-
-function hasAnySlot(mask: SlotMask): boolean {
-  return DAYS.some((day) => SLOTS.some((slot) => Boolean(mask[day]?.[slot])));
-}
-
-function readSessionMask(): SlotMask | null {
-  try {
-    const raw = sessionStorage.getItem(SLOT_MASK_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as SlotMask;
-  } catch {
-    return null;
-  }
-}
-
-function resolveMask(planMask: SlotMask | null): SlotMask {
-  if (planMask) return planMask;
-  return readSessionMask() ?? defaultSlotMask();
-}
 
 export function GenerateButton({
   disabledReason,
   weekStart,
-  planSlotMask,
+  slotMask,
 }: {
   disabledReason: string | null;
   weekStart?: string;
-  planSlotMask: SlotMask | null;
+  slotMask: SlotMask;
 }) {
   const { state, startGenerate } = useGeneration();
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +20,6 @@ export function GenerateButton({
 
   async function onGenerate() {
     if (disabledReason || pending) return;
-    const slotMask = resolveMask(planSlotMask);
     if (!hasAnySlot(slotMask)) {
       setError("Turn on at least one meal slot.");
       return;

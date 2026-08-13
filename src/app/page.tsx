@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
-import { GenerateButton } from "@/components/generate-button";
 import { PageHeader } from "@/components/page-header";
 import { PlanPicker } from "@/components/plan-picker";
-import { WeekGrid } from "@/components/week-grid";
+import { ThisWeekPlanner } from "@/components/this-week-planner";
 import { getHousehold } from "@/household/repo";
 import type { Household } from "@/lib/types";
 import { getCurrentPlan, getPlan, listPlans } from "@/meals/repo";
@@ -39,17 +38,7 @@ export default async function HomePage({
       <PageHeader
         eyebrow={plan?.weekStart ?? household.dietStyle}
         title="This week"
-        lede="A seven-day menu for the table. Generate a plan, open a card to cook, swap anything that doesn’t land."
-        action={
-          <div className="space-y-2">
-            <GenerateButton
-              disabledReason={blocker}
-              weekStart={plan?.weekStart}
-              planSlotMask={plan?.slotMask ?? null}
-            />
-            {blocker ? <p className="max-w-xs text-sm text-herb">{blocker}</p> : null}
-          </div>
-        }
+        lede="Pick breakfast, lunch, and dinner for each day, then generate. Open a card for the recipe."
       />
 
       <PlanPicker
@@ -58,7 +47,14 @@ export default async function HomePage({
         hrefFor={(id) => `/?plan=${id}`}
       />
 
-      <WeekGrid plan={plan} />
+      {blocker ? <p className="mb-4 text-sm text-herb">{blocker}</p> : null}
+
+      <ThisWeekPlanner
+        plan={plan}
+        weekStart={plan?.weekStart}
+        servings={household.servings}
+        disabledReason={blocker}
+      />
     </div>
   );
 }
