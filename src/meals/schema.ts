@@ -120,3 +120,12 @@ export const mealsJsonSchema = {
     },
   },
 } as const;
+
+export const singleMealJsonSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["meal"],
+  properties: {
+    meal: mealJsonSchema,
+  },
+} as const;
