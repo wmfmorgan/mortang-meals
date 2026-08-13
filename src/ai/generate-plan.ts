@@ -21,6 +21,13 @@ import { DAYS, SLOTS } from "@/lib/types";
 export type PlanFailure = { ok: false; message: string };
 export type GenerateSuccess = { ok: true; meals: GeneratedMeal[] };
 
+export type GenerateProgressEvent = {
+  phase: "brief" | "calling" | "validating" | "retry";
+  message: string;
+  attempt?: number;
+  model?: string;
+};
+
 const NO_SLOTS = "Turn on at least one meal slot.";
 const TRANSPORT_FAIL = "The model didn’t respond";
 const UNUSABLE_PLAN = "Couldn’t get a usable plan, try again.";
@@ -93,11 +100,17 @@ export async function generateWeekPlan(input: {
   adapter: { complete(req: AdapterRequest): Promise<AdapterResult> };
   logTrace: (t: Omit<AiTrace, "id" | "createdAt">) => void;
   settings: Pick<AiSettings, "mode" | "baseUrl" | "model">;
+  onProgress?: (event: GenerateProgressEvent) => void;
 }): Promise<GenerateSuccess | PlanFailure> {
   const requested = requestedSlots(input.slotMask);
   if (requested.length === 0) {
     return { ok: false, message: NO_SLOTS };
   }
+
+  input.onProgress?.({
+    phase: "brief",
+    message: `Writing the brief for ${requested.length} meal${requested.length === 1 ? "" : "s"}`,
+  });
 
   const brief = buildHouseholdBrief({
     household: input.household,
@@ -111,6 +124,15 @@ export async function generateWeekPlan(input: {
   let userMessage = user;
   for (let attempt = 0; attempt < 2; attempt++) {
     const kind: TraceKind = attempt === 0 ? "generate" : "generate-retry";
+    input.onProgress?.({
+      phase: "calling",
+      message:
+        attempt === 0
+          ? `Calling ${input.settings.model}`
+          : `Calling ${input.settings.model} again`,
+      attempt: attempt + 1,
+      model: input.settings.model,
+    });
     const messages = [
       { role: "system" as const, content: system },
       { role: "user" as const, content: userMessage },
@@ -137,16 +159,35 @@ export async function generateWeekPlan(input: {
     if (!result.ok) {
       log("transport", result.error);
       if (attempt === 0) {
+        input.onProgress?.({
+          phase: "retry",
+          message: "The model didn’t respond. Trying once more.",
+          attempt: 2,
+        });
         userMessage = `${userMessage}\n\n${result.error}`;
         continue;
       }
       return { ok: false, message: TRANSPORT_FAIL };
     }
 
+    input.onProgress?.({
+      phase: "validating",
+      message: "Checking slots, allergies, and duplicate titles",
+      attempt: attempt + 1,
+    });
+
     const parsed = parseMealsResponse(result.text);
     if (!parsed.ok) {
       log(parsed.reason, result.text);
       if (attempt === 0) {
+        input.onProgress?.({
+          phase: "retry",
+          message:
+            parsed.reason === "invalid-json"
+              ? "First reply wasn’t valid JSON. Trying once more."
+              : "First reply didn’t match the meal schema. Trying once more.",
+          attempt: 2,
+        });
         userMessage = `${userMessage}\n\n${parsed.reason}`;
         continue;
       }
@@ -156,6 +197,11 @@ export async function generateWeekPlan(input: {
     if (!slotsMatchRequested(parsed.meals, requested)) {
       log("schema", result.text);
       if (attempt === 0) {
+        input.onProgress?.({
+          phase: "retry",
+          message: "The plan didn’t fill the requested slots. Trying once more.",
+          attempt: 2,
+        });
         userMessage = `${userMessage}\n\nschema`;
         continue;
       }
@@ -166,6 +212,11 @@ export async function generateWeekPlan(input: {
     if (allergen) {
       log("allergen", result.text);
       if (attempt === 0) {
+        input.onProgress?.({
+          phase: "retry",
+          message: `Caught an allergy (${allergen}). Asking for a different plan.`,
+          attempt: 2,
+        });
         userMessage = `${userMessage}\n\nallergen: ${allergen}`;
         continue;
       }
@@ -175,6 +226,11 @@ export async function generateWeekPlan(input: {
     if (hasDuplicateTitles(parsed.meals)) {
       log("duplicate", result.text);
       if (attempt === 0) {
+        input.onProgress?.({
+          phase: "retry",
+          message: "Two meals shared a title. Asking for unique dishes.",
+          attempt: 2,
+        });
         userMessage = `${userMessage}\n\nduplicate`;
         continue;
       }

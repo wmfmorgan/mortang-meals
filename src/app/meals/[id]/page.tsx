@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SwapButton } from "@/components/meal-card";
 import { PageHeader } from "@/components/page-header";
@@ -36,9 +37,9 @@ export default async function RecipePage({
 
   return (
     <article className="mx-auto max-w-2xl">
-      <a href="/" className="mb-6 inline-block text-sm text-herb no-underline hover:text-ink">
+      <Link href="/" className="mb-6 inline-block text-sm text-herb no-underline hover:text-ink">
         ← This week
-      </a>
+      </Link>
       <PageHeader
         eyebrow={`${DAY_LABELS[meal.day]} ${meal.slot}`}
         title={meal.title}

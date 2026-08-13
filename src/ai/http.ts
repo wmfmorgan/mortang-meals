@@ -13,7 +13,7 @@ import { DAYS, SLOTS } from "@/lib/types";
 import { getPlan, replaceMeal, saveGeneratedPlan } from "@/meals/repo";
 import { mergeShoppingList } from "@/meals/shopping-list";
 import { createAdapter } from "./adapter";
-import { generateWeekPlan } from "./generate-plan";
+import { generateWeekPlan, type GenerateProgressEvent } from "./generate-plan";
 import { getSettings, saveSettings } from "./settings-repo";
 import { swapMeal } from "./swap-meal";
 import { clearTraces, listTraces, recordTrace } from "./traces";
@@ -23,8 +23,18 @@ const GROK_KEY_MESSAGE =
 
 export type HttpResult = { status: number; body: unknown };
 
+export type GenerateUiEvent =
+  | GenerateProgressEvent
+  | { phase: "saving"; message: string };
+
+export type GenerateStreamEvent =
+  | ({ type: "progress" } & GenerateUiEvent)
+  | { type: "done"; planId: string }
+  | { type: "error"; status: number; message: string };
+
 export type HandlerDeps = {
   complete?: (req: AdapterRequest) => Promise<AdapterResult>;
+  onProgress?: (event: GenerateUiEvent) => void;
 };
 
 const slotFlagsSchema = z.object({
@@ -146,12 +156,14 @@ export async function handleGenerate(
     adapter: resolveAdapter(settings, deps),
     logTrace: recordTrace,
     settings,
+    onProgress: deps?.onProgress,
   });
 
   if (!result.ok) {
     return jsonError(422, result.message);
   }
 
+  deps?.onProgress?.({ phase: "saving", message: "Saving the week" });
   const plan = saveGeneratedPlan({
     weekStart: parsed.data.weekStart ?? mondayOf(new Date()),
     slotMask: parsed.data.slotMask,

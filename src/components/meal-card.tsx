@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Meal } from "@/lib/types";
 
@@ -55,13 +56,13 @@ export function SwapButton({ meal }: { meal: Meal }) {
 export function MealCard({ meal }: { meal: Meal }) {
   return (
     <article className="meal-card" data-slot={meal.slot}>
-      <a href={`/meals/${meal.id}`}>
+      <Link href={`/meals/${meal.id}`}>
         <h3>{meal.title}</h3>
         <p className="meal-meta">
           {meal.method} · {meal.cookMinutes} min
         </p>
         <p className="meal-why">{meal.whyItFits}</p>
-      </a>
+      </Link>
       <SwapButton meal={meal} />
     </article>
   );

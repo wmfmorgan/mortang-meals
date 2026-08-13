@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import type { SlotMask } from "@/lib/types";
 import { DAYS, SLOTS } from "@/lib/types";
+import { useGeneration } from "./generation-provider";
 
 const SLOT_MASK_KEY = "mortang.slotMask";
 
@@ -44,41 +44,20 @@ export function GenerateButton({
   weekStart?: string;
   planSlotMask: SlotMask | null;
 }) {
-  const router = useRouter();
-  const [pending, setPending] = useState(false);
+  const { state, startGenerate } = useGeneration();
   const [error, setError] = useState<string | null>(null);
+  const pending = state.status === "running";
 
   async function onGenerate() {
-    if (disabledReason) return;
+    if (disabledReason || pending) return;
     const slotMask = resolveMask(planSlotMask);
     if (!hasAnySlot(slotMask)) {
       setError("Turn on at least one meal slot.");
       return;
     }
 
-    setPending(true);
     setError(null);
-    try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...(weekStart ? { weekStart } : {}),
-          slotMask,
-        }),
-      });
-      const data = (await res.json()) as { message?: string };
-      if (!res.ok) {
-        setError(data.message ?? "Couldn’t get a usable plan, try again.");
-        return;
-      }
-      router.push("/");
-      router.refresh();
-    } catch {
-      setError("The model didn’t respond");
-    } finally {
-      setPending(false);
-    }
+    await startGenerate({ weekStart, slotMask });
   }
 
   return (

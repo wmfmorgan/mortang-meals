@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 type PlanOption = {
   id: string;
   weekStart: string;
@@ -21,12 +23,12 @@ export function PlanPicker({
         const selected = item.id === selectedId;
         return (
           <li key={item.id} className="flex items-center gap-2">
-            <a
+            <Link
               href={hrefFor(item.id)}
               aria-current={selected ? "page" : undefined}
             >
               {item.weekStart}
-            </a>
+            </Link>
             {item.isCurrent ? <span className="badge">current</span> : null}
           </li>
         );

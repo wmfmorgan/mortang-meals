@@ -269,4 +269,48 @@ describe("generateWeekPlan", () => {
     );
     expect(adapter.requests[0].messages[1].content).toContain("monday dinner");
   });
+
+  it("reports brief, calling, and validating progress on a clean generate", async () => {
+    const adapter = fakeAdapter([{ ok: true, text: mealsText([validMondayDinner]) }]);
+    const phases: string[] = [];
+
+    await generateWeekPlan({
+      household,
+      kitchen,
+      slotMask: mondayDinnerMask(),
+      adapter,
+      logTrace: () => {},
+      settings,
+      onProgress: (event) => phases.push(event.phase),
+    });
+
+    expect(phases).toEqual(["brief", "calling", "validating"]);
+  });
+
+  it("reports a retry phase after invalid JSON", async () => {
+    const adapter = fakeAdapter([
+      { ok: true, text: "not-json" },
+      { ok: true, text: mealsText([validMondayDinner]) },
+    ]);
+    const phases: string[] = [];
+
+    await generateWeekPlan({
+      household,
+      kitchen,
+      slotMask: mondayDinnerMask(),
+      adapter,
+      logTrace: () => {},
+      settings,
+      onProgress: (event) => phases.push(event.phase),
+    });
+
+    expect(phases).toEqual([
+      "brief",
+      "calling",
+      "validating",
+      "retry",
+      "calling",
+      "validating",
+    ]);
+  });
 });
