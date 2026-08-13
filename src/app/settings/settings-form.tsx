@@ -12,8 +12,7 @@ export type SafeSettings = {
   developerTools: boolean;
 };
 
-const inputClass =
-  "mt-1 w-full rounded border border-zinc-300 bg-white px-2 py-1";
+const inputClass = "input";
 
 export function SettingsForm({ settings }: { settings: SafeSettings }) {
   const router = useRouter();
@@ -104,8 +103,8 @@ export function SettingsForm({ settings }: { settings: SafeSettings }) {
   }
 
   return (
-    <form className="max-w-xl space-y-4" onSubmit={onSave}>
-      <label className="block text-sm font-medium">
+    <form className="surface max-w-xl space-y-5 p-6" onSubmit={onSave}>
+      <label className="field">
         Mode
         <select
           className={inputClass}
@@ -116,7 +115,7 @@ export function SettingsForm({ settings }: { settings: SafeSettings }) {
           <option value="custom">custom</option>
         </select>
       </label>
-      <label className="block text-sm font-medium">
+      <label className="field">
         Base URL
         <input
           className={inputClass}
@@ -124,7 +123,7 @@ export function SettingsForm({ settings }: { settings: SafeSettings }) {
           onChange={(event) => setBaseUrl(event.target.value)}
         />
       </label>
-      <label className="block text-sm font-medium">
+      <label className="field">
         Model
         <input
           className={inputClass}
@@ -132,7 +131,7 @@ export function SettingsForm({ settings }: { settings: SafeSettings }) {
           onChange={(event) => setModel(event.target.value)}
         />
       </label>
-      <label className="block text-sm font-medium">
+      <label className="field">
         Custom API key
         <input
           className={inputClass}
@@ -144,16 +143,12 @@ export function SettingsForm({ settings }: { settings: SafeSettings }) {
         />
       </label>
       <div className="flex flex-wrap gap-2">
-        <button
-          type="submit"
-          className="rounded border border-zinc-400 bg-white px-3 py-1 disabled:opacity-50"
-          disabled={pending}
-        >
+        <button type="submit" className="btn btn-primary" disabled={pending}>
           Save
         </button>
         <button
           type="button"
-          className="rounded border border-zinc-400 bg-white px-3 py-1 disabled:opacity-50"
+          className="btn btn-ghost"
           disabled={pending || !hasCustomKey}
           onClick={() => {
             void onClearKey();
@@ -163,7 +158,7 @@ export function SettingsForm({ settings }: { settings: SafeSettings }) {
         </button>
         <button
           type="button"
-          className="rounded border border-zinc-400 bg-white px-3 py-1 disabled:opacity-50"
+          className="btn btn-secondary"
           disabled={pending}
           onClick={() => {
             void onTest();
@@ -172,8 +167,9 @@ export function SettingsForm({ settings }: { settings: SafeSettings }) {
           Test connection
         </button>
       </div>
-      <label className="flex items-center gap-2 text-sm font-medium">
+      <label className="flex min-h-11 items-center gap-3 text-sm font-medium">
         <input
+          className="h-4 w-4 accent-[var(--color-olive)]"
           type="checkbox"
           checked={developerTools}
           onChange={(event) => {
@@ -182,8 +178,8 @@ export function SettingsForm({ settings }: { settings: SafeSettings }) {
         />
         Developer tools
       </label>
-      {status ? <p>{status}</p> : null}
-      {testMessage ? <p>{testMessage}</p> : null}
+      {status ? <p className="text-sm text-herb">{status}</p> : null}
+      {testMessage ? <p className="text-sm text-herb">{testMessage}</p> : null}
     </form>
   );
 }

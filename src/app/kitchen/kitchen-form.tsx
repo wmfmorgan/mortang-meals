@@ -5,8 +5,7 @@ import { KitchenChecklist } from "@/components/kitchen-checklist";
 import type { KitchenItem } from "@/lib/types";
 import { addCustomKitchenItem, setKitchenEnabled } from "./actions";
 
-const inputClass =
-  "mt-1 w-full rounded border border-zinc-300 bg-white px-2 py-1";
+const inputClass = "input";
 
 export function KitchenForm({ items: initialItems }: { items: KitchenItem[] }) {
   const [items, setItems] = useState(initialItems);
@@ -33,11 +32,11 @@ export function KitchenForm({ items: initialItems }: { items: KitchenItem[] }) {
   }
 
   return (
-    <div className="max-w-xl space-y-6">
+    <div className="max-w-2xl space-y-8">
       <KitchenChecklist items={items} onToggle={toggle} />
-      <form className="space-y-3" onSubmit={onAdd}>
-        <h2 className="text-lg font-medium">Add custom item</h2>
-        <label className="block text-sm font-medium">
+      <form className="surface max-w-xl space-y-4 p-5" onSubmit={onAdd}>
+        <h2 className="text-xl font-medium tracking-[-0.03em]">Add custom item</h2>
+        <label className="field">
           Name
           <input
             className={inputClass}
@@ -45,7 +44,7 @@ export function KitchenForm({ items: initialItems }: { items: KitchenItem[] }) {
             onChange={(event) => setName(event.target.value)}
           />
         </label>
-        <label className="block text-sm font-medium">
+        <label className="field">
           Kind
           <select
             className={inputClass}
@@ -60,7 +59,7 @@ export function KitchenForm({ items: initialItems }: { items: KitchenItem[] }) {
         </label>
         <button
           type="submit"
-          className="rounded border border-zinc-400 bg-white px-3 py-1"
+          className="btn btn-primary"
         >
           Add
         </button>

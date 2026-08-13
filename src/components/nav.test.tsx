@@ -1,7 +1,11 @@
 // @vitest-environment happy-dom
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Nav } from "./nav";
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
+}));
 
 describe("Nav", () => {
   it("hides Developer when developerTools is false", () => {

@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { GenerateButton } from "@/components/generate-button";
+import { PageHeader } from "@/components/page-header";
+import { PlanPicker } from "@/components/plan-picker";
 import { WeekGrid } from "@/components/week-grid";
 import { getHousehold } from "@/household/repo";
 import type { Household } from "@/lib/types";
@@ -33,43 +35,27 @@ export default async function HomePage({
   const blocker = generateBlocker(household);
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">This Week</h1>
+    <div>
+      <PageHeader
+        eyebrow={plan?.weekStart ?? household.dietStyle}
+        title="This week"
+        lede="A seven-day menu for the table. Generate a plan, open a card to cook, swap anything that doesn’t land."
+        action={
+          <div className="space-y-2">
+            <GenerateButton
+              disabledReason={blocker}
+              weekStart={plan?.weekStart}
+              planSlotMask={plan?.slotMask ?? null}
+            />
+            {blocker ? <p className="max-w-xs text-sm text-herb">{blocker}</p> : null}
+          </div>
+        }
+      />
 
-      {plans.length > 0 ? (
-        <ul className="flex flex-wrap items-center gap-3">
-          {plans.map((item) => {
-            const selected = item.id === plan?.id;
-            return (
-              <li key={item.id} className="flex items-center gap-1">
-                <a
-                  href={`/?plan=${item.id}`}
-                  className={
-                    selected
-                      ? "font-semibold text-zinc-900"
-                      : "text-blue-700 underline"
-                  }
-                  aria-current={selected ? "page" : undefined}
-                >
-                  {item.weekStart}
-                </a>
-                {item.isCurrent ? (
-                  <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-xs">
-                    current
-                  </span>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
-
-      {blocker ? <p>{blocker}</p> : null}
-
-      <GenerateButton
-        disabledReason={blocker}
-        weekStart={plan?.weekStart}
-        planSlotMask={plan?.slotMask ?? null}
+      <PlanPicker
+        plans={plans}
+        selectedId={plan?.id}
+        hrefFor={(id) => `/?plan=${id}`}
       />
 
       <WeekGrid plan={plan} />

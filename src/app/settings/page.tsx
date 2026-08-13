@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/page-header";
 import { getSettings } from "@/ai/settings-repo";
 import { SettingsForm } from "./settings-form";
 
@@ -5,8 +6,12 @@ export default function SettingsPage() {
   const settings = getSettings();
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Settings</h1>
+    <div>
+      <PageHeader
+        eyebrow="Provider"
+        title="Settings"
+        lede="Grok by default. Point at any OpenAI-compatible local server when you want the kitchen offline."
+      />
       <SettingsForm
         settings={{
           mode: settings.mode,

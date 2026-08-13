@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/page-header";
 import { listKitchen, seedKitchenIfEmpty } from "@/kitchen/repo";
 import { KitchenForm } from "./kitchen-form";
 
@@ -6,8 +7,12 @@ export default function KitchenPage() {
   const items = listKitchen();
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Kitchen</h1>
+    <div>
+      <PageHeader
+        eyebrow="Methods"
+        title="Kitchen"
+        lede="Only checked appliances and methods are offered to the planner. Add anything else you actually use."
+      />
       <KitchenForm items={items} />
     </div>
   );

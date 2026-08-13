@@ -1,7 +1,18 @@
 import { notFound } from "next/navigation";
 import { SwapButton } from "@/components/meal-card";
+import { PageHeader } from "@/components/page-header";
 import { getHousehold } from "@/household/repo";
 import { getPlan, listPlans } from "@/meals/repo";
+
+const DAY_LABELS = {
+  monday: "Monday",
+  tuesday: "Tuesday",
+  wednesday: "Wednesday",
+  thursday: "Thursday",
+  friday: "Friday",
+  saturday: "Saturday",
+  sunday: "Sunday",
+} as const;
 
 function findMeal(id: string) {
   for (const summary of listPlans()) {
@@ -24,39 +35,50 @@ export default async function RecipePage({
   const household = getHousehold();
 
   return (
-    <div className="max-w-xl space-y-4">
-      <a href="/" className="text-blue-700 underline">
-        Back
+    <article className="mx-auto max-w-2xl">
+      <a href="/" className="mb-6 inline-block text-sm text-herb no-underline hover:text-ink">
+        ← This week
       </a>
-      <h1 className="text-2xl font-semibold">{meal.title}</h1>
-      <p className="text-sm text-zinc-600">
-        {meal.day} {meal.slot}
-        {household ? ` · Servings ${household.servings}` : ""}
+      <PageHeader
+        eyebrow={`${DAY_LABELS[meal.day]} ${meal.slot}`}
+        title={meal.title}
+        lede={meal.whyItFits}
+        action={<SwapButton meal={meal} />}
+      />
+      <p className="mb-8 font-mono text-[0.72rem] uppercase tracking-[0.12em] text-herb">
+        {household ? `Serves ${household.servings}` : "Serves household"}
         {` · ${meal.cookMinutes} min · ${meal.method}`}
       </p>
-      <p>{meal.whyItFits}</p>
 
-      <section className="space-y-2">
-        <h2 className="text-lg font-medium">Ingredients</h2>
-        <ul className="list-disc space-y-1 pl-5">
-          {meal.ingredients.map((ingredient) => (
-            <li key={`${ingredient.name}-${ingredient.unit}`}>
-              {ingredient.quantity} {ingredient.unit} {ingredient.name}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="text-lg font-medium">Steps</h2>
-        <ol className="list-decimal space-y-1 pl-5">
-          {meal.steps.map((step, index) => (
-            <li key={`${index}-${step}`}>{step}</li>
-          ))}
-        </ol>
-      </section>
-
-      <SwapButton meal={meal} />
-    </div>
+      <div className="surface grid gap-8 p-6 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] sm:p-8">
+        <section>
+          <h2 className="page-eyebrow">Ingredients</h2>
+          <ul className="mt-3 space-y-2">
+            {meal.ingredients.map((ingredient) => (
+              <li
+                key={`${ingredient.name}-${ingredient.unit}`}
+                className="flex gap-3 border-b border-wheat/80 py-2 text-[0.95rem]"
+              >
+                <span className="w-24 shrink-0 font-mono text-[0.78rem] text-herb">
+                  {ingredient.quantity} {ingredient.unit}
+                </span>
+                <span>{ingredient.name}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+        <section>
+          <h2 className="page-eyebrow">Method</h2>
+          <ol className="mt-3 space-y-3">
+            {meal.steps.map((step, index) => (
+              <li key={`${index}-${step}`} className="flex gap-3 text-[0.98rem] leading-relaxed">
+                <span className="font-mono text-[0.72rem] text-olive">{index + 1}</span>
+                <span>{step}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      </div>
+    </article>
   );
 }

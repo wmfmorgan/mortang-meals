@@ -31,7 +31,7 @@ export function DeveloperLog({ traces }: { traces: AiTrace[] }) {
     <div className="space-y-4">
       <button
         type="button"
-        className="rounded border border-zinc-400 bg-white px-3 py-1 disabled:opacity-50"
+        className="btn btn-secondary"
         disabled={pending}
         onClick={() => {
           void onClear();
@@ -39,27 +39,27 @@ export function DeveloperLog({ traces }: { traces: AiTrace[] }) {
       >
         Clear log
       </button>
-      {status ? <p>{status}</p> : null}
+      {status ? <p className="text-sm text-herb">{status}</p> : null}
       {traces.length === 0 ? (
-        <p>No traces yet.</p>
+        <p className="page-lede">No traces yet.</p>
       ) : (
         <ul className="space-y-3">
           {traces.map((trace) => (
-            <li key={trace.id} className="rounded border border-zinc-300 bg-white p-3">
+            <li key={trace.id} className="surface p-4">
               <details>
-                <summary className="cursor-pointer font-medium">
+                <summary className="cursor-pointer font-medium tracking-[-0.02em]">
                   {trace.createdAt} · {trace.kind} · {trace.model} ·{" "}
                   {trace.validation}
                 </summary>
-                <p className="mt-2 text-sm text-zinc-600">
+                <p className="mt-2 font-mono text-[0.75rem] text-herb">
                   {trace.mode} · {trace.baseUrl}
                 </p>
-                <h3 className="mt-3 text-sm font-medium">requestText</h3>
-                <pre className="overflow-x-auto whitespace-pre-wrap rounded bg-zinc-100 p-2 text-sm">
+                <h3 className="page-eyebrow mt-4">requestText</h3>
+                <pre className="mt-2 overflow-x-auto whitespace-pre-wrap rounded-xl bg-linen p-3 font-mono text-[0.78rem] leading-relaxed">
                   {trace.requestText}
                 </pre>
-                <h3 className="mt-3 text-sm font-medium">responseText</h3>
-                <pre className="overflow-x-auto whitespace-pre-wrap rounded bg-zinc-100 p-2 text-sm">
+                <h3 className="page-eyebrow mt-4">responseText</h3>
+                <pre className="mt-2 overflow-x-auto whitespace-pre-wrap rounded-xl bg-linen p-3 font-mono text-[0.78rem] leading-relaxed">
                   {trace.responseText}
                 </pre>
               </details>

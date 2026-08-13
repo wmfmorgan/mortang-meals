@@ -35,7 +35,7 @@ export function SwapButton({ meal }: { meal: Meal }) {
     <div className="space-y-2">
       <button
         type="button"
-        className="rounded border border-zinc-400 bg-white px-2 py-1 text-sm disabled:opacity-50"
+        className="btn btn-ghost"
         disabled={pending}
         onClick={() => {
           void onSwap();
@@ -44,10 +44,7 @@ export function SwapButton({ meal }: { meal: Meal }) {
         {pending ? "Swapping…" : "Swap"}
       </button>
       {error ? (
-        <p
-          role="alert"
-          className="rounded border border-red-300 bg-red-50 px-2 py-1 text-sm"
-        >
+        <p role="alert" className="alert">
           {error}
         </p>
       ) : null}
@@ -57,14 +54,13 @@ export function SwapButton({ meal }: { meal: Meal }) {
 
 export function MealCard({ meal }: { meal: Meal }) {
   return (
-    <article className="flex h-full flex-col gap-2 rounded border border-zinc-300 bg-white p-2 text-sm">
-      <a href={`/meals/${meal.id}`} className="space-y-1 text-blue-700">
-        <h3 className="font-medium underline">{meal.title}</h3>
-        <p className="text-zinc-600">{meal.slot}</p>
-        <p className="text-zinc-600">
+    <article className="meal-card" data-slot={meal.slot}>
+      <a href={`/meals/${meal.id}`}>
+        <h3>{meal.title}</h3>
+        <p className="meal-meta">
           {meal.method} · {meal.cookMinutes} min
         </p>
-        <p className="text-zinc-700">{meal.whyItFits}</p>
+        <p className="meal-why">{meal.whyItFits}</p>
       </a>
       <SwapButton meal={meal} />
     </article>

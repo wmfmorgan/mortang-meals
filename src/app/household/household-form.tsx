@@ -35,15 +35,12 @@ export function HouseholdForm({ household }: { household: Household | null }) {
   }
 
   return (
-    <form className="max-w-xl space-y-4" onSubmit={onSubmit}>
+    <form className="max-w-xl space-y-5" onSubmit={onSubmit}>
       <HouseholdFields value={draft} onChange={setDraft} />
-      <button
-        type="submit"
-        className="rounded border border-zinc-400 bg-white px-3 py-1"
-      >
+      <button type="submit" className="btn btn-primary">
         Save
       </button>
-      {status ? <p>{status}</p> : null}
+      {status ? <p className="text-sm text-herb">{status}</p> : null}
     </form>
   );
 }

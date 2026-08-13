@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/page-header";
 import { getSettings } from "@/ai/settings-repo";
 import { listTraces } from "@/ai/traces";
 import { DeveloperLog } from "./developer-log";
@@ -7,9 +8,12 @@ export default function DeveloperPage() {
   const settings = getSettings();
   if (!canViewDeveloper(settings.developerTools)) {
     return (
-      <div className="space-y-4">
-        <h1 className="text-2xl font-semibold">Developer</h1>
-        <p>Turn on Developer tools in Settings</p>
+      <div>
+        <PageHeader
+          eyebrow="Log"
+          title="Developer"
+          lede="Turn on Developer tools in Settings"
+        />
       </div>
     );
   }
@@ -17,8 +21,12 @@ export default function DeveloperPage() {
   const traces = listTraces();
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Developer</h1>
+    <div>
+      <PageHeader
+        eyebrow="Log"
+        title="Developer"
+        lede="The last twenty-five prompts and replies. Keys are stripped before anything is stored."
+      />
       <DeveloperLog traces={traces} />
     </div>
   );

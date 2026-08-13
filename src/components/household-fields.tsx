@@ -19,8 +19,7 @@ export type HouseholdDraft = {
   people: PersonDraft[];
 };
 
-const inputClass =
-  "mt-1 w-full rounded border border-zinc-300 bg-white px-2 py-1";
+const inputClass = "input";
 
 export function emptyPerson(key?: string): PersonDraft {
   return {
@@ -86,8 +85,8 @@ export function HouseholdFields({
   }
 
   return (
-    <div className="space-y-4">
-      <label className="block text-sm font-medium">
+    <div className="space-y-5">
+      <label className="field">
         Household name
         <input
           className={inputClass}
@@ -95,7 +94,7 @@ export function HouseholdFields({
           onChange={(event) => update("name", event.target.value)}
         />
       </label>
-      <label className="block text-sm font-medium">
+      <label className="field">
         Diet style
         <input
           className={inputClass}
@@ -103,7 +102,7 @@ export function HouseholdFields({
           onChange={(event) => update("dietStyle", event.target.value)}
         />
       </label>
-      <label className="block text-sm font-medium">
+      <label className="field">
         Notes
         <textarea
           className={inputClass}
@@ -112,7 +111,7 @@ export function HouseholdFields({
           onChange={(event) => update("notes", event.target.value)}
         />
       </label>
-      <label className="block text-sm font-medium">
+      <label className="field">
         Servings
         <input
           className={inputClass}
@@ -126,10 +125,10 @@ export function HouseholdFields({
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-medium">People</h2>
+          <h2 className="text-xl font-medium tracking-[-0.03em]">People</h2>
           <button
             type="button"
-            className="rounded border border-zinc-300 bg-white px-2 py-1 text-sm"
+            className="btn btn-secondary"
             onClick={() => update("people", [...value.people, emptyPerson()])}
           >
             Add person
@@ -138,12 +137,12 @@ export function HouseholdFields({
         {value.people.map((person, index) => (
           <fieldset
             key={person.key}
-            className="space-y-2 rounded border border-zinc-200 bg-white p-3"
+            className="surface space-y-3 p-4"
           >
             <legend className="px-1 text-sm font-medium">
               Person {index + 1}
             </legend>
-            <label className="block text-sm font-medium">
+            <label className="field">
               Name
               <input
                 className={inputClass}
@@ -153,7 +152,7 @@ export function HouseholdFields({
                 }
               />
             </label>
-            <label className="block text-sm font-medium">
+            <label className="field">
               Age
               <input
                 className={inputClass}
@@ -165,7 +164,7 @@ export function HouseholdFields({
                 }
               />
             </label>
-            <label className="block text-sm font-medium">
+            <label className="field">
               Sex
               <select
                 className={inputClass}
@@ -182,7 +181,7 @@ export function HouseholdFields({
                 <option value="other">other</option>
               </select>
             </label>
-            <label className="block text-sm font-medium">
+            <label className="field">
               Allergies
               <input
                 className={inputClass}
@@ -193,7 +192,7 @@ export function HouseholdFields({
                 }
               />
             </label>
-            <label className="block text-sm font-medium">
+            <label className="field">
               Avoidances
               <input
                 className={inputClass}
@@ -206,7 +205,7 @@ export function HouseholdFields({
             </label>
             <button
               type="button"
-              className="rounded border border-zinc-300 bg-white px-2 py-1 text-sm"
+              className="btn btn-ghost"
               onClick={() =>
                 update(
                   "people",

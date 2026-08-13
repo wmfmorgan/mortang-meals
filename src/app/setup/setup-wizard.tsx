@@ -94,9 +94,16 @@ export function SetupWizard({
   }
 
   return (
-    <div className="max-w-3xl space-y-6">
-      <h1 className="text-2xl font-semibold">Setup</h1>
-      <p className="text-sm text-zinc-600">Step {step} of 3</p>
+    <div className="mx-auto max-w-3xl space-y-8">
+      <header className="page-header">
+        <div className="page-header-copy">
+          <p className="page-eyebrow">Step {step} of 3</p>
+          <h1 className="page-title">Set the table</h1>
+          <p className="page-lede">
+            Household, kitchen, then which meals you actually want this week.
+          </p>
+        </div>
+      </header>
 
       {step === 1 ? (
         <HouseholdFields value={draft} onChange={setDraft} />
@@ -104,21 +111,24 @@ export function SetupWizard({
 
       {step === 2 ? (
         <div className="space-y-3">
-          <h2 className="text-lg font-medium">Kitchen</h2>
+          <h2 className="text-xl font-medium tracking-[-0.03em]">Kitchen</h2>
           <KitchenChecklist items={kitchen} onToggle={toggleKitchen} />
         </div>
       ) : null}
 
       {step === 3 ? (
         <div className="space-y-3">
-          <h2 className="text-lg font-medium">Meal slots</h2>
-          <div className="overflow-x-auto">
-            <table className="border-collapse">
+          <h2 className="text-xl font-medium tracking-[-0.03em]">Meal slots</h2>
+          <div className="surface overflow-x-auto p-4">
+            <table className="w-full border-collapse">
               <thead>
                 <tr>
-                  <th className="p-2 text-left text-sm font-medium" />
+                  <th className="p-2 text-left font-mono text-[0.68rem] uppercase tracking-[0.12em] text-herb" />
                   {DAYS.map((day) => (
-                    <th key={day} className="p-2 text-center text-sm font-medium">
+                    <th
+                      key={day}
+                      className="p-2 text-center font-mono text-[0.68rem] uppercase tracking-[0.12em] text-herb"
+                    >
                       {DAY_LABELS[day]}
                     </th>
                   ))}
@@ -127,13 +137,13 @@ export function SetupWizard({
               <tbody>
                 {SLOTS.map((slot) => (
                   <tr key={slot}>
-                    <th className="p-2 text-left text-sm font-medium">
+                    <th className="p-2 text-left font-mono text-[0.68rem] uppercase tracking-[0.12em] text-herb">
                       {SLOT_LABELS[slot]}
                     </th>
                     {DAYS.map((day) => (
                       <td key={day} className="p-2 text-center">
                         <input
-                          className="h-5 w-5"
+                          className="h-5 w-5 accent-[var(--color-olive)]"
                           type="checkbox"
                           checked={slotMask[day][slot]}
                           aria-label={`${day} ${slot}`}
@@ -151,11 +161,11 @@ export function SetupWizard({
         </div>
       ) : null}
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {step > 1 ? (
           <button
             type="button"
-            className="rounded border border-zinc-400 bg-white px-3 py-1"
+            className="btn btn-secondary"
             onClick={() => setStep((current) => current - 1)}
           >
             Back
@@ -164,7 +174,7 @@ export function SetupWizard({
         {step < 3 ? (
           <button
             type="button"
-            className="rounded border border-zinc-400 bg-white px-3 py-1"
+            className="btn btn-primary"
             onClick={() => setStep((current) => current + 1)}
           >
             Continue
@@ -172,7 +182,7 @@ export function SetupWizard({
         ) : (
           <button
             type="button"
-            className="rounded border border-zinc-400 bg-white px-3 py-1"
+            className="btn btn-primary"
             disabled={pending}
             onClick={() => {
               void finish();

@@ -85,7 +85,7 @@ export function GenerateButton({
     <div className="space-y-2">
       <button
         type="button"
-        className="rounded border border-zinc-400 bg-white px-3 py-1 disabled:opacity-50"
+        className="btn btn-primary"
         disabled={Boolean(disabledReason) || pending}
         onClick={() => {
           void onGenerate();
@@ -94,10 +94,7 @@ export function GenerateButton({
         {pending ? "Generating…" : "Generate"}
       </button>
       {error ? (
-        <p
-          role="alert"
-          className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm"
-        >
+        <p role="alert" className="alert">
           {error}
         </p>
       ) : null}

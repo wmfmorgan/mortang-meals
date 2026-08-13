@@ -48,7 +48,7 @@ export function WeekGrid({ plan }: { plan: WeekPlan | null }) {
       {DAYS.map((day, dayIndex) => (
         <div
           key={`head-${day}`}
-          className="week-grid-desktop-label text-center text-sm font-medium"
+          className="week-grid-desktop-label text-center"
           style={{ gridColumn: dayIndex + 2, gridRow: 1 }}
         >
           {DAY_LABELS[day]}
@@ -57,7 +57,7 @@ export function WeekGrid({ plan }: { plan: WeekPlan | null }) {
       {SLOTS.map((slot, slotIndex) => (
         <div
           key={`slot-${slot}`}
-          className="week-grid-desktop-label text-sm font-medium"
+          className="week-grid-desktop-label self-center"
           style={{ gridColumn: 1, gridRow: slotIndex + 2 }}
         >
           {SLOT_LABELS[slot]}
@@ -66,7 +66,7 @@ export function WeekGrid({ plan }: { plan: WeekPlan | null }) {
 
       {DAYS.map((day, dayIndex) => (
         <section key={day} className="week-grid-day" aria-label={DAY_HEADINGS[day]}>
-          <h2 className="week-grid-day-heading text-sm font-medium">
+          <h2 className="week-grid-day-heading">
             {DAY_HEADINGS[day]}
           </h2>
           {SLOTS.map((slot, slotIndex) => {
