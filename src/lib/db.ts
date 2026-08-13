@@ -1,8 +1,12 @@
 import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
+import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
 import * as schema from "./schema";
+
+export type AppDb = BetterSQLite3Database<typeof schema>;
+
+let cached: { path: string; sqlite: Database.Database; db: AppDb } | null = null;
 
 function resolveDbPath(): string {
   if (process.env.MORTANG_DB_PATH) {
@@ -82,12 +86,31 @@ function ensureSchema(sqlite: Database.Database): void {
   `);
 }
 
-export function getDb() {
-  const dbPath = resolveDbPath();
+export function openDb(dbPath: string): AppDb {
+  if (cached?.path === dbPath) {
+    return cached.db;
+  }
+  if (cached) {
+    cached.sqlite.close();
+    cached = null;
+  }
   const dir = path.dirname(dbPath);
   fs.mkdirSync(dir, { recursive: true });
   const sqlite = new Database(dbPath);
   sqlite.pragma("journal_mode = WAL");
   ensureSchema(sqlite);
-  return drizzle(sqlite, { schema });
+  const db = drizzle(sqlite, { schema });
+  cached = { path: dbPath, sqlite, db };
+  return db;
+}
+
+export function getDb(): AppDb {
+  return openDb(resolveDbPath());
+}
+
+export function resetDbForTests(): void {
+  if (cached) {
+    cached.sqlite.close();
+    cached = null;
+  }
 }
