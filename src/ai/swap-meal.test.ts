@@ -45,7 +45,7 @@ const current: GeneratedMeal = {
   cookMinutes: 35,
   method: "sheet pan",
   ingredients: [
-    { name: "salmon fillets", quantity: 2, unit: "count", aisle: "meat" },
+    { name: "salmon fillets", quantity: "2", unit: "count", aisle: "meat" },
   ],
   steps: ["Heat oven to 425°F", "Roast 15 minutes"],
 };
@@ -59,7 +59,7 @@ const otherMeals: GeneratedMeal[] = [
     cookMinutes: 240,
     method: "crockpot",
     ingredients: [
-      { name: "chicken thighs", quantity: 2, unit: "lb", aisle: "meat" },
+      { name: "chicken thighs", quantity: "2", unit: "lb", aisle: "meat" },
     ],
     steps: ["Add to crockpot", "Cook on low"],
   },
@@ -68,7 +68,7 @@ const otherMeals: GeneratedMeal[] = [
 const trout: GeneratedMeal = {
   ...current,
   title: "Sheet-pan trout",
-  ingredients: [{ name: "trout", quantity: 2, unit: "count", aisle: "meat" }],
+  ingredients: [{ name: "trout", quantity: "2", unit: "count", aisle: "meat" }],
 };
 
 const settings = {

@@ -30,6 +30,7 @@ const HARD_RULES = [
   "Honor avoidances.",
   "Respond with JSON only.",
   "Do not repeat titles from the do-not-repeat list.",
+  'Ingredient quantity must be a string such as "1", "1/2", or "1/4". Never use 0 for an ingredient that is used.',
 ].join("\n");
 
 export async function swapMeal(input: {

@@ -47,7 +47,7 @@ const validMondayDinner: GeneratedMeal = {
   cookMinutes: 35,
   method: "sheet pan",
   ingredients: [
-    { name: "salmon fillets", quantity: 2, unit: "count", aisle: "meat" },
+    { name: "salmon fillets", quantity: "2", unit: "count", aisle: "meat" },
   ],
   steps: ["Heat oven to 425°F", "Roast 15 minutes"],
 };
@@ -131,7 +131,7 @@ describe("generateWeekPlan", () => {
     const shrimpMeal: GeneratedMeal = {
       ...validMondayDinner,
       title: "Garlic shrimp",
-      ingredients: [{ name: "shrimp", quantity: 1, unit: "lb", aisle: "meat" }],
+      ingredients: [{ name: "shrimp", quantity: "1", unit: "lb", aisle: "meat" }],
     };
     const adapter = fakeAdapter([
       { ok: true, text: mealsText([shrimpMeal]) },

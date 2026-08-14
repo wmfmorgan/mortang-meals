@@ -3,13 +3,13 @@ import { findAllergen } from "./allergen";
 
 const shrimp = {
   name: "shrimp",
-  quantity: 1,
+  quantity: "1",
   unit: "lb",
   aisle: "meat" as const,
 };
 const rice = {
   name: "rice",
-  quantity: 1,
+  quantity: "1",
   unit: "cup",
   aisle: "pantry" as const,
 };

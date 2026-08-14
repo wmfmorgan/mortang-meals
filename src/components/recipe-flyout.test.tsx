@@ -21,7 +21,7 @@ const meal: Meal = {
   whyItFits: "High-protein Mediterranean",
   cookMinutes: 35,
   method: "sheet pan",
-  ingredients: [{ name: "salmon", quantity: 1, unit: "lb", aisle: "meat" }],
+  ingredients: [{ name: "salmon", quantity: "1", unit: "lb", aisle: "meat" }],
   steps: ["Roast"],
 };
 

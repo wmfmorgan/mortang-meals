@@ -8,7 +8,7 @@ const aisleEnum = z.enum(AISLES as [Aisle, ...Aisle[]]);
 
 const ingredientSchema = z.object({
   name: z.string().min(1),
-  quantity: z.number().nonnegative(),
+  quantity: z.string().min(1),
   unit: z.string().min(1),
   aisle: aisleEnum,
 });
@@ -95,7 +95,12 @@ const mealJsonSchema = {
         required: ["name", "quantity", "unit", "aisle"],
         properties: {
           name: { type: "string", minLength: 1 },
-          quantity: { type: "number", minimum: 0 },
+          quantity: {
+            type: "string",
+            minLength: 1,
+            description:
+              'Human recipe amount such as "1", "1/2", "1/4", or "2". Never use 0 for an ingredient that is used.',
+          },
           unit: { type: "string", minLength: 1 },
           aisle: { type: "string", enum: [...AISLES] },
         },

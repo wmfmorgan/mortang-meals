@@ -9,7 +9,7 @@ const validMeal = {
   cookMinutes: 35,
   method: "sheet pan",
   ingredients: [
-    { name: "salmon fillets", quantity: 2, unit: "count", aisle: "meat" },
+    { name: "salmon fillets", quantity: "2", unit: "count", aisle: "meat" },
   ],
   steps: ["Heat oven to 425°F", "Roast 15 minutes"],
 };
@@ -35,12 +35,12 @@ describe("parseMealsResponse", () => {
     ).toEqual({ ok: false, reason: "schema" });
   });
 
-  it("accepts a pinch ingredient with quantity 0", () => {
+  it("accepts a fractional quantity string", () => {
     const meal = {
       ...validMeal,
       ingredients: [
         ...validMeal.ingredients,
-        { name: "salt", quantity: 0, unit: "tsp", aisle: "pantry" },
+        { name: "salt", quantity: "1/2", unit: "tsp", aisle: "pantry" },
       ],
     };
     const result = parseMealsResponse(JSON.stringify({ meals: [meal] }));
@@ -48,7 +48,7 @@ describe("parseMealsResponse", () => {
     if (result.ok) {
       expect(result.meals[0].ingredients.at(-1)).toEqual({
         name: "salt",
-        quantity: 0,
+        quantity: "1/2",
         unit: "tsp",
         aisle: "pantry",
       });

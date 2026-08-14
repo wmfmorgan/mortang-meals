@@ -93,7 +93,7 @@ function dinner(
     whyItFits: "High-protein Mediterranean",
     cookMinutes: 35,
     method: "sheet pan",
-    ingredients: [{ name: protein, quantity: 1, unit: "lb", aisle: "meat" }],
+    ingredients: [{ name: protein, quantity: "1", unit: "lb", aisle: "meat" }],
     steps: ["Cook"],
   };
 }
@@ -154,7 +154,7 @@ describe("API smoke path", () => {
     const swapped: GeneratedMeal = {
       ...WEEK_DINNERS[0],
       title: "Sheet-pan trout",
-      ingredients: [{ name: "trout", quantity: 1, unit: "lb", aisle: "meat" }],
+      ingredients: [{ name: "trout", quantity: "1", unit: "lb", aisle: "meat" }],
     };
     const { complete } = fakeComplete([
       { ok: true, text: JSON.stringify({ meal: swapped }) },

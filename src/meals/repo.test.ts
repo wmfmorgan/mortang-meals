@@ -35,7 +35,7 @@ function meal(overrides: Partial<GeneratedMeal> = {}): GeneratedMeal {
     whyItFits: "High-protein Mediterranean",
     cookMinutes: 35,
     method: "sheet pan",
-    ingredients: [{ name: "salmon", quantity: 2, unit: "count", aisle: "meat" }],
+    ingredients: [{ name: "salmon", quantity: "2", unit: "count", aisle: "meat" }],
     steps: ["Roast"],
     ...overrides,
   };

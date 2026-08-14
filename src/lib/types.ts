@@ -38,7 +38,7 @@ export const AISLES: Aisle[] = ["produce", "meat", "dairy", "pantry", "other"];
 
 export type Ingredient = {
   name: string;
-  quantity: number;
+  quantity: string;
   unit: string;
   aisle: Aisle;
 };
@@ -97,7 +97,7 @@ export type WeekPlan = {
 
 export type ShoppingItem = {
   name: string;
-  quantity: number;
+  quantity: string;
   unit: string;
   aisle: Aisle;
 };

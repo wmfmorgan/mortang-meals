@@ -41,7 +41,7 @@ function mondayDinnerPlan(): WeekPlan {
         cookMinutes: 35,
         method: "sheet pan",
         ingredients: [
-          { name: "salmon", quantity: 1, unit: "lb", aisle: "meat" },
+          { name: "salmon", quantity: "1", unit: "lb", aisle: "meat" },
         ],
         steps: ["Roast"],
       },
