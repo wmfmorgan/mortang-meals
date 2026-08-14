@@ -130,6 +130,7 @@ export type AdapterRequest = {
   messages: ChatMessage[];
   jsonSchema: Record<string, unknown>;
   schemaName: string;
+  signal?: AbortSignal;
 };
 
 export type AdapterResult =

@@ -35,6 +35,7 @@ export type GenerateStreamEvent =
 export type HandlerDeps = {
   complete?: (req: AdapterRequest) => Promise<AdapterResult>;
   onProgress?: (event: GenerateUiEvent) => void;
+  signal?: AbortSignal;
 };
 
 const slotFlagsSchema = z.object({
@@ -157,10 +158,15 @@ export async function handleGenerate(
     logTrace: recordTrace,
     settings,
     onProgress: deps?.onProgress,
+    signal: deps?.signal,
   });
 
   if (!result.ok) {
     return jsonError(422, result.message);
+  }
+
+  if (deps?.signal?.aborted) {
+    return jsonError(422, "Generate cancelled.");
   }
 
   deps?.onProgress?.({ phase: "saving", message: "Saving the week" });

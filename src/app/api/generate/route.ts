@@ -16,7 +16,9 @@ export async function POST(req: Request) {
       };
 
       const result = await handleGenerate(body, {
+        signal: req.signal,
         onProgress: (event: GenerateUiEvent) => {
+          if (req.signal.aborted) return;
           send({ type: "progress", ...event });
         },
       });

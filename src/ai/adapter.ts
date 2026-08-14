@@ -15,24 +15,30 @@ export function createAdapter(settings: AiSettings) {
   return {
     async complete(req: AdapterRequest): Promise<AdapterResult> {
       try {
-        const completion = await client.chat.completions.create({
+        const body = {
           model: settings.model,
           messages: req.messages,
           response_format:
             settings.mode === "grok"
               ? {
-                  type: "json_schema",
+                  type: "json_schema" as const,
                   json_schema: {
                     name: req.schemaName,
                     schema: req.jsonSchema,
                     strict: true,
                   },
                 }
-              : { type: "json_object" },
-        });
+              : { type: "json_object" as const },
+        };
+        const completion = req.signal
+          ? await client.chat.completions.create(body, { signal: req.signal })
+          : await client.chat.completions.create(body);
         const text = completion.choices[0]?.message?.content ?? "";
         return { ok: true, text };
       } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") {
+          return { ok: false, error: "cancelled" };
+        }
         const message = err instanceof Error ? err.message : "request failed";
         return { ok: false, error: message };
       }

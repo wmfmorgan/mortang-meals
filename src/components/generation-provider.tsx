@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -39,6 +40,7 @@ type GenerationContextValue = {
     weekStart?: string;
     slotMask: SlotMask;
   }) => Promise<void>;
+  cancel: () => void;
   dismiss: () => void;
 };
 
@@ -79,16 +81,33 @@ async function readGenerateStream(
   }
 }
 
+function isAbortError(error: unknown) {
+  return error instanceof DOMException
+    ? error.name === "AbortError"
+    : error instanceof Error && error.name === "AbortError";
+}
+
 export function GenerationProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [state, setState] = useState<GenerationState>(idleState);
+  const abortRef = useRef<AbortController | null>(null);
 
   const dismiss = useCallback(() => {
     setState(idleState);
   }, []);
 
+  const cancel = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setState(idleState);
+  }, []);
+
   const startGenerate = useCallback(
     async (input: { weekStart?: string; slotMask: SlotMask }) => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       setState({
         status: "running",
         phase: "brief",
@@ -107,6 +126,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
             ...(input.weekStart ? { weekStart: input.weekStart } : {}),
             slotMask: input.slotMask,
           }),
+          signal: controller.signal,
         });
 
         if (!res.ok && !res.body) {
@@ -122,6 +142,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
 
         let sawTerminal = false;
         await readGenerateStream(res, (event) => {
+          if (controller.signal.aborted) return;
           if (event.type === "progress") {
             setState((current) => ({
               ...current,
@@ -142,7 +163,6 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
               message: "Week is ready",
               error: null,
             }));
-            router.push("/");
             router.refresh();
             return;
           }
@@ -156,7 +176,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
           }));
         });
 
-        if (!sawTerminal) {
+        if (!sawTerminal && !controller.signal.aborted) {
           setState((current) => ({
             ...current,
             status: "error",
@@ -164,21 +184,27 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
             error: "Couldn’t get a usable plan, try again.",
           }));
         }
-      } catch {
+      } catch (error) {
+        if (isAbortError(error) || controller.signal.aborted) {
+          setState(idleState);
+          return;
+        }
         setState((current) => ({
           ...current,
           status: "error",
           message: "The model didn’t respond",
           error: "The model didn’t respond",
         }));
+      } finally {
+        if (abortRef.current === controller) abortRef.current = null;
       }
     },
     [router],
   );
 
   const value = useMemo(
-    () => ({ state, startGenerate, dismiss }),
-    [state, startGenerate, dismiss],
+    () => ({ state, startGenerate, cancel, dismiss }),
+    [state, startGenerate, cancel, dismiss],
   );
 
   return (

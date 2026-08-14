@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { progressForPhase } from "@/lib/generate-progress";
 import { useGeneration } from "./generation-provider";
 
 function elapsedLabel(startedAt: number, now: number) {
@@ -12,7 +13,7 @@ function elapsedLabel(startedAt: number, now: number) {
 }
 
 export function GenerationBanner() {
-  const { state, dismiss } = useGeneration();
+  const { state, cancel, dismiss } = useGeneration();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -23,6 +24,7 @@ export function GenerationBanner() {
 
   if (state.status === "idle") return null;
 
+  const percent = progressForPhase(state.phase, state.attempt);
   const title =
     state.status === "running"
       ? "Generating this week"
@@ -41,23 +43,33 @@ export function GenerationBanner() {
       aria-live="polite"
     >
       <div className="mx-auto flex w-[min(1280px,calc(100%-2rem))] flex-wrap items-center justify-between gap-3 py-3">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="page-eyebrow" style={{ marginBottom: 2 }}>
             {title}
             {state.status === "running" && state.startedAt
               ? ` · ${elapsedLabel(state.startedAt, now)}`
               : ""}
-            {state.attempt ? ` · try ${state.attempt} of 2` : ""}
           </p>
-          <p className="m-0 text-[0.95rem] tracking-[-0.02em]">
-            {state.message}
-          </p>
+          <p className="m-0 text-[0.95rem] tracking-[-0.02em]">{state.message}</p>
+          <div
+            className="generate-progress generate-progress-slim"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={percent}
+          >
+            <div className="generate-progress-fill" style={{ width: `${percent}%` }} />
+          </div>
         </div>
-        {state.status !== "running" ? (
+        {state.status === "running" ? (
+          <button type="button" className="btn btn-secondary" onClick={cancel}>
+            Cancel
+          </button>
+        ) : (
           <button type="button" className="btn btn-ghost" onClick={dismiss}>
             Dismiss
           </button>
-        ) : null}
+        )}
       </div>
     </div>
   );

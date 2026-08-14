@@ -270,6 +270,24 @@ describe("generateWeekPlan", () => {
     expect(adapter.requests[0].messages[1].content).toContain("monday dinner");
   });
 
+  it("stops immediately when the abort signal is already aborted", async () => {
+    const adapter = fakeAdapter([{ ok: true, text: mealsText([validMondayDinner]) }]);
+    const signal = AbortSignal.abort();
+
+    const result = await generateWeekPlan({
+      household,
+      kitchen,
+      slotMask: mondayDinnerMask(),
+      adapter,
+      logTrace: () => {},
+      settings,
+      signal,
+    });
+
+    expect(result).toEqual({ ok: false, message: "Generate cancelled." });
+    expect(adapter.requests).toHaveLength(0);
+  });
+
   it("reports brief, calling, and validating progress on a clean generate", async () => {
     const adapter = fakeAdapter([{ ok: true, text: mealsText([validMondayDinner]) }]);
     const phases: string[] = [];

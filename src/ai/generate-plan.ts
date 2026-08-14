@@ -102,6 +102,7 @@ export async function generateWeekPlan(input: {
   logTrace: (t: Omit<AiTrace, "id" | "createdAt">) => void;
   settings: Pick<AiSettings, "mode" | "baseUrl" | "model">;
   onProgress?: (event: GenerateProgressEvent) => void;
+  signal?: AbortSignal;
 }): Promise<GenerateSuccess | PlanFailure> {
   const requested = requestedSlots(input.slotMask);
   if (requested.length === 0) {
@@ -138,10 +139,15 @@ export async function generateWeekPlan(input: {
       { role: "system" as const, content: system },
       { role: "user" as const, content: userMessage },
     ];
+    if (input.signal?.aborted) {
+      return { ok: false, message: "Generate cancelled." };
+    }
+
     const req: AdapterRequest = {
       messages,
       jsonSchema: mealsJsonSchema as unknown as Record<string, unknown>,
       schemaName: "week_plan",
+      signal: input.signal,
     };
 
     const log = (validation: ValidationResult, responseText: string) => {
@@ -158,6 +164,10 @@ export async function generateWeekPlan(input: {
 
     const result = await input.adapter.complete(req);
     if (!result.ok) {
+      if (result.error === "cancelled" || input.signal?.aborted) {
+        log("transport", "cancelled");
+        return { ok: false, message: "Generate cancelled." };
+      }
       log("transport", result.error);
       if (attempt === 0) {
         input.onProgress?.({
