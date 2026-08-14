@@ -94,7 +94,7 @@ export function GenerationModal() {
             </button>
           ) : (
             <button type="button" className="btn btn-primary" onClick={dismiss}>
-              Dismiss
+              {state.status === "success" ? "Ok" : "Dismiss"}
             </button>
           )}
         </div>
