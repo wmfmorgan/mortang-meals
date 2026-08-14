@@ -35,6 +35,26 @@ describe("parseMealsResponse", () => {
     ).toEqual({ ok: false, reason: "schema" });
   });
 
+  it("accepts a pinch ingredient with quantity 0", () => {
+    const meal = {
+      ...validMeal,
+      ingredients: [
+        ...validMeal.ingredients,
+        { name: "salt", quantity: 0, unit: "tsp", aisle: "pantry" },
+      ],
+    };
+    const result = parseMealsResponse(JSON.stringify({ meals: [meal] }));
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.meals[0].ingredients.at(-1)).toEqual({
+        name: "salt",
+        quantity: 0,
+        unit: "tsp",
+        aisle: "pantry",
+      });
+    }
+  });
+
   it("strips extra top-level keys on success", () => {
     const result = parseMealsResponse(
       JSON.stringify({ meals: [validMeal], extra: true }),
