@@ -57,6 +57,7 @@ export type GeneratedMeal = {
 export type Meal = GeneratedMeal & {
   id: string;
   planId: string;
+  usedWebSearch: boolean;
 };
 
 export type Person = {
@@ -110,6 +111,7 @@ export type AiSettings = {
   model: string;
   customApiKey: string | null;
   developerTools: boolean;
+  webSearch: boolean;
 };
 
 export type AiTrace = {

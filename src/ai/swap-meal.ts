@@ -14,6 +14,7 @@ import type {
   TraceKind,
   ValidationResult,
 } from "@/lib/types";
+import { grokWebSearchEnabled } from "./adapter";
 import { collectAllergies, type PlanFailure } from "./generate-plan";
 
 export type { PlanFailure };
@@ -33,6 +34,12 @@ const HARD_RULES = [
   'Ingredient quantity must be a string such as "1", "1/2", or "1/4". Never use 0 for an ingredient that is used.',
 ].join("\n");
 
+const WEB_SEARCH_RULES = [
+  "Use web_search to find a real published recipe for this slot.",
+  "Copy accurate quantities, units, cook times, and steps from the source.",
+  "Do not invent amounts when a source lists them.",
+].join("\n");
+
 export async function swapMeal(input: {
   household: Household;
   kitchen: KitchenItem[];
@@ -41,7 +48,9 @@ export async function swapMeal(input: {
   otherMeals: GeneratedMeal[];
   adapter: { complete(req: AdapterRequest): Promise<AdapterResult> };
   logTrace: (t: Omit<AiTrace, "id" | "createdAt">) => void;
-  settings: Pick<AiSettings, "mode" | "baseUrl" | "model">;
+  settings: Pick<AiSettings, "mode" | "baseUrl" | "model"> & {
+    webSearch?: boolean;
+  };
 }): Promise<SwapSuccess | PlanFailure> {
   const taken = [input.current.title, ...input.otherMeals.map((meal) => meal.title)];
   const doNotRepeat = [
@@ -56,7 +65,13 @@ export async function swapMeal(input: {
     slotMask: input.slotMask,
     extraRules: [`Do not repeat: ${titles}`],
   });
-  const system = `${brief}\n\n${HARD_RULES}`;
+  const searchOn = grokWebSearchEnabled({
+    mode: input.settings.mode,
+    webSearch: input.settings.webSearch === true,
+  });
+  const system = searchOn
+    ? `${brief}\n\n${HARD_RULES}\n${WEB_SEARCH_RULES}`
+    : `${brief}\n\n${HARD_RULES}`;
   const user = `Replace ${input.current.day} ${input.current.slot}. Do not repeat: ${titles}.`;
   const allergies = collectAllergies(input.household);
 

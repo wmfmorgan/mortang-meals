@@ -23,6 +23,7 @@ const meal: Meal = {
   method: "sheet pan",
   ingredients: [{ name: "salmon", quantity: "1", unit: "lb", aisle: "meat" }],
   steps: ["Roast"],
+  usedWebSearch: false,
 };
 
 describe("RecipeFlyout", () => {
@@ -31,5 +32,17 @@ describe("RecipeFlyout", () => {
     const link = screen.getByRole("link", { name: /open full recipe/i });
     expect(link.getAttribute("href")).toBe("/meals/meal-salmon");
     expect(screen.getByText("salmon")).toBeTruthy();
+    expect(screen.queryByText("Found with web search")).toBeNull();
+  });
+
+  it("shows a star when the meal was generated with web search", () => {
+    render(
+      <RecipeFlyout
+        meal={{ ...meal, usedWebSearch: true }}
+        servings={2}
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByText("Found with web search")).toBeTruthy();
   });
 });

@@ -3,13 +3,15 @@ import { createAdapter, resolveApiKey } from "./adapter";
 import OpenAI from "openai";
 import type { AdapterRequest, AiSettings } from "@/lib/types";
 
-const { createMock } = vi.hoisted(() => ({
+const { createMock, responsesCreateMock } = vi.hoisted(() => ({
   createMock: vi.fn(),
+  responsesCreateMock: vi.fn(),
 }));
 
 vi.mock("openai", () => ({
   default: vi.fn().mockImplementation(() => ({
     chat: { completions: { create: createMock } },
+    responses: { create: responsesCreateMock },
   })),
 }));
 
@@ -19,6 +21,7 @@ const grokSettings: AiSettings = {
   model: "grok-4.6",
   customApiKey: "ignored",
   developerTools: false,
+  webSearch: false,
 };
 
 const customSettings: AiSettings = {
@@ -27,6 +30,7 @@ const customSettings: AiSettings = {
   model: "llama",
   customApiKey: null,
   developerTools: false,
+  webSearch: false,
 };
 
 const request: AdapterRequest = {
@@ -40,6 +44,7 @@ const request: AdapterRequest = {
 
 afterEach(() => {
   createMock.mockReset();
+  responsesCreateMock.mockReset();
   vi.mocked(OpenAI).mockClear();
   delete process.env.XAI_API_KEY;
 });
@@ -53,6 +58,7 @@ it("resolveApiKey uses XAI_API_KEY for grok and the stored key for custom", () =
       model: "grok-4.6",
       customApiKey: "ignored",
       developerTools: false,
+      webSearch: false,
     }),
   ).toBe("xai-secret");
   expect(
@@ -62,6 +68,7 @@ it("resolveApiKey uses XAI_API_KEY for grok and the stored key for custom", () =
       model: "llama",
       customApiKey: null,
       developerTools: false,
+      webSearch: false,
     }),
   ).toBeUndefined();
   expect(
@@ -71,6 +78,7 @@ it("resolveApiKey uses XAI_API_KEY for grok and the stored key for custom", () =
       model: "llama",
       customApiKey: "local-secret",
       developerTools: false,
+      webSearch: false,
     }),
   ).toBe("local-secret");
 });
@@ -113,6 +121,49 @@ describe("createAdapter", () => {
       apiKey: "not-needed",
       baseURL: "http://127.0.0.1:11434/v1",
     });
+    expect(createMock).toHaveBeenCalledWith({
+      model: "llama",
+      messages: request.messages,
+      response_format: { type: "json_object" },
+    });
+    expect(responsesCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("uses the Responses API with web_search when Grok web search is on", async () => {
+    process.env.XAI_API_KEY = "xai-secret";
+    responsesCreateMock.mockResolvedValue({
+      output_text: '{"title":"Searched soup"}',
+    });
+
+    const adapter = createAdapter({ ...grokSettings, webSearch: true });
+    const result = await adapter.complete(request);
+
+    expect(createMock).not.toHaveBeenCalled();
+    expect(responsesCreateMock).toHaveBeenCalledWith({
+      model: "grok-4.6",
+      input: request.messages,
+      tools: [{ type: "web_search" }],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "meal",
+          schema: request.jsonSchema,
+          strict: true,
+        },
+      },
+    });
+    expect(result).toEqual({ ok: true, text: '{"title":"Searched soup"}' });
+  });
+
+  it("does not enable web_search for custom mode even if the toggle is on", async () => {
+    createMock.mockResolvedValue({
+      choices: [{ message: { content: '{"title":"Local soup"}' } }],
+    });
+
+    const adapter = createAdapter({ ...customSettings, webSearch: true });
+    await adapter.complete(request);
+
+    expect(responsesCreateMock).not.toHaveBeenCalled();
     expect(createMock).toHaveBeenCalledWith({
       model: "llama",
       messages: request.messages,

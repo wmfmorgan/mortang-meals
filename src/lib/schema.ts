@@ -44,6 +44,7 @@ export const meals = sqliteTable("meals", {
   method: text("method").notNull(),
   ingredientsJson: text("ingredients_json").notNull(),
   stepsJson: text("steps_json").notNull(),
+  usedWebSearch: integer("used_web_search").notNull(),
 });
 
 export const aiSettings = sqliteTable("ai_settings", {
@@ -53,6 +54,7 @@ export const aiSettings = sqliteTable("ai_settings", {
   model: text("model").notNull(),
   customApiKey: text("custom_api_key"),
   developerTools: integer("developer_tools").notNull(),
+  webSearch: integer("web_search").notNull(),
 });
 
 export const aiTraces = sqliteTable("ai_traces", {

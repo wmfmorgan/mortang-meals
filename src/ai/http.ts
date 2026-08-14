@@ -12,7 +12,7 @@ import type {
 import { DAYS, SLOTS } from "@/lib/types";
 import { getPlan, replaceMeal, saveGeneratedPlan } from "@/meals/repo";
 import { mergeShoppingList } from "@/meals/shopping-list";
-import { createAdapter } from "./adapter";
+import { createAdapter, grokWebSearchEnabled } from "./adapter";
 import { generateWeekPlan, type GenerateProgressEvent } from "./generate-plan";
 import { getSettings, saveSettings } from "./settings-repo";
 import { swapMeal } from "./swap-meal";
@@ -70,6 +70,7 @@ const settingsPatchSchema = z.object({
   model: z.string().optional(),
   customApiKey: z.string().nullable().optional(),
   developerTools: z.boolean().optional(),
+  webSearch: z.boolean().optional(),
 });
 
 const TEST_JSON_SCHEMA = {
@@ -174,6 +175,7 @@ export async function handleGenerate(
     weekStart: parsed.data.weekStart ?? mondayOf(new Date()),
     slotMask: parsed.data.slotMask,
     meals: result.meals,
+    usedWebSearch: grokWebSearchEnabled(settings),
   });
   return { status: 200, body: { plan } };
 }
@@ -216,7 +218,12 @@ export async function handleSwap(
     return jsonError(422, result.message);
   }
 
-  const meal = replaceMeal(plan.id, current.id, result.meal);
+  const meal = replaceMeal(
+    plan.id,
+    current.id,
+    result.meal,
+    grokWebSearchEnabled(settings),
+  );
   const updated = getPlan(plan.id);
   return {
     status: 200,

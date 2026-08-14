@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { saveSettings } from "@/ai/settings-repo";
 import { handleGenerate, handleSwap } from "@/ai/http";
 import { getHousehold, replacePeople, upsertHousehold } from "@/household/repo";
 import { seedKitchenIfEmpty } from "@/kitchen/repo";
@@ -179,6 +180,24 @@ describe("API smoke path", () => {
         .map((meal) => meal.title),
     ).toEqual(otherTitles);
     expect(body.shoppingList).toEqual(mergeShoppingList(current!.meals));
+  });
+
+  it("marks generated meals as usedWebSearch when the Grok toggle is on", async () => {
+    saveSettings({ webSearch: true });
+    try {
+      const { complete } = fakeComplete([
+        { ok: true, text: JSON.stringify({ meals: WEEK_DINNERS }) },
+      ]);
+      const result = await handleGenerate(
+        { weekStart: "2026-08-17", slotMask: weekdayDinnerMask() },
+        { complete },
+      );
+      expect(result.status).toBe(200);
+      const meals = (result.body as { plan: WeekPlan }).plan.meals;
+      expect(meals.every((meal) => meal.usedWebSearch)).toBe(true);
+    } finally {
+      saveSettings({ webSearch: false });
+    }
   });
 
   it("rejects generate with an empty diet style without calling the adapter", async () => {

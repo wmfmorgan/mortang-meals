@@ -25,6 +25,7 @@ function mapMeal(row: MealRow): Meal {
     method: row.method,
     ingredients: JSON.parse(row.ingredientsJson) as Ingredient[],
     steps: JSON.parse(row.stepsJson) as string[],
+    usedWebSearch: row.usedWebSearch === 1,
   };
 }
 
@@ -94,9 +95,11 @@ export function saveGeneratedPlan(input: {
   weekStart: string;
   slotMask: SlotMask;
   meals: GeneratedMeal[];
+  usedWebSearch?: boolean;
 }): WeekPlan {
   const db = getDb();
   const planId = crypto.randomUUID();
+  const usedWebSearch = input.usedWebSearch === true ? 1 : 0;
   const mealRows = input.meals.map((meal) => ({
     id: crypto.randomUUID(),
     planId,
@@ -108,6 +111,7 @@ export function saveGeneratedPlan(input: {
     method: meal.method,
     ingredientsJson: JSON.stringify(meal.ingredients),
     stepsJson: JSON.stringify(meal.steps),
+    usedWebSearch,
   }));
 
   db.transaction((tx) => {
@@ -138,6 +142,7 @@ export function replaceMeal(
   planId: string,
   mealId: string,
   next: GeneratedMeal,
+  usedWebSearch = false,
 ): Meal {
   const db = getDb();
   const existing = db
@@ -159,6 +164,7 @@ export function replaceMeal(
     method: next.method,
     ingredientsJson: JSON.stringify(next.ingredients),
     stepsJson: JSON.stringify(next.steps),
+    usedWebSearch: usedWebSearch ? 1 : 0,
   };
   db.update(meals).set(row).where(eq(meals.id, mealId)).run();
   return mapMeal({ id: mealId, ...row });

@@ -52,6 +52,23 @@ export function SwapButton({ meal }: { meal: Meal }) {
   );
 }
 
+export function WebSearchStar() {
+  return (
+    <span className="web-search-star" title="Found with web search">
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 20 20"
+        width="14"
+        height="14"
+        fill="currentColor"
+      >
+        <path d="M10 1.6 12.2 7l5.8.4-4.4 3.7 1.4 5.6L10 13.8 4.9 16.7 6.4 11.1 2 7.4 7.8 7z" />
+      </svg>
+      <span className="sr-only">Found with web search</span>
+    </span>
+  );
+}
+
 export function MealCard({
   meal,
   onOpen,
@@ -66,7 +83,10 @@ export function MealCard({
         className="meal-card-open"
         onClick={() => onOpen?.(meal)}
       >
-        <h3>{meal.title}</h3>
+        <h3>
+          {meal.usedWebSearch ? <WebSearchStar /> : null}
+          {meal.title}
+        </h3>
         <p className="meal-meta">
           {meal.method} · {meal.cookMinutes} min
         </p>

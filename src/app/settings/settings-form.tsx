@@ -10,6 +10,7 @@ export type SafeSettings = {
   model: string;
   customApiKey: boolean;
   developerTools: boolean;
+  webSearch: boolean;
 };
 
 const inputClass = "input";
@@ -22,6 +23,7 @@ export function SettingsForm({ settings }: { settings: SafeSettings }) {
   const [customKey, setCustomKey] = useState("");
   const [hasCustomKey, setHasCustomKey] = useState(settings.customApiKey);
   const [developerTools, setDeveloperTools] = useState(settings.developerTools);
+  const [webSearch, setWebSearch] = useState(settings.webSearch);
   const [status, setStatus] = useState<string | null>(null);
   const [testMessage, setTestMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -82,6 +84,18 @@ export function SettingsForm({ settings }: { settings: SafeSettings }) {
       router.refresh();
     } catch (error) {
       setDeveloperTools(!checked);
+      setStatus(
+        error instanceof Error ? error.message : "Couldn’t save settings.",
+      );
+    }
+  }
+
+  async function onToggleWebSearch(checked: boolean) {
+    setWebSearch(checked);
+    try {
+      await putSettings({ webSearch: checked });
+    } catch (error) {
+      setWebSearch(!checked);
       setStatus(
         error instanceof Error ? error.message : "Couldn’t save settings.",
       );
@@ -177,6 +191,24 @@ export function SettingsForm({ settings }: { settings: SafeSettings }) {
           }}
         />
         Developer tools
+      </label>
+      <label className="flex min-h-11 items-start gap-3 text-sm font-medium">
+        <input
+          className="mt-0.5 h-4 w-4 accent-[var(--color-olive)]"
+          type="checkbox"
+          checked={webSearch}
+          disabled={mode !== "grok"}
+          onChange={(event) => {
+            void onToggleWebSearch(event.target.checked);
+          }}
+        />
+        <span>
+          Web search
+          <span className="mt-1 block font-normal text-herb">
+            Let Grok look up real recipes. Slower and uses more credits. Grok
+            mode only.
+          </span>
+        </span>
       </label>
       {status ? <p className="text-sm text-herb">{status}</p> : null}
       {testMessage ? <p className="text-sm text-herb">{testMessage}</p> : null}

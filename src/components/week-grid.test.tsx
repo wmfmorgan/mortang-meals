@@ -44,6 +44,7 @@ function mondayDinnerPlan(): WeekPlan {
           { name: "salmon", quantity: "1", unit: "lb", aisle: "meat" },
         ],
         steps: ["Roast"],
+        usedWebSearch: false,
       },
     ],
   };
@@ -60,6 +61,13 @@ describe("WeekGrid", () => {
       name: /empty tuesday dinner/i,
     });
     expect(emptyTuesdayDinner.textContent).not.toMatch(/lemon herb salmon/i);
+  });
+
+  it("shows a web-search star on meals generated with search", () => {
+    const plan = mondayDinnerPlan();
+    plan.meals[0] = { ...plan.meals[0]!, usedWebSearch: true };
+    render(<WeekGrid plan={plan} />);
+    expect(screen.getByText("Found with web search")).toBeTruthy();
   });
 
   it("opens a filled card through onSelectMeal", () => {

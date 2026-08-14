@@ -17,6 +17,7 @@ import type {
   ValidationResult,
 } from "@/lib/types";
 import { DAYS, SLOTS } from "@/lib/types";
+import { grokWebSearchEnabled } from "./adapter";
 
 export type PlanFailure = { ok: false; message: string };
 export type GenerateSuccess = { ok: true; meals: GeneratedMeal[] };
@@ -40,6 +41,12 @@ const HARD_RULES = [
   "Respond with JSON only.",
   "No duplicate titles inside the plan.",
   'Ingredient quantity must be a string such as "1", "1/2", or "1/4". Never use 0 for an ingredient that is used.',
+].join("\n");
+
+const WEB_SEARCH_RULES = [
+  "Use web_search to find real published recipes for each requested slot.",
+  "Copy accurate quantities, units, cook times, and steps from the sources.",
+  "Do not invent amounts when a source lists them.",
 ].join("\n");
 
 export function collectAllergies(household: Household): string[] {
@@ -100,7 +107,9 @@ export async function generateWeekPlan(input: {
   slotMask: SlotMask;
   adapter: { complete(req: AdapterRequest): Promise<AdapterResult> };
   logTrace: (t: Omit<AiTrace, "id" | "createdAt">) => void;
-  settings: Pick<AiSettings, "mode" | "baseUrl" | "model">;
+  settings: Pick<AiSettings, "mode" | "baseUrl" | "model"> & {
+    webSearch?: boolean;
+  };
   onProgress?: (event: GenerateProgressEvent) => void;
   signal?: AbortSignal;
 }): Promise<GenerateSuccess | PlanFailure> {
@@ -119,7 +128,13 @@ export async function generateWeekPlan(input: {
     kitchen: input.kitchen,
     slotMask: input.slotMask,
   });
-  const system = `${brief}\n\n${HARD_RULES}`;
+  const searchOn = grokWebSearchEnabled({
+    mode: input.settings.mode,
+    webSearch: input.settings.webSearch === true,
+  });
+  const system = searchOn
+    ? `${brief}\n\n${HARD_RULES}\n${WEB_SEARCH_RULES}`
+    : `${brief}\n\n${HARD_RULES}`;
   const user = `Generate meals for: ${requested.map(formatSlot).join(", ")}`;
   const allergies = collectAllergies(input.household);
 
@@ -130,8 +145,12 @@ export async function generateWeekPlan(input: {
       phase: "calling",
       message:
         attempt === 0
-          ? `Calling ${input.settings.model}`
-          : `Calling ${input.settings.model} again`,
+          ? searchOn
+            ? `Searching the web with ${input.settings.model}`
+            : `Calling ${input.settings.model}`
+          : searchOn
+            ? `Searching the web with ${input.settings.model} again`
+            : `Calling ${input.settings.model} again`,
       attempt: attempt + 1,
       model: input.settings.model,
     });

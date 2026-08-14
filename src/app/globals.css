@@ -291,11 +291,21 @@ textarea.input {
 }
 
 .meal-card h3 {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
   margin: 0;
   font-size: 0.98rem;
   font-weight: 500;
   letter-spacing: -0.03em;
   line-height: 1.2;
+}
+
+.web-search-star {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-top: 0.12em;
+  color: var(--color-olive);
 }
 
 .meal-card .meal-meta {

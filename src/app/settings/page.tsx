@@ -20,6 +20,7 @@ export default function SettingsPage() {
           customApiKey:
             settings.customApiKey != null && settings.customApiKey.length > 0,
           developerTools: settings.developerTools,
+          webSearch: settings.webSearch,
         }}
       />
     </div>

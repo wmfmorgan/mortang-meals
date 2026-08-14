@@ -60,7 +60,8 @@ function ensureSchema(sqlite: Database.Database): void {
       cook_minutes INTEGER NOT NULL,
       method TEXT NOT NULL,
       ingredients_json TEXT NOT NULL,
-      steps_json TEXT NOT NULL
+      steps_json TEXT NOT NULL,
+      used_web_search INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS ai_settings (
@@ -69,7 +70,8 @@ function ensureSchema(sqlite: Database.Database): void {
       base_url TEXT NOT NULL,
       model TEXT NOT NULL,
       custom_api_key TEXT,
-      developer_tools INTEGER NOT NULL
+      developer_tools INTEGER NOT NULL,
+      web_search INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS ai_traces (
@@ -84,6 +86,23 @@ function ensureSchema(sqlite: Database.Database): void {
       validation TEXT NOT NULL
     );
   `);
+  ensureColumn(sqlite, "meals", "used_web_search", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(sqlite, "ai_settings", "web_search", "INTEGER NOT NULL DEFAULT 0");
+}
+
+function tableColumns(sqlite: Database.Database, table: string): Set<string> {
+  const rows = sqlite.pragma(`table_info(${table})`) as { name: string }[];
+  return new Set(rows.map((row) => row.name));
+}
+
+function ensureColumn(
+  sqlite: Database.Database,
+  table: string,
+  column: string,
+  definition: string,
+): void {
+  if (tableColumns(sqlite, table).has(column)) return;
+  sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
 }
 
 export function openDb(dbPath: string): AppDb {

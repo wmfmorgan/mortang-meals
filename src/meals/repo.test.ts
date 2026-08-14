@@ -105,4 +105,23 @@ describe("meals repo", () => {
       "Tuesday chicken",
     );
   });
+
+  it("persists usedWebSearch on generate and swap", () => {
+    const slotMask = emptyMask();
+    slotMask.monday.dinner = true;
+
+    const plan = saveGeneratedPlan({
+      weekStart: "2026-01-19",
+      slotMask,
+      meals: [meal({ title: "Searched salmon" })],
+      usedWebSearch: true,
+    });
+
+    expect(plan.meals[0]?.usedWebSearch).toBe(true);
+    expect(getCurrentPlan()?.meals[0]?.usedWebSearch).toBe(true);
+
+    const swapped = replaceMeal(plan.id, plan.meals[0]!.id, meal({ title: "Invented tofu" }));
+    expect(swapped.usedWebSearch).toBe(false);
+    expect(getCurrentPlan()?.meals[0]?.usedWebSearch).toBe(false);
+  });
 });

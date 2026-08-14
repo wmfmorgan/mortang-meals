@@ -11,6 +11,7 @@ const DEFAULT_SETTINGS: AiSettings = {
   model: "grok-4.6",
   customApiKey: null,
   developerTools: false,
+  webSearch: false,
 };
 
 type SettingsRow = typeof aiSettings.$inferSelect;
@@ -22,6 +23,7 @@ function mapSettings(row: SettingsRow): AiSettings {
     model: row.model,
     customApiKey: row.customApiKey,
     developerTools: row.developerTools === 1,
+    webSearch: row.webSearch === 1,
   };
 }
 
@@ -32,6 +34,7 @@ function settingsValues(settings: AiSettings) {
     model: settings.model,
     customApiKey: settings.customApiKey,
     developerTools: settings.developerTools ? 1 : 0,
+    webSearch: settings.webSearch ? 1 : 0,
   };
 }
 

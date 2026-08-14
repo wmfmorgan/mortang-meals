@@ -305,6 +305,21 @@ describe("generateWeekPlan", () => {
     expect(phases).toEqual(["brief", "calling", "validating"]);
   });
 
+  it("asks the model to use web_search when the setting is on", async () => {
+    const adapter = fakeAdapter([{ ok: true, text: mealsText([validMondayDinner]) }]);
+
+    await generateWeekPlan({
+      household,
+      kitchen,
+      slotMask: mondayDinnerMask(),
+      adapter,
+      logTrace: () => {},
+      settings: { ...settings, webSearch: true },
+    });
+
+    expect(adapter.requests[0]?.messages[0]?.content).toMatch(/Use web_search/);
+  });
+
   it("reports a retry phase after invalid JSON", async () => {
     const adapter = fakeAdapter([
       { ok: true, text: "not-json" },

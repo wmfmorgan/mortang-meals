@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { SwapButton } from "@/components/meal-card";
+import { SwapButton, WebSearchStar } from "@/components/meal-card";
 import { PageHeader } from "@/components/page-header";
 import { getHousehold } from "@/household/repo";
 import { getPlan, listPlans } from "@/meals/repo";
@@ -42,7 +42,16 @@ export default async function RecipePage({
       </Link>
       <PageHeader
         eyebrow={`${DAY_LABELS[meal.day]} ${meal.slot}`}
-        title={meal.title}
+        title={
+          meal.usedWebSearch ? (
+            <span className="inline-flex items-center gap-2">
+              <WebSearchStar />
+              {meal.title}
+            </span>
+          ) : (
+            meal.title
+          )
+        }
         lede={meal.whyItFits}
         action={<SwapButton meal={meal} />}
       />

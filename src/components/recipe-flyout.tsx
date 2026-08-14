@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import type { Meal } from "@/lib/types";
-import { SwapButton } from "./meal-card";
+import { SwapButton, WebSearchStar } from "./meal-card";
 
 const DAY_LABELS = {
   monday: "Monday",
@@ -49,7 +49,11 @@ export function RecipeFlyout({
             Close
           </button>
         </div>
-        <h2 id="recipe-flyout-title" className="mt-0 mb-2 text-[1.7rem] font-medium tracking-[-0.035em]">
+        <h2
+          id="recipe-flyout-title"
+          className="mt-0 mb-2 flex items-start gap-2 text-[1.7rem] font-medium tracking-[-0.035em]"
+        >
+          {meal.usedWebSearch ? <WebSearchStar /> : null}
           {meal.title}
         </h2>
         <p className="mt-0 mb-2 text-herb">{meal.whyItFits}</p>
