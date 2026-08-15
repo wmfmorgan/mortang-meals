@@ -1,4 +1,10 @@
-import type { DayOfWeek, Meal, MealSlot, WeekPlan } from "@/lib/types";
+import type {
+  DayOfWeek,
+  Meal,
+  MealSlot,
+  UseIngredient,
+  WeekPlan,
+} from "@/lib/types";
 import { DAYS, SLOTS } from "@/lib/types";
 import { MealCard } from "./meal-card";
 
@@ -39,9 +45,17 @@ function mealAt(
 export function WeekGrid({
   plan,
   onSelectMeal,
+  onAdd,
+  onReplace,
+  editable = false,
+  useIngredients = [],
 }: {
   plan: WeekPlan | null;
   onSelectMeal?: (meal: Meal) => void;
+  onAdd?: (day: DayOfWeek, slot: MealSlot) => void;
+  onReplace?: (meal: Meal) => void;
+  editable?: boolean;
+  useIngredients?: UseIngredient[];
 }) {
   const meals = plan?.meals ?? [];
 
@@ -77,6 +91,9 @@ export function WeekGrid({
           </h2>
           {SLOTS.map((slot, slotIndex) => {
             const meal = mealAt(meals, day, slot);
+            const tags = useIngredients.filter(
+              (item) => item.day === day && item.slot === slot,
+            );
             return (
               <div
                 key={slot}
@@ -94,7 +111,30 @@ export function WeekGrid({
                 <span className="week-cell-slot-label">
                   {SLOT_LABELS[slot]}
                 </span>
-                {meal ? <MealCard meal={meal} onOpen={onSelectMeal} /> : null}
+                {tags.length > 0 ? (
+                  <ul className="use-ingredient-cell-tags">
+                    {tags.map((item, index) => (
+                      <li key={`${item.name}-${index}`}>{item.name}</li>
+                    ))}
+                  </ul>
+                ) : null}
+                {meal ? (
+                  <MealCard
+                    meal={meal}
+                    onOpen={onSelectMeal}
+                    onReplace={onReplace}
+                    editable={editable}
+                  />
+                ) : editable && onAdd ? (
+                  <button
+                    type="button"
+                    className="week-cell-add"
+                    aria-label={`Add ${day} ${slot}`}
+                    onClick={() => onAdd(day, slot)}
+                  >
+                    Add {slot}
+                  </button>
+                ) : null}
               </div>
             );
           })}

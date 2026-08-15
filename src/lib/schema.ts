@@ -18,6 +18,17 @@ export const people = sqliteTable("people", {
   avoidancesJson: text("avoidances_json").notNull(),
 });
 
+export const kitchenPrefs = sqliteTable("kitchen_prefs", {
+  id: text("id").primaryKey(),
+  expertise: text("expertise").notNull(),
+  overallDiet: text("overall_diet").notNull(),
+  breakfastDiet: text("breakfast_diet").notNull(),
+  lunchDiet: text("lunch_diet").notNull(),
+  dinnerDiet: text("dinner_diet").notNull(),
+  maxCookMinutes: integer("max_cook_minutes").notNull(),
+  involved: text("involved").notNull(),
+});
+
 export const kitchenItems = sqliteTable("kitchen_items", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -45,6 +56,10 @@ export const meals = sqliteTable("meals", {
   ingredientsJson: text("ingredients_json").notNull(),
   stepsJson: text("steps_json").notNull(),
   usedWebSearch: integer("used_web_search").notNull(),
+  pinned: integer("pinned").notNull(),
+  weekStart: text("week_start").notNull(),
+  createdAt: text("created_at").notNull(),
+  sourceUrl: text("source_url"),
 });
 
 export const aiSettings = sqliteTable("ai_settings", {

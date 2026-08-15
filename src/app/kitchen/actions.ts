@@ -1,11 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { saveKitchenPrefs } from "@/kitchen/prefs-repo";
 import {
   addCustomKitchenItem as persistCustomItem,
   setKitchenEnabled as persistEnabled,
 } from "@/kitchen/repo";
-import type { KitchenItem } from "@/lib/types";
+import type { KitchenItem, KitchenPrefs } from "@/lib/types";
 
 function revalidateKitchen() {
   revalidatePath("/kitchen");
@@ -24,6 +25,13 @@ export async function addCustomKitchenItem(
   const item = persistCustomItem(name.trim(), kind);
   revalidateKitchen();
   return item;
+}
+
+export async function saveKitchenPrefsAction(prefs: KitchenPrefs) {
+  const saved = saveKitchenPrefs(prefs);
+  revalidateKitchen();
+  revalidatePath("/");
+  return saved;
 }
 
 export async function saveKitchenEnabledStates(

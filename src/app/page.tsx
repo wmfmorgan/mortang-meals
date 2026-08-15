@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/page-header";
 import { PlanPicker } from "@/components/plan-picker";
 import { ThisWeekPlanner } from "@/components/this-week-planner";
 import { getHousehold } from "@/household/repo";
+import { getKitchenPrefs } from "@/kitchen/prefs-repo";
 import type { Household } from "@/lib/types";
 import { getCurrentPlan, getPlan, listPlans } from "@/meals/repo";
 
@@ -11,7 +12,8 @@ function generateBlocker(household: Household): string | null {
   if (household.people.length === 0 || !hasNamedPerson) {
     return "Add people before generating.";
   }
-  if (!household.dietStyle.trim()) {
+  const prefs = getKitchenPrefs();
+  if (!household.dietStyle.trim() && !prefs.overallDiet.trim()) {
     return "Add a diet style before generating.";
   }
   return null;
@@ -44,7 +46,7 @@ export default async function HomePage({
       <PlanPicker
         plans={plans}
         selectedId={plan?.id}
-        hrefFor={(id) => `/?plan=${id}`}
+        hrefPrefix="/?plan="
       />
 
       {blocker ? <p className="mb-4 text-sm text-herb">{blocker}</p> : null}

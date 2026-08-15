@@ -33,7 +33,8 @@ export default async function ShoppingListPage({
       <PlanPicker
         plans={plans}
         selectedId={plan?.id}
-        hrefFor={(id) => `/shopping-list?plan=${id}`}
+        hrefPrefix="/shopping-list?plan="
+        homeHref="/shopping-list"
       />
 
       {groups.length === 0 ? (

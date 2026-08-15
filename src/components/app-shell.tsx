@@ -16,9 +16,9 @@ function ShellBody({
 }) {
   const pathname = usePathname() ?? "/";
   const { state } = useGeneration();
-  const onThisWeek = pathname === "/";
-  const showModal = onThisWeek && state.status !== "idle";
-  const showBanner = !onThisWeek && state.status !== "idle";
+  const onHomePage = pathname === "/" || pathname === "/meals" || pathname.startsWith("/meals/");
+  const showModal = onHomePage && state.status !== "idle";
+  const showBanner = !onHomePage && state.status !== "idle";
 
   return (
     <>

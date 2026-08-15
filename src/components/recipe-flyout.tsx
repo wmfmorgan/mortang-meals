@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import type { Meal } from "@/lib/types";
-import { SwapButton, WebSearchStar } from "./meal-card";
+import { MealBadges, SwapButton } from "./meal-card";
 
 const DAY_LABELS = {
   monday: "Monday",
@@ -15,14 +15,26 @@ const DAY_LABELS = {
   sunday: "Sunday",
 } as const;
 
+export function recipeEyebrow(meal: Meal, onCurrentWeek = false): string {
+  if (onCurrentWeek || meal.planId) {
+    return `${DAY_LABELS[meal.day]} ${meal.slot}`;
+  }
+  if (meal.sourceUrl) return `Imported ${meal.slot}`;
+  return meal.slot;
+}
+
 export function RecipeFlyout({
   meal,
   servings,
   onClose,
+  canSwap = true,
+  eyebrow,
 }: {
   meal: Meal;
   servings: number;
   onClose: () => void;
+  canSwap?: boolean;
+  eyebrow?: string;
 }) {
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -43,7 +55,7 @@ export function RecipeFlyout({
       <aside className="recipe-flyout" role="dialog" aria-modal="true" aria-labelledby="recipe-flyout-title">
         <div className="mb-5 flex items-start justify-between gap-3">
           <p className="page-eyebrow" style={{ margin: 0 }}>
-            {DAY_LABELS[meal.day]} {meal.slot}
+            {eyebrow ?? recipeEyebrow(meal)}
           </p>
           <button type="button" className="btn btn-ghost" onClick={onClose}>
             Close
@@ -53,13 +65,25 @@ export function RecipeFlyout({
           id="recipe-flyout-title"
           className="mt-0 mb-2 flex items-start gap-2 text-[1.7rem] font-medium tracking-[-0.035em]"
         >
-          {meal.usedWebSearch ? <WebSearchStar /> : null}
+          <MealBadges meal={meal} />
           {meal.title}
         </h2>
         <p className="mt-0 mb-2 text-herb">{meal.whyItFits}</p>
         <p className="mb-6 font-mono text-[0.72rem] uppercase tracking-[0.12em] text-herb">
           Serves {servings} · {meal.cookMinutes} min · {meal.method}
         </p>
+        {meal.sourceUrl ? (
+          <p className="mb-6">
+            <a
+              href={meal.sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm text-olive"
+            >
+              Source recipe
+            </a>
+          </p>
+        ) : null}
 
         <section className="mb-6">
           <h3 className="page-eyebrow">Ingredients</h3>
@@ -94,7 +118,7 @@ export function RecipeFlyout({
           <Link href={`/meals/${meal.id}`} className="btn btn-primary no-underline">
             Open full recipe
           </Link>
-          <SwapButton meal={meal} />
+          {canSwap ? <SwapButton meal={meal} /> : null}
         </div>
       </aside>
     </div>

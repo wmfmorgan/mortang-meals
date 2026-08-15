@@ -10,7 +10,9 @@ import type {
   GeneratedMeal,
   Household,
   KitchenItem,
+  KitchenPrefs,
   SlotMask,
+  UseIngredient,
   TraceKind,
   ValidationResult,
 } from "@/lib/types";
@@ -43,6 +45,7 @@ const WEB_SEARCH_RULES = [
 export async function swapMeal(input: {
   household: Household;
   kitchen: KitchenItem[];
+  prefs?: KitchenPrefs;
   slotMask: SlotMask;
   current: GeneratedMeal;
   otherMeals: GeneratedMeal[];
@@ -51,6 +54,7 @@ export async function swapMeal(input: {
   settings: Pick<AiSettings, "mode" | "baseUrl" | "model"> & {
     webSearch?: boolean;
   };
+  useIngredients?: UseIngredient[];
 }): Promise<SwapSuccess | PlanFailure> {
   const taken = [input.current.title, ...input.otherMeals.map((meal) => meal.title)];
   const doNotRepeat = [
@@ -62,6 +66,11 @@ export async function swapMeal(input: {
   const brief = buildHouseholdBrief({
     household: input.household,
     kitchen: input.kitchen,
+    prefs: input.prefs,
+    useIngredients: (input.useIngredients ?? []).filter(
+      (item) =>
+        item.day === input.current.day && item.slot === input.current.slot,
+    ),
     slotMask: input.slotMask,
     extraRules: [`Do not repeat: ${titles}`],
   });

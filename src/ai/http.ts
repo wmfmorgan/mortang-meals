@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getHousehold } from "@/household/repo";
+import { getKitchenPrefs } from "@/kitchen/prefs-repo";
 import { listKitchen, seedKitchenIfEmpty } from "@/kitchen/repo";
 import { mondayOf } from "@/lib/week";
 import type {
@@ -10,7 +11,13 @@ import type {
   SlotMask,
 } from "@/lib/types";
 import { DAYS, SLOTS } from "@/lib/types";
-import { getPlan, replaceMeal, saveGeneratedPlan } from "@/meals/repo";
+import { hasAnySlot as maskHasAny, maskMinusPinned } from "@/lib/slot-mask";
+import {
+  getCurrentPlan,
+  getPlan,
+  mergeGeneratedPlan,
+  replaceMeal,
+} from "@/meals/repo";
 import { mergeShoppingList } from "@/meals/shopping-list";
 import { createAdapter, grokWebSearchEnabled } from "./adapter";
 import { generateWeekPlan, type GenerateProgressEvent } from "./generate-plan";
@@ -54,14 +61,22 @@ const slotMaskSchema = z.object({
   sunday: slotFlagsSchema,
 });
 
+const useIngredientSchema = z.object({
+  name: z.string().trim().min(1),
+  day: z.enum(DAYS as [(typeof DAYS)[0], ...typeof DAYS]),
+  slot: z.enum(SLOTS as [(typeof SLOTS)[0], ...typeof SLOTS]),
+});
+
 const generateBodySchema = z.object({
   weekStart: z.string().optional(),
   slotMask: slotMaskSchema,
+  useIngredients: z.array(useIngredientSchema).optional(),
 });
 
 const swapBodySchema = z.object({
   planId: z.string().min(1),
   mealId: z.string().min(1),
+  useIngredients: z.array(useIngredientSchema).optional(),
 });
 
 const settingsPatchSchema = z.object({
@@ -93,8 +108,10 @@ function grokKeyMissing(settings: AiSettings): boolean {
   return settings.mode === "grok" && !process.env.XAI_API_KEY;
 }
 
+const ALL_PINNED = "Everything you asked for is pinned.";
+
 function hasAnySlot(mask: SlotMask): boolean {
-  return DAYS.some((day) => SLOTS.some((slot) => mask[day][slot]));
+  return maskHasAny(mask);
 }
 
 function toSafeSettings(settings: AiSettings) {
@@ -120,7 +137,8 @@ function loadReadyHousehold():
       result: jsonError(400, "Add people before generating."),
     };
   }
-  if (!household.dietStyle.trim()) {
+  const prefs = getKitchenPrefs();
+  if (!household.dietStyle.trim() && !prefs.overallDiet.trim()) {
     return {
       ok: false,
       result: jsonError(400, "Add a diet style before generating."),
@@ -145,6 +163,13 @@ export async function handleGenerate(
     return jsonError(400, "Turn on at least one meal slot.");
   }
 
+  const current = getCurrentPlan();
+  const pinned = current?.meals.filter((meal) => meal.pinned) ?? [];
+  const effectiveMask = maskMinusPinned(parsed.data.slotMask, pinned);
+  if (!hasAnySlot(effectiveMask)) {
+    return jsonError(400, ALL_PINNED);
+  }
+
   const settings = getSettings();
   if (grokKeyMissing(settings)) {
     return jsonError(400, GROK_KEY_MESSAGE);
@@ -154,10 +179,16 @@ export async function handleGenerate(
   const result = await generateWeekPlan({
     household: ready.household,
     kitchen: listKitchen(),
-    slotMask: parsed.data.slotMask,
+    prefs: getKitchenPrefs(),
+    slotMask: effectiveMask,
     adapter: resolveAdapter(settings, deps),
     logTrace: recordTrace,
     settings,
+    reservedTitles: pinned.map((meal) => meal.title),
+    useIngredients: (parsed.data.useIngredients ?? []).filter(
+      (item) =>
+        !pinned.some((meal) => meal.day === item.day && meal.slot === item.slot),
+    ),
     onProgress: deps?.onProgress,
     signal: deps?.signal,
   });
@@ -171,7 +202,7 @@ export async function handleGenerate(
   }
 
   deps?.onProgress?.({ phase: "saving", message: "Saving the week" });
-  const plan = saveGeneratedPlan({
+  const plan = mergeGeneratedPlan({
     weekStart: parsed.data.weekStart ?? mondayOf(new Date()),
     slotMask: parsed.data.slotMask,
     meals: result.meals,
@@ -206,12 +237,14 @@ export async function handleSwap(
   const result = await swapMeal({
     household: ready.household,
     kitchen: listKitchen(),
+    prefs: getKitchenPrefs(),
     slotMask: plan.slotMask,
     current,
     otherMeals: plan.meals.filter((meal) => meal.id !== current.id),
     adapter: resolveAdapter(settings, deps),
     logTrace: recordTrace,
     settings,
+    useIngredients: parsed.data.useIngredients,
   });
 
   if (!result.ok) {

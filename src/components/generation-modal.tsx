@@ -2,11 +2,28 @@
 
 import { useEffect, useState } from "react";
 import {
-  GENERATE_STEPS,
-  activeStepIndex,
   progressForPhase,
+  stepStatus,
+  stepsFor,
 } from "@/lib/generate-progress";
 import { useGeneration } from "./generation-provider";
+
+function CheckIcon() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3.2 8.2 6.4 11.4 12.8 4.6" />
+    </svg>
+  );
+}
 
 function elapsedLabel(startedAt: number, now: number) {
   const seconds = Math.max(0, Math.floor((now - startedAt) / 1000));
@@ -28,14 +45,24 @@ export function GenerationModal() {
 
   if (state.status === "idle") return null;
 
-  const percent = progressForPhase(state.phase, state.attempt);
-  const stepIndex = activeStepIndex(state.phase);
+  const kind = state.kind ?? "generate";
+  const percent =
+    state.status === "success"
+      ? 100
+      : progressForPhase(state.phase, state.attempt);
   const title =
     state.status === "running"
-      ? "Generating this week"
+      ? kind === "import"
+        ? "Importing recipe"
+        : "Generating this week"
       : state.status === "success"
-        ? "Week ready"
-        : "Generate failed";
+        ? kind === "import"
+          ? "Recipe saved"
+          : "Week ready"
+        : kind === "import"
+          ? "Import failed"
+          : "Generate failed";
+  const steps = stepsFor(kind);
 
   return (
     <div className="generate-modal-root">
@@ -52,7 +79,7 @@ export function GenerationModal() {
           {state.status === "running" && state.startedAt
             ? ` · ${elapsedLabel(state.startedAt, now)}`
             : ""}
-          {state.attempt && state.status === "running"
+          {kind === "generate" && state.attempt && state.status === "running"
             ? ` · try ${state.attempt} of 2`
             : ""}
         </p>
@@ -71,20 +98,21 @@ export function GenerationModal() {
         </div>
 
         <ol className="generate-steps">
-          {GENERATE_STEPS.map((step, index) => (
-            <li
-              key={step.phase}
-              className={
-                index < stepIndex
-                  ? "is-done"
-                  : index === stepIndex
-                    ? "is-current"
-                    : undefined
-              }
-            >
-              {step.label}
-            </li>
-          ))}
+          {steps.map((step, index) => {
+            const status = stepStatus(index, state.phase, state.status, kind);
+            return (
+              <li key={step.phase} className={`is-${status}`}>
+                {status === "done" ? (
+                  <span className="generate-step-mark" aria-hidden="true">
+                    <CheckIcon />
+                  </span>
+                ) : (
+                  <span className="generate-step-mark" aria-hidden="true" />
+                )}
+                <span>{step.label}</span>
+              </li>
+            );
+          })}
         </ol>
 
         <div className="mt-6 flex flex-wrap gap-2">

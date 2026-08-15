@@ -35,6 +35,17 @@ function ensureSchema(sqlite: Database.Database): void {
       avoidances_json TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS kitchen_prefs (
+      id TEXT PRIMARY KEY,
+      expertise TEXT NOT NULL,
+      overall_diet TEXT NOT NULL,
+      breakfast_diet TEXT NOT NULL,
+      lunch_diet TEXT NOT NULL,
+      dinner_diet TEXT NOT NULL,
+      max_cook_minutes INTEGER NOT NULL,
+      involved TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS kitchen_items (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -61,7 +72,11 @@ function ensureSchema(sqlite: Database.Database): void {
       method TEXT NOT NULL,
       ingredients_json TEXT NOT NULL,
       steps_json TEXT NOT NULL,
-      used_web_search INTEGER NOT NULL DEFAULT 0
+      used_web_search INTEGER NOT NULL DEFAULT 0,
+      pinned INTEGER NOT NULL DEFAULT 0,
+      week_start TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT '',
+      source_url TEXT
     );
 
     CREATE TABLE IF NOT EXISTS ai_settings (
@@ -87,6 +102,26 @@ function ensureSchema(sqlite: Database.Database): void {
     );
   `);
   ensureColumn(sqlite, "meals", "used_web_search", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(sqlite, "meals", "pinned", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(sqlite, "meals", "week_start", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(sqlite, "meals", "created_at", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(sqlite, "meals", "source_url", "TEXT");
+  sqlite.exec(`
+    UPDATE meals
+    SET week_start = COALESCE(
+      (SELECT week_start FROM week_plans WHERE week_plans.id = meals.plan_id),
+      week_start
+    )
+    WHERE week_start = ''
+  `);
+  sqlite.exec(`
+    UPDATE meals
+    SET created_at = CASE
+      WHEN week_start != '' THEN week_start || 'T12:00:00.000Z'
+      ELSE datetime('now')
+    END
+    WHERE created_at = ''
+  `);
   ensureColumn(sqlite, "ai_settings", "web_search", "INTEGER NOT NULL DEFAULT 0");
 }
 

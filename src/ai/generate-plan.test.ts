@@ -305,6 +305,42 @@ describe("generateWeekPlan", () => {
     expect(phases).toEqual(["brief", "calling", "validating"]);
   });
 
+  it("tells the model to feature an assigned ingredient", async () => {
+    const adapter = fakeAdapter([{ ok: true, text: mealsText([validMondayDinner]) }]);
+
+    await generateWeekPlan({
+      household,
+      kitchen,
+      slotMask: mondayDinnerMask(),
+      adapter,
+      logTrace: () => {},
+      settings,
+      useIngredients: [{ name: "chicken", day: "monday", slot: "dinner" }],
+    });
+
+    expect(adapter.requests[0]?.messages[0]?.content).toMatch(
+      /monday dinner must feature chicken/,
+    );
+  });
+
+  it("tells the model not to repeat reserved pinned titles", async () => {
+    const adapter = fakeAdapter([{ ok: true, text: mealsText([validMondayDinner]) }]);
+
+    await generateWeekPlan({
+      household,
+      kitchen,
+      slotMask: mondayDinnerMask(),
+      adapter,
+      logTrace: () => {},
+      settings,
+      reservedTitles: ["Crockpot chicken"],
+    });
+
+    expect(adapter.requests[0]?.messages[0]?.content).toMatch(
+      /Do not repeat: Crockpot chicken/,
+    );
+  });
+
   it("asks the model to use web_search when the setting is on", async () => {
     const adapter = fakeAdapter([{ ok: true, text: mealsText([validMondayDinner]) }]);
 

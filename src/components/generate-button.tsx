@@ -1,32 +1,38 @@
 "use client";
 
 import { useState } from "react";
-import type { SlotMask } from "@/lib/types";
-import { hasAnySlot } from "@/lib/slot-mask";
+import type { Meal, SlotMask, UseIngredient } from "@/lib/types";
+import { hasAnySlot, maskMinusPinned } from "@/lib/slot-mask";
 import { useGeneration } from "./generation-provider";
 
 export function GenerateButton({
   disabledReason,
   weekStart,
   slotMask,
+  pinnedMeals = [],
+  useIngredients = [],
 }: {
   disabledReason: string | null;
   weekStart?: string;
   slotMask: SlotMask;
+  pinnedMeals?: Meal[];
+  useIngredients?: UseIngredient[];
 }) {
   const { state, startGenerate } = useGeneration();
   const [error, setError] = useState<string | null>(null);
   const pending = state.status === "running";
+  const effectiveMask = maskMinusPinned(slotMask, pinnedMeals);
+  const noSlots = !hasAnySlot(effectiveMask);
+  const disabled = Boolean(disabledReason) || pending || noSlots;
 
   async function onGenerate() {
-    if (disabledReason || pending) return;
-    if (!hasAnySlot(slotMask)) {
-      setError("Turn on at least one meal slot.");
-      return;
-    }
-
+    if (disabled) return;
     setError(null);
-    await startGenerate({ weekStart, slotMask });
+    await startGenerate({
+      weekStart,
+      slotMask: effectiveMask,
+      useIngredients,
+    });
   }
 
   return (
@@ -34,7 +40,8 @@ export function GenerateButton({
       <button
         type="button"
         className="btn btn-primary"
-        disabled={Boolean(disabledReason) || pending}
+        disabled={disabled}
+        title={noSlots ? "Turn on at least one meal slot." : undefined}
         onClick={() => {
           void onGenerate();
         }}

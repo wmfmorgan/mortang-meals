@@ -1,8 +1,15 @@
 "use client";
 
-import type { DayOfWeek, MealSlot, SlotMask } from "@/lib/types";
+import type { DayOfWeek, Meal, MealSlot, SlotMask } from "@/lib/types";
 import { DAYS, SLOTS } from "@/lib/types";
-import { toggleDay, toggleMealRow, toggleSlot } from "@/lib/slot-mask";
+import {
+  pinnedSlotKeys,
+  slotKey,
+  toggleDay,
+  toggleMealRow,
+  toggleSlot,
+} from "@/lib/slot-mask";
+import { PinIcon } from "./meal-card";
 
 const DAY_LABELS: Record<DayOfWeek, string> = {
   monday: "Mon",
@@ -23,10 +30,14 @@ const SLOT_LABELS: Record<MealSlot, string> = {
 export function SlotPicker({
   value,
   onChange,
+  pinnedMeals = [],
 }: {
   value: SlotMask;
   onChange: (next: SlotMask) => void;
+  pinnedMeals?: Meal[];
 }) {
+  const locked = pinnedSlotKeys(pinnedMeals);
+
   return (
     <div className="surface overflow-x-auto p-4">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
@@ -36,7 +47,7 @@ export function SlotPicker({
           </p>
           <p className="m-0 text-sm text-herb">
             Check the meals you want. Day and meal labels toggle a whole row or
-            column.
+            column. Pinned meals stay off.
           </p>
         </div>
       </div>
@@ -49,7 +60,7 @@ export function SlotPicker({
                 <button
                   type="button"
                   className="font-mono text-[0.68rem] uppercase tracking-[0.12em] text-herb"
-                  onClick={() => onChange(toggleDay(value, day))}
+                  onClick={() => onChange(toggleDay(value, day, locked))}
                 >
                   {DAY_LABELS[day]}
                 </button>
@@ -64,24 +75,47 @@ export function SlotPicker({
                 <button
                   type="button"
                   className="font-mono text-[0.68rem] uppercase tracking-[0.12em] text-herb"
-                  onClick={() => onChange(toggleMealRow(value, slot))}
+                  onClick={() => onChange(toggleMealRow(value, slot, locked))}
                 >
                   {SLOT_LABELS[slot]}
                 </button>
               </th>
-              {DAYS.map((day) => (
-                <td key={day} className="p-2 text-center">
-                  <input
-                    className="h-5 w-5 accent-[var(--color-olive)]"
-                    type="checkbox"
-                    checked={Boolean(value[day]?.[slot])}
-                    aria-label={`${day} ${slot}`}
-                    onChange={(event) =>
-                      onChange(toggleSlot(value, day, slot, event.target.checked))
-                    }
-                  />
-                </td>
-              ))}
+              {DAYS.map((day) => {
+                const pinned = locked.has(slotKey(day, slot));
+                return (
+                  <td key={day} className="p-2 text-center">
+                    {pinned ? (
+                      <span
+                        className="slot-pinned"
+                        title="Pinned — Generate will skip this slot"
+                      >
+                        <PinIcon filled />
+                        <span className="sr-only">
+                          {day} {slot} pinned
+                        </span>
+                      </span>
+                    ) : (
+                      <input
+                        className="h-5 w-5 accent-[var(--color-olive)]"
+                        type="checkbox"
+                        checked={Boolean(value[day]?.[slot])}
+                        aria-label={`${day} ${slot}`}
+                        onChange={(event) =>
+                          onChange(
+                            toggleSlot(
+                              value,
+                              day,
+                              slot,
+                              event.target.checked,
+                              locked,
+                            ),
+                          )
+                        }
+                      />
+                    )}
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>

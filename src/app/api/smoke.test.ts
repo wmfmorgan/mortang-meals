@@ -18,7 +18,7 @@ import type {
   WeekPlan,
 } from "@/lib/types";
 import { DAYS, SLOTS } from "@/lib/types";
-import { getCurrentPlan } from "@/meals/repo";
+import { getCurrentPlan, setPinned, setPlanPinned } from "@/meals/repo";
 import { mergeShoppingList } from "@/meals/shopping-list";
 
 const dbPath = path.join(
@@ -198,6 +198,74 @@ describe("API smoke path", () => {
     } finally {
       saveSettings({ webSearch: false });
     }
+  });
+
+  it("keeps a pinned dinner and only asks the model for the remaining slots", async () => {
+    const { complete: first } = fakeComplete([
+      { ok: true, text: JSON.stringify({ meals: WEEK_DINNERS }) },
+    ]);
+    const generated = await handleGenerate(
+      { weekStart: "2026-08-24", slotMask: weekdayDinnerMask() },
+      { complete: first },
+    );
+    const plan = (generated.body as { plan: WeekPlan }).plan;
+    const monday = plan.meals.find((meal) => meal.day === "monday")!;
+    setPinned(monday.id, true);
+
+    const rest = WEEK_DINNERS.filter((meal) => meal.day !== "monday").map(
+      (meal) => ({ ...meal, title: `New ${meal.title}` }),
+    );
+    const { complete, requests } = fakeComplete([
+      { ok: true, text: JSON.stringify({ meals: rest }) },
+    ]);
+    const result = await handleGenerate(
+      { weekStart: "2026-08-24", slotMask: weekdayDinnerMask() },
+      { complete },
+    );
+
+    expect(result.status).toBe(200);
+    const updated = (result.body as { plan: WeekPlan }).plan;
+    expect(updated.id).toBe(plan.id);
+    expect(updated.meals.find((meal) => meal.day === "monday")?.title).toBe(
+      monday.title,
+    );
+    expect(updated.meals.find((meal) => meal.day === "tuesday")?.title).toBe(
+      "New Crockpot chicken",
+    );
+    expect(requests[0]!.messages[1]!.content).not.toMatch(/monday dinner/i);
+    expect(requests[0]!.messages[1]!.content).toMatch(/tuesday dinner/i);
+  });
+
+  it("does not call the model when every requested slot is pinned", async () => {
+    const existing = getCurrentPlan();
+    if (existing) setPlanPinned(existing.id, false);
+
+    const mask = emptyMask();
+    mask.monday.dinner = true;
+    const { complete: first } = fakeComplete([
+      { ok: true, text: JSON.stringify({ meals: [WEEK_DINNERS[0]] }) },
+    ]);
+    const generated = await handleGenerate(
+      { weekStart: "2026-08-31", slotMask: mask },
+      { complete: first },
+    );
+    const meal = (generated.body as { plan: WeekPlan }).plan.meals[0]!;
+    setPinned(meal.id, true);
+
+    let called = false;
+    const result = await handleGenerate(
+      { weekStart: "2026-08-31", slotMask: mask },
+      {
+        complete: async () => {
+          called = true;
+          return { ok: true, text: "{}" };
+        },
+      },
+    );
+
+    expect(result.status).toBe(400);
+    expect((result.body as { message: string }).message).toMatch(/pinned/i);
+    expect(called).toBe(false);
   });
 
   it("rejects generate with an empty diet style without calling the adapter", async () => {

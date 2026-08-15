@@ -13,15 +13,18 @@ const ingredientSchema = z.object({
   aisle: aisleEnum,
 });
 
-export const mealSchema = z.object({
-  day: dayEnum,
-  slot: slotEnum,
+export const mealEditSchema = z.object({
   title: z.string().min(1),
   whyItFits: z.string().min(1),
   cookMinutes: z.number().int().positive(),
   method: z.string().min(1),
   ingredients: z.array(ingredientSchema).min(1),
   steps: z.array(z.string().min(1)).min(1),
+});
+
+export const mealSchema = mealEditSchema.extend({
+  day: dayEnum,
+  slot: slotEnum,
 });
 
 export const mealsResponseSchema = z.object({

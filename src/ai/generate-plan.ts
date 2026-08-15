@@ -11,8 +11,10 @@ import type {
   GeneratedMeal,
   Household,
   KitchenItem,
+  KitchenPrefs,
   MealSlot,
   SlotMask,
+  UseIngredient,
   TraceKind,
   ValidationResult,
 } from "@/lib/types";
@@ -104,12 +106,15 @@ function firstAllergen(
 export async function generateWeekPlan(input: {
   household: Household;
   kitchen: KitchenItem[];
+  prefs?: KitchenPrefs;
   slotMask: SlotMask;
   adapter: { complete(req: AdapterRequest): Promise<AdapterResult> };
   logTrace: (t: Omit<AiTrace, "id" | "createdAt">) => void;
   settings: Pick<AiSettings, "mode" | "baseUrl" | "model"> & {
     webSearch?: boolean;
   };
+  reservedTitles?: string[];
+  useIngredients?: UseIngredient[];
   onProgress?: (event: GenerateProgressEvent) => void;
   signal?: AbortSignal;
 }): Promise<GenerateSuccess | PlanFailure> {
@@ -123,18 +128,29 @@ export async function generateWeekPlan(input: {
     message: `Writing the brief for ${requested.length} meal${requested.length === 1 ? "" : "s"}`,
   });
 
+  const reserved = (input.reservedTitles ?? []).filter((title) => title.trim());
+  const timeRule = input.prefs
+    ? `Keep cookMinutes at or under ${input.prefs.maxCookMinutes}.`
+    : null;
   const brief = buildHouseholdBrief({
     household: input.household,
     kitchen: input.kitchen,
+    prefs: input.prefs,
+    useIngredients: input.useIngredients,
     slotMask: input.slotMask,
+    extraRules:
+      reserved.length > 0
+        ? [`Do not repeat: ${reserved.map((title) => title.trim()).join(", ")}`]
+        : undefined,
   });
   const searchOn = grokWebSearchEnabled({
     mode: input.settings.mode,
     webSearch: input.settings.webSearch === true,
   });
+  const rules = timeRule ? `${HARD_RULES}\n${timeRule}` : HARD_RULES;
   const system = searchOn
-    ? `${brief}\n\n${HARD_RULES}\n${WEB_SEARCH_RULES}`
-    : `${brief}\n\n${HARD_RULES}`;
+    ? `${brief}\n\n${rules}\n${WEB_SEARCH_RULES}`
+    : `${brief}\n\n${rules}`;
   const user = `Generate meals for: ${requested.map(formatSlot).join(", ")}`;
   const allergies = collectAllergies(input.household);
 
@@ -253,7 +269,10 @@ export async function generateWeekPlan(input: {
       return { ok: false, message: UNUSABLE_PLAN };
     }
 
-    if (hasDuplicateTitles(parsed.meals)) {
+    if (
+      hasDuplicateTitles(parsed.meals) ||
+      parsed.meals.some((meal) => isDuplicateTitle(meal.title, reserved))
+    ) {
       log("duplicate", result.text);
       if (attempt === 0) {
         input.onProgress?.({

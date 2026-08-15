@@ -24,13 +24,20 @@ export function GenerationBanner() {
 
   if (state.status === "idle") return null;
 
+  const kind = state.kind ?? "generate";
   const percent = progressForPhase(state.phase, state.attempt);
   const title =
     state.status === "running"
-      ? "Generating this week"
+      ? kind === "import"
+        ? "Importing recipe"
+        : "Generating this week"
       : state.status === "success"
-        ? "Week ready"
-        : "Generate failed";
+        ? kind === "import"
+          ? "Recipe saved"
+          : "Week ready"
+        : kind === "import"
+          ? "Import failed"
+          : "Generate failed";
 
   return (
     <div

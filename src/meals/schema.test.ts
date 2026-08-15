@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { parseMealsResponse, parseSingleMealResponse } from "./schema";
+import {
+  mealEditSchema,
+  parseMealsResponse,
+  parseSingleMealResponse,
+} from "./schema";
 
 const validMeal = {
   day: "monday",
@@ -70,5 +74,16 @@ describe("parseSingleMealResponse", () => {
   it("parses a valid single meal payload", () => {
     const result = parseSingleMealResponse(JSON.stringify({ meal: validMeal }));
     expect(result).toEqual({ ok: true, meal: validMeal });
+  });
+});
+
+describe("mealEditSchema", () => {
+  it("rejects an empty title or no ingredients", () => {
+    const { day: _day, slot: _slot, ...edit } = validMeal;
+    expect(mealEditSchema.safeParse({ ...edit, title: "" }).success).toBe(false);
+    expect(mealEditSchema.safeParse({ ...edit, ingredients: [] }).success).toBe(
+      false,
+    );
+    expect(mealEditSchema.safeParse(edit).success).toBe(true);
   });
 });

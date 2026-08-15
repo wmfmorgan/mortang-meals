@@ -45,6 +45,9 @@ function mondayDinnerPlan(): WeekPlan {
         ],
         steps: ["Roast"],
         usedWebSearch: false,
+        pinned: false,
+        createdAt: "2026-08-10T12:00:00.000Z",
+        sourceUrl: null,
       },
     ],
   };
@@ -63,11 +66,25 @@ describe("WeekGrid", () => {
     expect(emptyTuesdayDinner.textContent).not.toMatch(/lemon herb salmon/i);
   });
 
+  it("lets an empty cell add a past meal when editable", () => {
+    const onAdd = vi.fn();
+    render(<WeekGrid plan={mondayDinnerPlan()} onAdd={onAdd} editable />);
+    fireEvent.click(screen.getByRole("button", { name: /add monday lunch/i }));
+    expect(onAdd).toHaveBeenCalledWith("monday", "lunch");
+  });
+
   it("shows a web-search star on meals generated with search", () => {
     const plan = mondayDinnerPlan();
     plan.meals[0] = { ...plan.meals[0]!, usedWebSearch: true };
     render(<WeekGrid plan={plan} />);
     expect(screen.getByText("Found with web search")).toBeTruthy();
+  });
+
+  it("shows an import icon when the meal has a source URL", () => {
+    const plan = mondayDinnerPlan();
+    plan.meals[0] = { ...plan.meals[0]!, sourceUrl: "https://example.com/salmon" };
+    render(<WeekGrid plan={plan} />);
+    expect(screen.getByText("Imported from a URL")).toBeTruthy();
   });
 
   it("opens a filled card through onSelectMeal", () => {

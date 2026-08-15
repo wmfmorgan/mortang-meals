@@ -58,6 +58,20 @@ export type Meal = GeneratedMeal & {
   id: string;
   planId: string;
   usedWebSearch: boolean;
+  pinned: boolean;
+  createdAt: string;
+  sourceUrl: string | null;
+};
+
+export type LibraryMeal = {
+  id: string;
+  title: string;
+  whyItFits: string;
+  cookMinutes: number;
+  method: string;
+  slot: MealSlot;
+  weekStart: string;
+  usedWebSearch: boolean;
 };
 
 export type Person = {
@@ -86,7 +100,26 @@ export type KitchenItem = {
   builtIn: boolean;
 };
 
+export type CookingExpertise = "newbie" | "novice" | "intermediate" | "expert";
+export type InvolvedLevel = "low" | "medium" | "high";
+
+export type KitchenPrefs = {
+  expertise: CookingExpertise;
+  overallDiet: string;
+  breakfastDiet: string;
+  lunchDiet: string;
+  dinnerDiet: string;
+  maxCookMinutes: number;
+  involved: InvolvedLevel;
+};
+
 export type SlotMask = Record<DayOfWeek, Record<MealSlot, boolean>>;
+
+export type UseIngredient = {
+  name: string;
+  day: DayOfWeek;
+  slot: MealSlot;
+};
 
 export type WeekPlan = {
   id: string;

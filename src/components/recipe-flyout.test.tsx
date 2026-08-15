@@ -24,6 +24,9 @@ const meal: Meal = {
   ingredients: [{ name: "salmon", quantity: "1", unit: "lb", aisle: "meat" }],
   steps: ["Roast"],
   usedWebSearch: false,
+  pinned: false,
+  createdAt: "2026-08-10T12:00:00.000Z",
+  sourceUrl: null,
 };
 
 describe("RecipeFlyout", () => {
@@ -44,5 +47,25 @@ describe("RecipeFlyout", () => {
       />,
     );
     expect(screen.getByText("Found with web search")).toBeTruthy();
+  });
+
+  it("shows an import icon and source link for imported meals", () => {
+    render(
+      <RecipeFlyout
+        meal={{
+          ...meal,
+          planId: "",
+          sourceUrl: "https://example.com/salmon",
+          usedWebSearch: true,
+        }}
+        servings={2}
+        onClose={() => {}}
+        canSwap={false}
+      />,
+    );
+    expect(screen.getByText("Imported from a URL")).toBeTruthy();
+    const source = screen.getByRole("link", { name: /source recipe/i });
+    expect(source.getAttribute("href")).toBe("https://example.com/salmon");
+    expect(screen.queryByRole("button", { name: /regenerate meal/i })).toBeNull();
   });
 });

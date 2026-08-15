@@ -10,12 +10,14 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import type { SlotMask } from "@/lib/types";
+import type { JobKind } from "@/lib/generate-progress";
+import type { MealSlot, SlotMask, UseIngredient } from "@/lib/types";
 
 export type GenerationStatus = "idle" | "running" | "success" | "error";
 
 export type GenerationState = {
   status: GenerationStatus;
+  kind: JobKind;
   phase: string | null;
   message: string | null;
   attempt: number | null;
@@ -26,6 +28,7 @@ export type GenerationState = {
 
 const idleState: GenerationState = {
   status: "idle",
+  kind: "generate",
   phase: null,
   message: null,
   attempt: null,
@@ -39,7 +42,9 @@ type GenerationContextValue = {
   startGenerate: (input: {
     weekStart?: string;
     slotMask: SlotMask;
+    useIngredients?: UseIngredient[];
   }) => Promise<void>;
+  startImport: (input: { url: string; slot: MealSlot }) => Promise<void>;
   cancel: () => void;
   dismiss: () => void;
 };
@@ -54,7 +59,7 @@ type StreamEvent =
       attempt?: number;
       model?: string;
     }
-  | { type: "done"; planId: string }
+  | { type: "done"; planId?: string; mealId?: string }
   | { type: "error"; status: number; message: string };
 
 async function readGenerateStream(
@@ -103,13 +108,18 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const startGenerate = useCallback(
-    async (input: { weekStart?: string; slotMask: SlotMask }) => {
+    async (input: {
+      weekStart?: string;
+      slotMask: SlotMask;
+      useIngredients?: UseIngredient[];
+    }) => {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
 
       setState({
         status: "running",
+        kind: "generate",
         phase: "brief",
         message: "Starting generate",
         attempt: 1,
@@ -125,6 +135,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({
             ...(input.weekStart ? { weekStart: input.weekStart } : {}),
             slotMask: input.slotMask,
+            useIngredients: input.useIngredients ?? [],
           }),
           signal: controller.signal,
         });
@@ -202,9 +213,107 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
     [router],
   );
 
+  const startImport = useCallback(
+    async (input: { url: string; slot: MealSlot }) => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      setState({
+        status: "running",
+        kind: "import",
+        phase: "opening",
+        message: "Starting import",
+        attempt: null,
+        model: null,
+        startedAt: Date.now(),
+        error: null,
+      });
+
+      try {
+        const res = await fetch("/api/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: input.url, slot: input.slot }),
+          signal: controller.signal,
+        });
+
+        if (!res.ok && !res.body) {
+          const data = (await res.json().catch(() => ({}))) as { message?: string };
+          setState((current) => ({
+            ...current,
+            status: "error",
+            message: data.message ?? "Couldn’t import that recipe.",
+            error: data.message ?? "Couldn’t import that recipe.",
+          }));
+          return;
+        }
+
+        let sawTerminal = false;
+        await readGenerateStream(res, (event) => {
+          if (controller.signal.aborted) return;
+          if (event.type === "progress") {
+            setState((current) => ({
+              ...current,
+              status: "running",
+              phase: event.phase,
+              message: event.message,
+              attempt: event.attempt ?? current.attempt,
+              model: event.model ?? current.model,
+            }));
+            return;
+          }
+          if (event.type === "done") {
+            sawTerminal = true;
+            setState((current) => ({
+              ...current,
+              status: "success",
+              phase: "done",
+              message: "Recipe is ready",
+              error: null,
+            }));
+            router.refresh();
+            return;
+          }
+          sawTerminal = true;
+          setState((current) => ({
+            ...current,
+            status: "error",
+            phase: "error",
+            message: event.message,
+            error: event.message,
+          }));
+        });
+
+        if (!sawTerminal && !controller.signal.aborted) {
+          setState((current) => ({
+            ...current,
+            status: "error",
+            message: "Couldn’t import that recipe.",
+            error: "Couldn’t import that recipe.",
+          }));
+        }
+      } catch (error) {
+        if (isAbortError(error) || controller.signal.aborted) {
+          setState(idleState);
+          return;
+        }
+        setState((current) => ({
+          ...current,
+          status: "error",
+          message: "The model didn’t respond",
+          error: "The model didn’t respond",
+        }));
+      } finally {
+        if (abortRef.current === controller) abortRef.current = null;
+      }
+    },
+    [router],
+  );
+
   const value = useMemo(
-    () => ({ state, startGenerate, cancel, dismiss }),
-    [state, startGenerate, cancel, dismiss],
+    () => ({ state, startGenerate, startImport, cancel, dismiss }),
+    [state, startGenerate, startImport, cancel, dismiss],
   );
 
   return (

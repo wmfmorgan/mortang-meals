@@ -59,4 +59,49 @@ describe("buildHouseholdBrief", () => {
     expect(brief).toContain("Servings: 2");
     expect(brief).toContain("Weeknight dinners under 45 minutes");
   });
+
+  it("adds kitchen prefs, slot diet overrides, time, and involvement", () => {
+    const mask = emptyMask();
+    mask.monday.breakfast = true;
+    mask.monday.dinner = true;
+    const brief = buildHouseholdBrief({
+      household,
+      kitchen,
+      slotMask: mask,
+      prefs: {
+        expertise: "newbie",
+        overallDiet: "Mediterranean",
+        breakfastDiet: "high-protein",
+        lunchDiet: "",
+        dinnerDiet: "vegetarian",
+        maxCookMinutes: 30,
+        involved: "low",
+      },
+    });
+    expect(brief).toContain("Cook for a newbie");
+    expect(brief).toContain("How involved: low");
+    expect(brief).toContain("Keep cookMinutes at or under 30");
+    expect(brief).toContain("breakfast diet: high-protein");
+    expect(brief).toContain("dinner diet: vegetarian");
+    expect(brief).not.toContain("lunch diet");
+  });
+
+  it("asks for a featured ingredient on the assigned slot only", () => {
+    const mask = emptyMask();
+    mask.monday.dinner = true;
+    mask.tuesday.dinner = true;
+    const brief = buildHouseholdBrief({
+      household,
+      kitchen,
+      slotMask: mask,
+      useIngredients: [
+        { name: "chicken", day: "monday", slot: "dinner" },
+        { name: "ignored", day: "wednesday", slot: "lunch" },
+      ],
+    });
+    expect(brief).toContain(
+      "monday dinner must feature chicken as a main ingredient.",
+    );
+    expect(brief).not.toContain("wednesday lunch");
+  });
 });
