@@ -1,7 +1,9 @@
 # Mortang Meals — AI Household Meal Planner
 
+> **Stale.** This is the original 2026-08-12 v1 design. The running app has since added a meal library, URL import, pins + merge-on-generate, kitchen cooking prefs, and assigned ingredients. For current behavior, read [`AGENTS.md`](../../../AGENTS.md).
+
 Date: 2026-08-12  
-Status: Approved for implementation planning  
+Status: Historical — superseded by the running app  
 Stack: Next.js (App Router) + SQLite (Drizzle) + OpenAI-compatible AI adapter
 
 ## Goal

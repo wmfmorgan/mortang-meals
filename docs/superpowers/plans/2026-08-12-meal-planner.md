@@ -1,5 +1,7 @@
 # Mortang Meals Implementation Plan
 
+> **Stale.** This is the original v1 implementation plan. Do not execute it. Current behavior is in [`AGENTS.md`](../../../AGENTS.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship a local Next.js meal planner that turns one household profile into a saved week of recipes, supports swapping a meal without duplicates, and derives a shopping list.
