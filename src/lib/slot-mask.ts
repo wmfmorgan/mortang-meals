@@ -2,6 +2,23 @@ import type { DayOfWeek, Meal, MealSlot, SlotMask } from "./types";
 import { DAYS, SLOTS } from "./types";
 
 export const SLOT_MASK_KEY = "mortang.slotMask";
+export const SLOT_PICKER_OPEN_KEY = "mortang.slotPickerOpen";
+
+const DAY_SHORT: Record<DayOfWeek, string> = {
+  monday: "Mon",
+  tuesday: "Tue",
+  wednesday: "Wed",
+  thursday: "Thu",
+  friday: "Fri",
+  saturday: "Sat",
+  sunday: "Sun",
+};
+
+const SLOT_PLURAL: Record<MealSlot, string> = {
+  breakfast: "breakfasts",
+  lunch: "lunches",
+  dinner: "dinners",
+};
 
 export function emptySlotMask(): SlotMask {
   return Object.fromEntries(
@@ -112,4 +129,70 @@ export function readSessionMask(): SlotMask | null {
 export function writeSessionMask(mask: SlotMask) {
   if (typeof sessionStorage === "undefined") return;
   sessionStorage.setItem(SLOT_MASK_KEY, JSON.stringify(mask));
+}
+
+function daysOnForSlot(mask: SlotMask, slot: MealSlot): DayOfWeek[] {
+  return DAYS.filter((day) => Boolean(mask[day]?.[slot]));
+}
+
+function isConsecutive(days: DayOfWeek[]): boolean {
+  if (days.length <= 1) return false;
+  const indices = days.map((day) => DAYS.indexOf(day));
+  return indices.every(
+    (index, offset) => offset === 0 || index === indices[offset - 1] + 1,
+  );
+}
+
+function summarizeOneSlot(slot: MealSlot, days: DayOfWeek[]): string {
+  if (days.length === 7) return `7 ${SLOT_PLURAL[slot]}`;
+  if (isConsecutive(days)) {
+    return `${DAY_SHORT[days[0]]}–${DAY_SHORT[days[days.length - 1]]} ${slot}`;
+  }
+  if (days.length === 1) return `${DAY_SHORT[days[0]]} ${slot}`;
+  if (days.length <= 3) {
+    return `${days.map((day) => DAY_SHORT[day]).join(", ")} ${slot}`;
+  }
+  return `${days.length} ${SLOT_PLURAL[slot]}`;
+}
+
+export function summarizeSlotMask(mask: SlotMask): string {
+  let enabled = 0;
+  const parts: { firstDayIndex: number; slotIndex: number; text: string }[] =
+    [];
+  for (const [slotIndex, slot] of SLOTS.entries()) {
+    const days = daysOnForSlot(mask, slot);
+    enabled += days.length;
+    if (days.length === 0) continue;
+    parts.push({
+      firstDayIndex: DAYS.indexOf(days[0]),
+      slotIndex,
+      text: summarizeOneSlot(slot, days),
+    });
+  }
+  if (enabled === 0) return "No slots";
+  if (enabled === 21) return "All 21 slots";
+  parts.sort((a, b) => {
+    if (a.firstDayIndex !== b.firstDayIndex) {
+      return a.firstDayIndex - b.firstDayIndex;
+    }
+    return a.slotIndex - b.slotIndex;
+  });
+  return parts.map((part) => part.text).join(", ");
+}
+
+export function readSlotPickerOpen(): boolean | null {
+  if (typeof sessionStorage === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(SLOT_PICKER_OPEN_KEY);
+    if (raw === "1") return true;
+    if (raw === "0") return false;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeSlotPickerOpen(open: boolean) {
+  if (typeof sessionStorage === "undefined") return;
+  sessionStorage.setItem(SLOT_PICKER_OPEN_KEY, open ? "1" : "0");
 }

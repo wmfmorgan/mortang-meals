@@ -14,7 +14,7 @@ Suggested build order by leverage, not original request numbering.
 
 | # | Item | Size | Status |
 |---|---|---|---|
-| 1 | Collapsible slots to generate | S | next |
+| 1 | Collapsible slots to generate | S | done |
 | 2 | Prompted meal refresh | M | later |
 | 3 | Manual recipe input | M | later |
 | 4 | AI source links | M | later |
@@ -27,7 +27,7 @@ Items 1–5 can ship independently. Item 6 needs its own spec before any code.
 
 ## 1. Collapsible slots to generate
 
-**Status:** next
+**Status:** done
 **Size:** S
 **Request:** The "Slots to generate" picker should be collapsible.
 

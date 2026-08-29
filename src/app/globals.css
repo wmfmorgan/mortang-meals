@@ -234,6 +234,51 @@ a.badge-link:hover {
   border-radius: 1.15rem;
 }
 
+.slot-picker-toggle {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.slot-picker-toggle-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.85rem;
+}
+
+.slot-picker-summary {
+  color: var(--color-herb);
+  font-size: 0.9rem;
+}
+
+.slot-picker-chevron {
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-right: 1.5px solid var(--color-herb);
+  border-bottom: 1.5px solid var(--color-herb);
+  transform: rotate(45deg);
+  transition: transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.slot-picker-toggle[aria-expanded="true"] .slot-picker-chevron {
+  transform: rotate(225deg);
+}
+
 .week-grid {
   display: grid;
   grid-template-columns: 3.25rem repeat(7, minmax(0, 1fr));

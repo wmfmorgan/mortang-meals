@@ -72,7 +72,7 @@ Thin `src/app/api/*/route.ts` files parse JSON and call a handler. Keep logic in
 | Route | Role |
 | --- | --- |
 | `/setup` | First-run wizard: household → kitchen checklist → slot mask. Redirect target when there is no household or no named people. |
-| `/` This Week | Home. Slot picker, generate, pin all, “use what I have” ingredients, week grid, recipe flyout, library flyout. `?plan=` opens a historical plan. |
+| `/` This Week | Home. Collapsible slot picker (session-backed open/closed), generate, pin all, “use what I have” ingredients, week grid, recipe flyout, library flyout. `?plan=` opens a historical plan. |
 | `/meals` | Library catalog: search / filter / group, import-from-URL form. |
 | `/meals/[id]` | Full recipe editor (title, why, time, method, ingredients, steps). Swap only if the meal is on the current plan. |
 | `/shopping-list` | Derived list for the open plan (`?plan=` supported). Not stored. |
@@ -221,7 +221,7 @@ Household and kitchen writes are server actions (`src/app/household/actions.ts`,
 - Recipe cards are a flyout, not a navigation, except “Open full recipe”.
 - Star badge = web search. Arrow badge = imported (`sourceUrl`).
 - Historical plans are view-only for pin/place/use-ingredient. Generate still targets the current plan.
-- Session slot mask and use-ingredients survive in-tab navigation.
+- Session slot mask, slot-picker open/closed, and use-ingredients survive in-tab navigation. On This Week the slot picker collapses to a summary when a plan exists (or after the user collapses it); setup wizard keeps the full table.
 
 ## How to change things
 

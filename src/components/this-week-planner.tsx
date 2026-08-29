@@ -15,7 +15,9 @@ import {
   defaultSlotMask,
   maskMinusPinned,
   readSessionMask,
+  readSlotPickerOpen,
   writeSessionMask,
+  writeSlotPickerOpen,
 } from "@/lib/slot-mask";
 import {
   readUseIngredients,
@@ -54,6 +56,7 @@ export function ThisWeekPlanner({
   const [focusName, setFocusName] = useState("");
   const [focusDay, setFocusDay] = useState<DayOfWeek>("monday");
   const [focusSlot, setFocusSlot] = useState<MealSlot>("dinner");
+  const [pickerOpen, setPickerOpen] = useState(() => !plan);
 
   const pinnedMeals = plan?.meals.filter((meal) => meal.pinned) ?? [];
   const pinKey = pinnedMeals
@@ -78,6 +81,11 @@ export function ThisWeekPlanner({
   useEffect(() => {
     writeUseIngredients(useIngredients);
   }, [useIngredients]);
+
+  useEffect(() => {
+    const stored = readSlotPickerOpen();
+    setPickerOpen(stored ?? !plan);
+  }, [plan]);
 
   useEffect(() => {
     if (generation.status === "success") setUseIngredients([]);
@@ -112,6 +120,12 @@ export function ThisWeekPlanner({
         value={slotMask}
         onChange={setSlotMask}
         pinnedMeals={pinnedMeals}
+        collapsible
+        expanded={pickerOpen}
+        onExpandedChange={(open) => {
+          setPickerOpen(open);
+          writeSlotPickerOpen(open);
+        }}
       />
       <div className="flex flex-wrap items-center gap-2">
         <GenerateButton
