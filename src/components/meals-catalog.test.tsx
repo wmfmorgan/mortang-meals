@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Meal } from "@/lib/types";
+import { EMPTY_EXTRAS } from "@/meals/extras";
 import { MealsCatalog } from "./meals-catalog";
 
 vi.mock("next/navigation", () => ({
@@ -34,6 +35,7 @@ const meal: Meal = {
   pinned: false,
   createdAt: "2026-08-10T12:00:00.000Z",
   sourceUrl: "https://example.com/salmon",
+  extras: EMPTY_EXTRAS,
 };
 
 describe("MealsCatalog", () => {

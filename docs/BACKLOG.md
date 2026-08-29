@@ -19,9 +19,9 @@ Suggested build order by leverage, not original request numbering.
 | 3 | Manual recipe input | M | done |
 | 4 | AI source links | M | done |
 | 5 | Animated progress icon | S | later |
-| 6 | Sides and desserts | L | later |
+| 6 | Sides and desserts | L | done |
 
-Items 1–5 can ship independently. Item 6 needs its own spec before any code.
+Items 1–5 can ship independently. Item 6 shipped as extras on the lunch/dinner meal (suggestion or full recipe, add-on-card).
 
 ---
 
@@ -191,7 +191,7 @@ Redesigning the modal, adding sound, or changing progress phases.
 
 ## 6. Sides and desserts
 
-**Status:** later
+**Status:** done
 **Size:** L
 **Request:** Add side dishes and/or desserts.
 

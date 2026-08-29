@@ -2,6 +2,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Meal } from "@/lib/types";
+import { EMPTY_EXTRAS } from "@/meals/extras";
 import { RecipeFlyout } from "./recipe-flyout";
 
 vi.mock("next/navigation", () => ({
@@ -27,6 +28,7 @@ const meal: Meal = {
   pinned: false,
   createdAt: "2026-08-10T12:00:00.000Z",
   sourceUrl: null,
+  extras: EMPTY_EXTRAS,
 };
 
 describe("RecipeFlyout", () => {
@@ -88,5 +90,18 @@ describe("RecipeFlyout", () => {
       name: "https://example.com/week-salmon",
     });
     expect(source.getAttribute("href")).toBe("https://example.com/week-salmon");
+  });
+
+  it("can hide the full recipe link for extras", () => {
+    render(
+      <RecipeFlyout
+        meal={meal}
+        servings={2}
+        onClose={() => {}}
+        canSwap={false}
+        showOpenFullRecipe={false}
+      />,
+    );
+    expect(screen.queryByRole("link", { name: /open full recipe/i })).toBeNull();
   });
 });

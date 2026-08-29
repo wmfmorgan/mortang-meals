@@ -60,6 +60,7 @@ export const meals = sqliteTable("meals", {
   weekStart: text("week_start").notNull(),
   createdAt: text("created_at").notNull(),
   sourceUrl: text("source_url"),
+  extrasJson: text("extras_json").notNull().default("{}"),
 });
 
 export const aiSettings = sqliteTable("ai_settings", {

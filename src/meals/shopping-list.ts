@@ -1,4 +1,10 @@
-import { AISLES, type Meal, type ShoppingItem, type ShoppingList } from "@/lib/types";
+import {
+  AISLES,
+  type Meal,
+  type MealExtras,
+  type ShoppingItem,
+  type ShoppingList,
+} from "@/lib/types";
 
 export function normalizeIngredientName(name: string): string {
   const normalized = name.trim().toLowerCase().replace(/\s+/g, " ");
@@ -57,13 +63,27 @@ export function formatQuantity(value: number): string {
   return sign + String(rounded);
 }
 
+function extraRecipeIngredients(
+  extras: MealExtras | undefined,
+): Meal["ingredients"] {
+  const items: Meal["ingredients"] = [];
+  for (const extra of [extras?.side, extras?.dessert]) {
+    if (extra?.mode === "recipe") items.push(...extra.ingredients);
+  }
+  return items;
+}
+
 export function mergeShoppingList(
-  meals: Pick<Meal, "ingredients">[],
+  meals: Array<Pick<Meal, "ingredients"> & { extras?: MealExtras }>,
 ): ShoppingList {
   const merged = new Map<string, ShoppingItem>();
 
   for (const meal of meals) {
-    for (const ingredient of meal.ingredients) {
+    const ingredients = [
+      ...meal.ingredients,
+      ...extraRecipeIngredients(meal.extras),
+    ];
+    for (const ingredient of ingredients) {
       const name = normalizeIngredientName(ingredient.name);
       const parsed = parseQuantity(ingredient.quantity);
       const quantityText = String(ingredient.quantity).trim();

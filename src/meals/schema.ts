@@ -99,6 +99,46 @@ export function parseSingleMealResponse(
   return { ok: true, meal: parsed.data.meal };
 }
 
+export const extraSuggestionResponseSchema = z.object({
+  title: z.string().min(1),
+});
+
+export const extraRecipeSchema = mealEditSchema.extend({
+  sourceUrl: z.union([z.string(), z.null()]).optional(),
+});
+
+export function parseExtraSuggestionResponse(
+  text: string,
+): { ok: true; title: string } | ParseFail {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return { ok: false, reason: "invalid-json" };
+  }
+  const parsed = extraSuggestionResponseSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false, reason: "schema" };
+  }
+  return { ok: true, title: parsed.data.title };
+}
+
+export function parseExtraRecipeResponse(
+  text: string,
+): { ok: true; extra: z.infer<typeof extraRecipeSchema> } | ParseFail {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return { ok: false, reason: "invalid-json" };
+  }
+  const parsed = extraRecipeSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false, reason: "schema" };
+  }
+  return { ok: true, extra: parsed.data };
+}
+
 const mealJsonSchema = {
   type: "object",
   additionalProperties: false,
@@ -167,5 +207,37 @@ export const singleMealJsonSchema = {
   required: ["meal"],
   properties: {
     meal: mealJsonSchema,
+  },
+} as const;
+
+export const extraSuggestionJsonSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["title"],
+  properties: {
+    title: { type: "string", minLength: 1 },
+  },
+} as const;
+
+export const extraRecipeJsonSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "title",
+    "whyItFits",
+    "cookMinutes",
+    "method",
+    "ingredients",
+    "steps",
+    "sourceUrl",
+  ],
+  properties: {
+    title: { type: "string", minLength: 1 },
+    whyItFits: { type: "string", minLength: 1 },
+    cookMinutes: { type: "integer", exclusiveMinimum: 0 },
+    method: { type: "string", minLength: 1 },
+    sourceUrl: { type: ["string", "null"] },
+    ingredients: mealJsonSchema.properties.ingredients,
+    steps: mealJsonSchema.properties.steps,
   },
 } as const;

@@ -47,12 +47,14 @@ export function RecipeFlyout({
   onClose,
   canSwap = true,
   eyebrow,
+  showOpenFullRecipe = true,
 }: {
   meal: Meal;
   servings: number;
   onClose: () => void;
   canSwap?: boolean;
   eyebrow?: string;
+  showOpenFullRecipe?: boolean;
 }) {
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -122,9 +124,11 @@ export function RecipeFlyout({
         </section>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Link href={`/meals/${meal.id}`} className="btn btn-primary no-underline">
-            Open full recipe
-          </Link>
+          {showOpenFullRecipe ? (
+            <Link href={`/meals/${meal.id}`} className="btn btn-primary no-underline">
+              Open full recipe
+            </Link>
+          ) : null}
           {canSwap ? <SwapButton meal={meal} /> : null}
         </div>
       </aside>

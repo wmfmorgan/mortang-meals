@@ -18,10 +18,13 @@ import {
   saveGeneratedPlan,
   saveImportedMeal,
   saveStandaloneMeal,
+  setMealExtra,
+  clearMealExtra,
   setPinned,
   setPlanPinned,
   updateMeal,
 } from "./repo";
+import { EMPTY_EXTRAS, suggestionExtra } from "./extras";
 
 const dbPath = path.join(os.tmpdir(), `mortang-meals-${crypto.randomUUID()}.db`);
 
@@ -393,6 +396,127 @@ describe("meals repo", () => {
     expect(merged.meals.find((item) => item.day === "monday")?.pinned).toBe(
       true,
     );
+  });
+
+  it("new meals start with empty extras", () => {
+    const slotMask = emptyMask();
+    slotMask.monday.dinner = true;
+    const plan = saveGeneratedPlan({
+      weekStart: "2026-04-06",
+      slotMask,
+      meals: [meal({ title: "Salmon" })],
+    });
+    expect(plan.meals[0]?.extras).toEqual(EMPTY_EXTRAS);
+  });
+
+  it("setMealExtra stores a side and clearMealExtra removes it", () => {
+    const slotMask = emptyMask();
+    slotMask.monday.dinner = true;
+    const plan = saveGeneratedPlan({
+      weekStart: "2026-04-13",
+      slotMask,
+      meals: [meal({ title: "Salmon" })],
+    });
+    const extra = suggestionExtra({
+      id: "extra-1",
+      kind: "side",
+      title: "Baked potato",
+    });
+    const withSide = setMealExtra(plan.meals[0]!.id, extra);
+    expect(withSide.extras.side).toEqual(extra);
+    expect(getCurrentPlan()?.meals[0]?.extras.side?.title).toBe("Baked potato");
+
+    const cleared = clearMealExtra(plan.meals[0]!.id, "side");
+    expect(cleared.extras.side).toBeNull();
+    expect(getCurrentPlan()?.meals[0]?.extras).toEqual(EMPTY_EXTRAS);
+  });
+
+  it("replaceMeal keeps extras on the same row", () => {
+    const slotMask = emptyMask();
+    slotMask.monday.dinner = true;
+    const plan = saveGeneratedPlan({
+      weekStart: "2026-04-20",
+      slotMask,
+      meals: [meal({ title: "Salmon" })],
+    });
+    const extra = suggestionExtra({
+      id: "extra-keep",
+      kind: "dessert",
+      title: "Key lime pie",
+    });
+    setMealExtra(plan.meals[0]!.id, extra);
+
+    const swapped = replaceMeal(
+      plan.id,
+      plan.meals[0]!.id,
+      meal({ title: "Trout" }),
+    );
+    expect(swapped.title).toBe("Trout");
+    expect(swapped.extras.dessert?.title).toBe("Key lime pie");
+    expect(getCurrentPlan()?.meals[0]?.extras.dessert?.title).toBe(
+      "Key lime pie",
+    );
+  });
+
+  it("mergeGeneratedPlan drops extras on an unpinned occupant and keeps them on a pinned one", () => {
+    const slotMask = emptyMask();
+    slotMask.monday.dinner = true;
+    slotMask.tuesday.dinner = true;
+    const plan = saveGeneratedPlan({
+      weekStart: "2026-04-27",
+      slotMask,
+      meals: [
+        meal({ day: "monday", title: "Keep salmon" }),
+        meal({ day: "tuesday", title: "Replace chicken" }),
+      ],
+    });
+    const monday = plan.meals.find((item) => item.day === "monday")!;
+    const tuesday = plan.meals.find((item) => item.day === "tuesday")!;
+    setMealExtra(
+      monday.id,
+      suggestionExtra({ id: "keep-side", kind: "side", title: "Slaw" }),
+    );
+    setMealExtra(
+      tuesday.id,
+      suggestionExtra({ id: "drop-side", kind: "side", title: "Fries" }),
+    );
+    setPinned(monday.id, true);
+
+    const merged = mergeGeneratedPlan({
+      weekStart: "2026-04-27",
+      slotMask,
+      meals: [
+        meal({ day: "monday", title: "Should not land" }),
+        meal({ day: "tuesday", title: "New trout" }),
+      ],
+    });
+
+    expect(merged.meals.find((item) => item.day === "monday")?.extras.side?.title).toBe(
+      "Slaw",
+    );
+    expect(merged.meals.find((item) => item.day === "tuesday")?.extras).toEqual(
+      EMPTY_EXTRAS,
+    );
+  });
+
+  it("placeMeal does not copy extras onto the week", () => {
+    const source = saveStandaloneMeal({
+      meal: meal({ title: "Library chili" }),
+      slot: "dinner",
+    });
+    setMealExtra(
+      source.id,
+      suggestionExtra({ id: "lib-side", kind: "side", title: "Cornbread" }),
+    );
+
+    const placed = placeMeal({
+      sourceMealId: source.id,
+      day: "wednesday",
+      slot: "dinner",
+      weekStart: "2026-05-04",
+    });
+    expect(placed.title).toBe("Library chili");
+    expect(placed.extras).toEqual(EMPTY_EXTRAS);
   });
 });
 

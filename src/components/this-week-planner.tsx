@@ -4,12 +4,15 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type {
   DayOfWeek,
+  ExtraKind,
   Meal,
+  MealExtra,
   MealSlot,
   SlotMask,
   UseIngredient,
   WeekPlan,
 } from "@/lib/types";
+import { EMPTY_EXTRAS } from "@/meals/extras";
 import { DAYS, SLOTS } from "@/lib/types";
 import {
   defaultSlotMask,
@@ -26,9 +29,29 @@ import {
 import { GenerateButton } from "./generate-button";
 import { useGeneration } from "./generation-provider";
 import { MealLibraryFlyout } from "./meal-library-flyout";
-import { RecipeFlyout } from "./recipe-flyout";
+import { RecipeFlyout, recipeEyebrow } from "./recipe-flyout";
 import { SlotPicker } from "./slot-picker";
 import { WeekGrid } from "./week-grid";
+
+function extraAsMeal(parent: Meal, extra: MealExtra): Meal {
+  return {
+    ...parent,
+    id: extra.id,
+    title: extra.title,
+    whyItFits: extra.whyItFits,
+    cookMinutes: extra.cookMinutes,
+    method: extra.method,
+    ingredients: extra.ingredients,
+    steps: extra.steps,
+    usedWebSearch: extra.usedWebSearch,
+    sourceUrl: extra.sourceUrl,
+    extras: EMPTY_EXTRAS,
+  };
+}
+
+function extraRecipeEyebrow(meal: Meal, kind: ExtraKind): string {
+  return `${recipeEyebrow(meal)} · ${kind}`;
+}
 
 export function ThisWeekPlanner({
   plan,
@@ -46,7 +69,11 @@ export function ThisWeekPlanner({
   const [slotMask, setSlotMask] = useState<SlotMask>(
     () => plan?.slotMask ?? defaultSlotMask(),
   );
-  const [selected, setSelected] = useState<Meal | null>(null);
+  const [selected, setSelected] = useState<
+    | { type: "meal"; mealId: string }
+    | { type: "extra"; mealId: string; kind: ExtraKind }
+    | null
+  >(null);
   const [library, setLibrary] = useState<{
     day: DayOfWeek;
     slot: MealSlot;
@@ -92,10 +119,22 @@ export function ThisWeekPlanner({
   }, [generation.status]);
 
   const editable = !plan || plan.isCurrent;
-  const openMeal =
+  const selectedMeal =
     selected && plan
-      ? (plan.meals.find((meal) => meal.id === selected.id) ?? null)
-      : selected;
+      ? (plan.meals.find((meal) => meal.id === selected.mealId) ?? null)
+      : null;
+  const selectedExtra =
+    selected?.type === "extra" ? (selectedMeal?.extras[selected.kind] ?? null) : null;
+  const openMeal =
+    selectedExtra?.mode === "recipe" && selectedMeal
+      ? extraAsMeal(selectedMeal, selectedExtra)
+      : selected?.type === "meal"
+        ? selectedMeal
+        : null;
+  const extraEyebrow =
+    selected?.type === "extra" && selectedMeal && selectedExtra
+      ? extraRecipeEyebrow(selectedMeal, selectedExtra.kind)
+      : undefined;
   const allPinned =
     Boolean(plan && plan.meals.length > 0 && plan.meals.every((meal) => meal.pinned));
 
@@ -247,7 +286,10 @@ export function ThisWeekPlanner({
       ) : null}
       <WeekGrid
         plan={plan}
-        onSelectMeal={setSelected}
+        onSelectMeal={(meal) => setSelected({ type: "meal", mealId: meal.id })}
+        onSelectExtra={(meal, extra) =>
+          setSelected({ type: "extra", mealId: meal.id, kind: extra.kind })
+        }
         onAdd={(day, slot) => setLibrary({ day, slot })}
         onReplace={(meal) => setLibrary({ day: meal.day, slot: meal.slot })}
         editable={editable}
@@ -258,6 +300,9 @@ export function ThisWeekPlanner({
           meal={openMeal}
           servings={servings}
           onClose={() => setSelected(null)}
+          canSwap={selected?.type === "meal"}
+          showOpenFullRecipe={selected?.type === "meal"}
+          eyebrow={extraEyebrow}
         />
       ) : null}
       {library ? (

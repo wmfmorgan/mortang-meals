@@ -5,9 +5,11 @@ import { mondayOf } from "@/lib/week";
 import type { AdapterRequest, AdapterResult, MealSlot } from "@/lib/types";
 import { DAYS, SLOTS } from "@/lib/types";
 import {
+  clearMealExtra,
   deleteMeal,
   deletePlan,
   getCurrentPlan,
+  getMeal,
   listLibraryMeals,
   placeMeal,
   saveImportedMeal,
@@ -36,6 +38,11 @@ const placeBodySchema = z.object({
 
 const deleteBodySchema = z.object({
   mealId: z.string().min(1),
+});
+
+const deleteExtraBodySchema = z.object({
+  mealId: z.string().min(1),
+  kind: z.enum(["side", "dessert"]),
 });
 
 const deletePlanBodySchema = z.object({
@@ -83,6 +90,20 @@ export function handlePlaceMeal(body: unknown): HttpResult {
     if (message === "Meal not found") return jsonError(404, message);
     return jsonError(400, message);
   }
+}
+
+export function handleDeleteExtra(body: unknown): HttpResult {
+  const parsed = deleteExtraBodySchema.safeParse(body);
+  if (!parsed.success) {
+    return jsonError(400, "mealId and kind are required.");
+  }
+  const meal = getMeal(parsed.data.mealId);
+  if (!meal) return jsonError(404, "Meal not found.");
+  const current = getCurrentPlan();
+  if (!current || meal.planId !== current.id) {
+    return jsonError(400, "Sides and desserts can only be changed on this week.");
+  }
+  return { status: 200, body: { meal: clearMealExtra(meal.id, parsed.data.kind) } };
 }
 
 export function handleDeleteMeal(body: unknown): HttpResult {

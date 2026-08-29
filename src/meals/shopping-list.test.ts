@@ -61,6 +61,53 @@ describe("mergeShoppingList", () => {
     expect(list[0].items[0].quantity).toBe("3");
   });
 
+  it("includes ingredients from a recipe extra and ignores a suggestion", () => {
+    const list = mergeShoppingList([
+      {
+        ingredients: [
+          { name: "salmon", quantity: "1", unit: "lb", aisle: "meat" },
+        ],
+        extras: {
+          side: {
+            id: "side-1",
+            kind: "side",
+            mode: "recipe",
+            title: "Baked potato",
+            whyItFits: "",
+            cookMinutes: 45,
+            method: "oven",
+            ingredients: [
+              { name: "russet potato", quantity: "2", unit: "count", aisle: "produce" },
+            ],
+            steps: ["Bake"],
+            usedWebSearch: false,
+            sourceUrl: null,
+          },
+          dessert: {
+            id: "dessert-1",
+            kind: "dessert",
+            mode: "suggestion",
+            title: "Key lime pie",
+            whyItFits: "",
+            cookMinutes: 0,
+            method: "",
+            ingredients: [
+              { name: "lime", quantity: "4", unit: "count", aisle: "produce" },
+            ],
+            steps: [],
+            usedWebSearch: false,
+            sourceUrl: null,
+          },
+        },
+      },
+    ]);
+    const produce = list.find((g) => g.aisle === "produce")?.items;
+    expect(produce).toEqual([
+      { name: "russet potato", quantity: "2", unit: "count", aisle: "produce" },
+    ]);
+    expect(list.map((g) => g.aisle)).toEqual(["produce", "meat"]);
+  });
+
   it("does not merge the same name with different units", () => {
     const list = mergeShoppingList([
       {

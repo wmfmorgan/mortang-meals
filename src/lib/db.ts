@@ -106,6 +106,7 @@ function ensureSchema(sqlite: Database.Database): void {
   ensureColumn(sqlite, "meals", "week_start", "TEXT NOT NULL DEFAULT ''");
   ensureColumn(sqlite, "meals", "created_at", "TEXT NOT NULL DEFAULT ''");
   ensureColumn(sqlite, "meals", "source_url", "TEXT");
+  ensureColumn(sqlite, "meals", "extras_json", "TEXT NOT NULL DEFAULT '{}'");
   sqlite.exec(`
     UPDATE meals
     SET week_start = COALESCE(

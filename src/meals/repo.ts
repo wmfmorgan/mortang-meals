@@ -3,10 +3,13 @@ import { getDb } from "@/lib/db";
 import { meals, weekPlans } from "@/lib/schema";
 import type {
   DayOfWeek,
+  ExtraKind,
   GeneratedMeal,
   Ingredient,
   LibraryMeal,
   Meal,
+  MealExtra,
+  MealExtras,
   MealSlot,
   SlotMask,
   WeekPlan,
@@ -15,6 +18,7 @@ import { DAYS, SLOTS } from "@/lib/types";
 import { emptySlotMask } from "@/lib/slot-mask";
 import { mondayOf } from "@/lib/week";
 import { normalizeTitle } from "./duplicates";
+import { EMPTY_EXTRAS, parseMealExtras } from "./extras";
 
 type PlanRow = typeof weekPlans.$inferSelect;
 type MealRow = typeof meals.$inferSelect;
@@ -35,6 +39,7 @@ function mapMeal(row: MealRow): Meal {
     pinned: row.pinned === 1,
     createdAt: row.createdAt,
     sourceUrl: row.sourceUrl,
+    extras: parseMealExtras(row.extrasJson),
   };
 }
 
@@ -73,6 +78,7 @@ function mealInsertValues(
     createdAt?: string;
     sourceUrl?: string | null;
     id?: string;
+    extras?: MealExtras;
   },
 ) {
   return {
@@ -91,6 +97,7 @@ function mealInsertValues(
     weekStart: extras.weekStart,
     createdAt: extras.createdAt ?? new Date().toISOString(),
     sourceUrl: extras.sourceUrl ?? meal.sourceUrl ?? null,
+    extrasJson: JSON.stringify(extras.extras ?? EMPTY_EXTRAS),
   };
 }
 
@@ -176,6 +183,35 @@ export function getMeal(id: string): Meal | null {
   const db = getDb();
   const row = db.select().from(meals).where(eq(meals.id, id)).get();
   return row ? mapMeal(row) : null;
+}
+
+export function setMealExtra(mealId: string, extra: MealExtra): Meal {
+  const db = getDb();
+  const existing = db.select().from(meals).where(eq(meals.id, mealId)).get();
+  if (!existing) throw new Error("Meal not found");
+  const extras = {
+    ...parseMealExtras(existing.extrasJson),
+    [extra.kind]: extra,
+  };
+  const extrasJson = JSON.stringify(extras);
+  db.update(meals).set({ extrasJson }).where(eq(meals.id, mealId)).run();
+  return mapMeal({ ...existing, extrasJson });
+}
+
+export function clearMealExtra(
+  mealId: string,
+  kind: ExtraKind,
+): Meal {
+  const db = getDb();
+  const existing = db.select().from(meals).where(eq(meals.id, mealId)).get();
+  if (!existing) throw new Error("Meal not found");
+  const extras = {
+    ...parseMealExtras(existing.extrasJson),
+    [kind]: null,
+  };
+  const extrasJson = JSON.stringify(extras);
+  db.update(meals).set({ extrasJson }).where(eq(meals.id, mealId)).run();
+  return mapMeal({ ...existing, extrasJson });
 }
 
 export function updateMeal(
@@ -323,6 +359,7 @@ export function replaceMeal(
     weekStart: existing.weekStart,
     createdAt: existing.createdAt,
     sourceUrl: next.sourceUrl ?? null,
+    extras: parseMealExtras(existing.extrasJson),
   });
   db.update(meals).set(row).where(eq(meals.id, mealId)).run();
   return mapMeal(row);

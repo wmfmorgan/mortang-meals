@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Meal } from "@/lib/types";
+import { EMPTY_EXTRAS } from "./extras";
 import { filterCatalogMeals, groupCatalogMeals } from "./catalog";
 
 function meal(overrides: Partial<Meal> = {}): Meal {
@@ -18,6 +19,7 @@ function meal(overrides: Partial<Meal> = {}): Meal {
     pinned: false,
     createdAt: "2026-08-10T12:00:00.000Z",
     sourceUrl: null,
+    extras: EMPTY_EXTRAS,
     ...overrides,
   };
 }

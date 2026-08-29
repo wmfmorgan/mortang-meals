@@ -1,6 +1,7 @@
 import type {
   DayOfWeek,
   Meal,
+  MealExtra,
   MealSlot,
   UseIngredient,
   WeekPlan,
@@ -45,6 +46,7 @@ function mealAt(
 export function WeekGrid({
   plan,
   onSelectMeal,
+  onSelectExtra,
   onAdd,
   onReplace,
   editable = false,
@@ -52,6 +54,7 @@ export function WeekGrid({
 }: {
   plan: WeekPlan | null;
   onSelectMeal?: (meal: Meal) => void;
+  onSelectExtra?: (meal: Meal, extra: MealExtra) => void;
   onAdd?: (day: DayOfWeek, slot: MealSlot) => void;
   onReplace?: (meal: Meal) => void;
   editable?: boolean;
@@ -122,6 +125,11 @@ export function WeekGrid({
                   <MealCard
                     meal={meal}
                     onOpen={onSelectMeal}
+                    onOpenExtra={
+                      onSelectExtra
+                        ? (extra) => onSelectExtra(meal, extra)
+                        : undefined
+                    }
                     onReplace={onReplace}
                     editable={editable}
                   />

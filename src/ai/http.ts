@@ -7,6 +7,7 @@ import type {
   AdapterRequest,
   AdapterResult,
   AiSettings,
+  ExtraKind,
   Household,
   SlotMask,
 } from "@/lib/types";
@@ -14,14 +15,17 @@ import { DAYS, SLOTS } from "@/lib/types";
 import { hasAnySlot as maskHasAny, maskMinusPinned } from "@/lib/slot-mask";
 import {
   getCurrentPlan,
+  getMeal,
   getPlan,
   mergeGeneratedPlan,
   replaceMeal,
+  setMealExtra,
 } from "@/meals/repo";
 import { mergeShoppingList } from "@/meals/shopping-list";
 import { createAdapter, grokWebSearchEnabled } from "./adapter";
 import { generateWeekPlan, type GenerateProgressEvent } from "./generate-plan";
 import { getSettings, saveSettings } from "./settings-repo";
+import { generateExtra } from "./generate-extra";
 import { swapMeal } from "./swap-meal";
 import { clearTraces, listTraces, recordTrace } from "./traces";
 
@@ -77,6 +81,12 @@ const swapBodySchema = z.object({
   planId: z.string().min(1),
   mealId: z.string().min(1),
   useIngredients: z.array(useIngredientSchema).optional(),
+});
+
+const extraBodySchema = z.object({
+  mealId: z.string().min(1),
+  kind: z.enum(["side", "dessert"]),
+  mode: z.enum(["suggestion", "recipe"]),
 });
 
 const settingsPatchSchema = z.object({
@@ -265,6 +275,92 @@ export async function handleSwap(
       shoppingList: mergeShoppingList(updated?.meals ?? [meal]),
     },
   };
+}
+
+export async function handleGenerateExtra(
+  body: unknown,
+  deps?: HandlerDeps,
+): Promise<HttpResult> {
+  const parsed = extraBodySchema.safeParse(body);
+  if (!parsed.success) {
+    return jsonError(400, "mealId, kind, and mode are required.");
+  }
+
+  const meal = getMeal(parsed.data.mealId);
+  if (!meal) return jsonError(404, "Meal not found.");
+
+  const current = getCurrentPlan();
+  if (!current || meal.planId !== current.id) {
+    return jsonError(400, "Sides and desserts can only be added on this week.");
+  }
+  if (meal.slot === "breakfast") {
+    return jsonError(400, "Breakfasts don’t have sides or desserts.");
+  }
+
+  const existing = meal.extras[parsed.data.kind];
+  const upgrading =
+    existing?.mode === "suggestion" && parsed.data.mode === "recipe";
+  if (existing && !upgrading) {
+    return jsonError(400, `That meal already has a ${parsed.data.kind}.`);
+  }
+
+  const ready = loadReadyHousehold();
+  if (!ready.ok) return ready.result;
+
+  const settings = getSettings();
+  if (grokKeyMissing(settings)) {
+    return jsonError(400, GROK_KEY_MESSAGE);
+  }
+
+  seedKitchenIfEmpty();
+  const reservedTitles = extraReservedTitles(
+    current.meals,
+    meal.id,
+    parsed.data.kind,
+  );
+  const result = await generateExtra({
+    household: ready.household,
+    kitchen: listKitchen(),
+    prefs: getKitchenPrefs(),
+    slotMask: current.slotMask,
+    parent: meal,
+    kind: parsed.data.kind,
+    mode: parsed.data.mode,
+    keepTitle: upgrading ? existing.title : undefined,
+    reservedTitles,
+    adapter: resolveAdapter(settings, deps),
+    logTrace: recordTrace,
+    settings,
+  });
+
+  if (!result.ok) {
+    return jsonError(422, result.message);
+  }
+
+  const extra = {
+    id: existing?.id ?? crypto.randomUUID(),
+    kind: parsed.data.kind,
+    ...result.extra,
+  };
+  return { status: 200, body: { meal: setMealExtra(meal.id, extra) } };
+}
+
+function extraReservedTitles(
+  meals: { id: string; title: string; extras: { side: { title: string } | null; dessert: { title: string } | null } }[],
+  mealId: string,
+  kind: ExtraKind,
+): string[] {
+  const titles: string[] = [];
+  for (const item of meals) {
+    if (item.id !== mealId) titles.push(item.title);
+    if (item.extras.side && !(item.id === mealId && kind === "side")) {
+      titles.push(item.extras.side.title);
+    }
+    if (item.extras.dessert && !(item.id === mealId && kind === "dessert")) {
+      titles.push(item.extras.dessert.title);
+    }
+  }
+  return titles;
 }
 
 export function handleGetSettings(): HttpResult {

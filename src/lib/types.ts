@@ -15,7 +15,11 @@ export type TraceKind =
   | "generate-retry"
   | "swap"
   | "swap-retry"
+  | "extra"
+  | "extra-retry"
   | "test";
+export type ExtraKind = "side" | "dessert";
+export type ExtraMode = "suggestion" | "recipe";
 export type ValidationResult =
   | "ok"
   | "invalid-json"
@@ -55,6 +59,25 @@ export type GeneratedMeal = {
   sourceUrl?: string | null;
 };
 
+export type MealExtra = {
+  id: string;
+  kind: ExtraKind;
+  mode: ExtraMode;
+  title: string;
+  whyItFits: string;
+  cookMinutes: number;
+  method: string;
+  ingredients: Ingredient[];
+  steps: string[];
+  usedWebSearch: boolean;
+  sourceUrl: string | null;
+};
+
+export type MealExtras = {
+  side: MealExtra | null;
+  dessert: MealExtra | null;
+};
+
 export type Meal = GeneratedMeal & {
   id: string;
   planId: string;
@@ -62,6 +85,7 @@ export type Meal = GeneratedMeal & {
   pinned: boolean;
   createdAt: string;
   sourceUrl: string | null;
+  extras: MealExtras;
 };
 
 export type LibraryMeal = {

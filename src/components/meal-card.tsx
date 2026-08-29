@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Meal } from "@/lib/types";
+import type { Meal, MealExtra } from "@/lib/types";
 import { readUseIngredients } from "@/lib/use-ingredients";
+import { MealExtras } from "./meal-extras";
 
 export function SwapButton({ meal }: { meal: Meal }) {
   const router = useRouter();
@@ -262,11 +263,13 @@ export function PinIcon({ filled }: { filled: boolean }) {
 export function MealCard({
   meal,
   onOpen,
+  onOpenExtra,
   onReplace,
   editable = false,
 }: {
   meal: Meal;
   onOpen?: (meal: Meal) => void;
+  onOpenExtra?: (extra: MealExtra) => void;
   onReplace?: (meal: Meal) => void;
   editable?: boolean;
 }) {
@@ -294,6 +297,7 @@ export function MealCard({
           </div>
         ) : null}
       </div>
+      <MealExtras meal={meal} editable={editable} onOpenExtra={onOpenExtra} />
       <div className="meal-card-actions">
         {editable && onReplace ? (
           <button

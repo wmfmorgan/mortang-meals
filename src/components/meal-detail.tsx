@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Aisle, Ingredient, Meal, MealSlot } from "@/lib/types";
+import { EMPTY_EXTRAS } from "@/meals/extras";
 import { AISLES, SLOTS } from "@/lib/types";
 import { PageHeader } from "./page-header";
 import { MealBadges, SwapButton, TrashIcon } from "./meal-card";
@@ -30,6 +31,7 @@ const EMPTY_DRAFT: Meal = {
   pinned: false,
   createdAt: "",
   sourceUrl: null,
+  extras: EMPTY_EXTRAS,
 };
 
 export function MealDetail({

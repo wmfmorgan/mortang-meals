@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   mealEditSchema,
   normalizeSourceUrl,
+  parseExtraRecipeResponse,
+  parseExtraSuggestionResponse,
   parseMealsResponse,
   parseSingleMealResponse,
+  singleMealJsonSchema,
 } from "./schema";
 
 const validMeal = {
@@ -75,6 +78,46 @@ describe("parseSingleMealResponse", () => {
   it("parses a valid single meal payload", () => {
     const result = parseSingleMealResponse(JSON.stringify({ meal: validMeal }));
     expect(result).toEqual({ ok: true, meal: validMeal });
+  });
+
+  it("keeps the swap JSON schema wrapped as { meal }", () => {
+    expect(singleMealJsonSchema.required).toEqual(["meal"]);
+    expect(singleMealJsonSchema.properties.meal).toBeDefined();
+  });
+});
+
+describe("parseExtraSuggestionResponse", () => {
+  it("parses a title", () => {
+    expect(parseExtraSuggestionResponse(JSON.stringify({ title: "Baked potato" }))).toEqual({
+      ok: true,
+      title: "Baked potato",
+    });
+  });
+
+  it("returns schema for a blank title", () => {
+    expect(parseExtraSuggestionResponse(JSON.stringify({ title: "" }))).toEqual({
+      ok: false,
+      reason: "schema",
+    });
+  });
+});
+
+describe("parseExtraRecipeResponse", () => {
+  it("parses a recipe without day or slot", () => {
+    const extra = {
+      title: "Baked potato",
+      whyItFits: "Simple starch",
+      cookMinutes: 45,
+      method: "oven",
+      ingredients: [
+        { name: "russet potato", quantity: "2", unit: "count", aisle: "produce" },
+      ],
+      steps: ["Bake at 425°F"],
+    };
+    expect(parseExtraRecipeResponse(JSON.stringify(extra))).toEqual({
+      ok: true,
+      extra,
+    });
   });
 });
 

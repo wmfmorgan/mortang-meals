@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SlotMask, WeekPlan } from "@/lib/types";
+import { EMPTY_EXTRAS } from "@/meals/extras";
 import { DAYS, SLOTS } from "@/lib/types";
 import { WeekGrid } from "./week-grid";
 
@@ -48,6 +49,7 @@ function mondayDinnerPlan(): WeekPlan {
         pinned: false,
         createdAt: "2026-08-10T12:00:00.000Z",
         sourceUrl: null,
+        extras: EMPTY_EXTRAS,
       },
     ],
   };

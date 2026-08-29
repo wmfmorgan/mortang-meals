@@ -3,7 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { saveSettings } from "@/ai/settings-repo";
-import { handleGenerate, handleSwap } from "@/ai/http";
+import { handleGenerate, handleGenerateExtra, handleSwap } from "@/ai/http";
+import { handleDeleteExtra } from "@/meals/http";
 import { getHousehold, replacePeople, upsertHousehold } from "@/household/repo";
 import { seedKitchenIfEmpty } from "@/kitchen/repo";
 import { resetDbForTests } from "@/lib/db";
@@ -18,7 +19,14 @@ import type {
   WeekPlan,
 } from "@/lib/types";
 import { DAYS, SLOTS } from "@/lib/types";
-import { getCurrentPlan, setPinned, setPlanPinned } from "@/meals/repo";
+import {
+  getCurrentPlan,
+  saveGeneratedPlan,
+  setMealExtra,
+  setPinned,
+  setPlanPinned,
+} from "@/meals/repo";
+import { suggestionExtra } from "@/meals/extras";
 import { mergeShoppingList } from "@/meals/shopping-list";
 
 const dbPath = path.join(
@@ -301,5 +309,148 @@ describe("API smoke path", () => {
         servings: household!.servings,
       });
     }
+  });
+
+  it("adds a lunch side suggestion and deletes it", async () => {
+    const mask = emptyMask();
+    mask.monday.lunch = true;
+    const { complete: generateComplete } = fakeComplete([
+      {
+        ok: true,
+        text: JSON.stringify({
+          meals: [
+            {
+              ...dinner("monday", "Chicken pita", "chicken"),
+              slot: "lunch",
+            },
+          ],
+        }),
+      },
+    ]);
+    const generated = await handleGenerate(
+      { weekStart: "2026-09-07", slotMask: mask },
+      { complete: generateComplete },
+    );
+    const lunch = (generated.body as { plan: WeekPlan }).plan.meals[0]!;
+
+    const { complete } = fakeComplete([
+      { ok: true, text: JSON.stringify({ title: "Baked potato" }) },
+    ]);
+    const added = await handleGenerateExtra(
+      { mealId: lunch.id, kind: "side", mode: "suggestion" },
+      { complete },
+    );
+    expect(added.status).toBe(200);
+    const withSide = (added.body as { meal: Meal }).meal;
+    expect(withSide.extras.side?.title).toBe("Baked potato");
+    expect(withSide.extras.side?.mode).toBe("suggestion");
+
+    const deleted = handleDeleteExtra({ mealId: lunch.id, kind: "side" });
+    expect(deleted.status).toBe(200);
+    expect((deleted.body as { meal: Meal }).meal.extras.side).toBeNull();
+  });
+
+  it("rejects extras on breakfast and on a historical plan", async () => {
+    const breakfastMask = emptyMask();
+    breakfastMask.monday.breakfast = true;
+    const { complete: breakfastComplete } = fakeComplete([
+      {
+        ok: true,
+        text: JSON.stringify({
+          meals: [
+            {
+              ...dinner("monday", "Yogurt bowl", "yogurt"),
+              slot: "breakfast",
+            },
+          ],
+        }),
+      },
+    ]);
+    const breakfastPlan = await handleGenerate(
+      { weekStart: "2026-09-14", slotMask: breakfastMask },
+      { complete: breakfastComplete },
+    );
+    const breakfast = (breakfastPlan.body as { plan: WeekPlan }).plan.meals[0]!;
+    const breakfastResult = await handleGenerateExtra(
+      { mealId: breakfast.id, kind: "side", mode: "suggestion" },
+      {
+        complete: async () => ({
+          ok: true,
+          text: JSON.stringify({ title: "Toast" }),
+        }),
+      },
+    );
+    expect(breakfastResult.status).toBe(400);
+    expect((breakfastResult.body as { message: string }).message).toMatch(
+      /breakfast/i,
+    );
+
+    const historical = saveGeneratedPlan({
+      weekStart: "2026-01-05",
+      slotMask: weekdayDinnerMask(),
+      meals: [dinner("monday", "Old salmon", "salmon")],
+    });
+    saveGeneratedPlan({
+      weekStart: "2026-01-12",
+      slotMask: weekdayDinnerMask(),
+      meals: [dinner("monday", "New trout", "trout")],
+    });
+    const oldMeal = historical.meals[0]!;
+    const historicalResult = await handleGenerateExtra(
+      { mealId: oldMeal.id, kind: "dessert", mode: "suggestion" },
+      {
+        complete: async () => ({
+          ok: true,
+          text: JSON.stringify({ title: "Pie" }),
+        }),
+      },
+    );
+    expect(historicalResult.status).toBe(400);
+    expect((historicalResult.body as { message: string }).message).toMatch(
+      /this week/i,
+    );
+  });
+
+  it("leaves a suggestion in place when upgrading the extra recipe fails", async () => {
+    const mask = emptyMask();
+    mask.monday.dinner = true;
+    const { complete: generateComplete } = fakeComplete([
+      { ok: true, text: JSON.stringify({ meals: [WEEK_DINNERS[0]] }) },
+    ]);
+    const generated = await handleGenerate(
+      { weekStart: "2026-09-21", slotMask: mask },
+      { complete: generateComplete },
+    );
+    const dinnerMeal = (generated.body as { plan: WeekPlan }).plan.meals[0]!;
+    setMealExtra(
+      dinnerMeal.id,
+      suggestionExtra({
+        id: "keep-side",
+        kind: "side",
+        title: "Baked potato",
+      }),
+    );
+
+    const shrimpy = {
+      title: "Shrimp cocktail",
+      whyItFits: "Nope",
+      cookMinutes: 10,
+      method: "chill",
+      ingredients: [
+        { name: "shellfish", quantity: "1", unit: "lb", aisle: "meat" },
+      ],
+      steps: ["Chill"],
+    };
+    const { complete } = fakeComplete([
+      { ok: true, text: JSON.stringify(shrimpy) },
+      { ok: true, text: JSON.stringify(shrimpy) },
+    ]);
+    const result = await handleGenerateExtra(
+      { mealId: dinnerMeal.id, kind: "side", mode: "recipe" },
+      { complete },
+    );
+    expect(result.status).toBe(422);
+    expect(getCurrentPlan()?.meals[0]?.extras.side?.mode).toBe("suggestion");
+    expect(getCurrentPlan()?.meals[0]?.extras.side?.title).toBe("Baked potato");
   });
 });
