@@ -62,6 +62,7 @@ export async function swapMeal(input: {
     webSearch?: boolean;
   };
   useIngredients?: UseIngredient[];
+  prompt?: string;
 }): Promise<SwapSuccess | PlanFailure> {
   const taken = [input.current.title, ...input.otherMeals.map((meal) => meal.title)];
   const doNotRepeat = [
@@ -69,6 +70,11 @@ export async function swapMeal(input: {
     ...input.otherMeals.map((meal) => normalizeTitle(meal.title)),
   ];
   const titles = doNotRepeat.join(", ");
+  const prompt = input.prompt?.trim() ?? "";
+  const extraRules = [`Do not repeat: ${titles}`];
+  if (prompt) {
+    extraRules.push(`Honor this request for the replacement meal: ${prompt}`);
+  }
 
   const brief = buildHouseholdBrief({
     household: input.household,
@@ -79,7 +85,7 @@ export async function swapMeal(input: {
         item.day === input.current.day && item.slot === input.current.slot,
     ),
     slotMask: input.slotMask,
-    extraRules: [`Do not repeat: ${titles}`],
+    extraRules,
   });
   const searchOn = grokWebSearchEnabled({
     mode: input.settings.mode,
@@ -88,7 +94,9 @@ export async function swapMeal(input: {
   const system = searchOn
     ? `${brief}\n\n${HARD_RULES}\n${WEB_SEARCH_RULES}`
     : `${brief}\n\n${HARD_RULES}\n${NO_URL_RULE}`;
-  const user = `Replace ${input.current.day} ${input.current.slot}. Do not repeat: ${titles}.`;
+  const user = prompt
+    ? `Replace ${input.current.day} ${input.current.slot}. Honor this request for the replacement meal: ${prompt}. Do not repeat: ${titles}.`
+    : `Replace ${input.current.day} ${input.current.slot}. Do not repeat: ${titles}.`;
   const allergies = collectAllergies(input.household);
 
   let userMessage = user;

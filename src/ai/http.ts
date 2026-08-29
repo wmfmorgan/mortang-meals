@@ -82,6 +82,7 @@ const swapBodySchema = z.object({
   planId: z.string().min(1),
   mealId: z.string().min(1),
   useIngredients: z.array(useIngredientSchema).optional(),
+  prompt: z.string().trim().max(200).optional(),
 });
 
 const extraBodySchema = z.object({
@@ -256,6 +257,7 @@ export async function handleSwap(
     logTrace: recordTrace,
     settings,
     useIngredients: parsed.data.useIngredients,
+    prompt: parsed.data.prompt,
   });
 
   if (!result.ok) {

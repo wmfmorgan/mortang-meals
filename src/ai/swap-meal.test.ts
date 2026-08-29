@@ -163,6 +163,31 @@ describe("swapMeal", () => {
     expect(user).toContain("monday dinner");
     expect(user).toContain("lemon herb salmon");
     expect(user).toContain("crockpot chicken");
+    expect(adapter.requests[0].messages[0].content).not.toMatch(
+      /honor this request/i,
+    );
+  });
+
+  it("puts a regen prompt in the brief and user message", async () => {
+    const adapter = fakeAdapter([{ ok: true, text: mealText(trout) }]);
+
+    await swapMeal({
+      household,
+      kitchen,
+      slotMask: mondayDinnerMask(),
+      current,
+      otherMeals,
+      adapter,
+      logTrace: () => {},
+      settings,
+      prompt: "made on the grill",
+    });
+
+    const system = adapter.requests[0].messages[0].content.toLowerCase();
+    const user = adapter.requests[0].messages[1].content.toLowerCase();
+    expect(system).toContain("honor this request");
+    expect(system).toContain("made on the grill");
+    expect(user).toContain("made on the grill");
   });
 
   it("keeps an https sourceUrl when web search is on", async () => {

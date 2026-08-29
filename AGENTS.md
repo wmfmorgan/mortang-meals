@@ -127,9 +127,9 @@ Do not revive “save a brand-new plan on every generate.” Pins and the librar
 
 ### Swap
 
-`POST /api/swap` `{ planId, mealId, useIngredients? }`. Same brief, but only the use-ingredient for that day/slot, plus a do-not-repeat list of the current title and every other title on that plan. Response is `{ meal: ... }`. `replaceMeal` keeps the same meal id, `pinned`, `createdAt`, `weekStart`, and **extras**. `sourceUrl` comes from the new meal (http(s) only; otherwise null). Failure leaves the card as-is.
+`POST /api/swap` `{ planId, mealId, useIngredients?, prompt? }`. Same brief, but only the use-ingredient for that day/slot, plus a do-not-repeat list of the current title and every other title on that plan. Optional `prompt` (trimmed, max 200) is a free-text steer such as “made on the grill”; empty/omitted is today’s unprompted regen. Prompt is not schema-enforced. Response is `{ meal: ... }`. `replaceMeal` keeps the same meal id, `pinned`, `createdAt`, `weekStart`, and **extras**. `sourceUrl` comes from the new meal (http(s) only; otherwise null). Failure leaves the card as-is.
 
-Swap is not streamed. The flyout SwapButton is a single request + `router.refresh()`.
+Swap is not streamed. `SwapButton` (card, flyout, full recipe) opens a popover: type an optional note, then confirm. `router.refresh()` after success.
 
 ### Pin
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ExtraKind, Meal, MealExtra } from "@/lib/types";
 import { readUseIngredients } from "@/lib/use-ingredients";
@@ -8,10 +8,30 @@ import { MealExtras } from "./meal-extras";
 
 export function SwapButton({ meal }: { meal: Meal }) {
   const router = useRouter();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [prompt, setPrompt] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
   async function onSwap() {
+    const note = prompt.trim();
     setPending(true);
     setError(null);
     try {
@@ -22,6 +42,7 @@ export function SwapButton({ meal }: { meal: Meal }) {
           planId: meal.planId,
           mealId: meal.id,
           useIngredients: readUseIngredients(),
+          ...(note ? { prompt: note } : {}),
         }),
       });
       const data = (await res.json()) as { message?: string };
@@ -29,6 +50,8 @@ export function SwapButton({ meal }: { meal: Meal }) {
         setError(data.message ?? "Couldn’t find a different meal, try again.");
         return;
       }
+      setOpen(false);
+      setPrompt("");
       router.refresh();
     } catch {
       setError("The model didn’t respond");
@@ -38,19 +61,46 @@ export function SwapButton({ meal }: { meal: Meal }) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="swap-button" ref={rootRef}>
       <button
         type="button"
         className="icon-button"
         disabled={pending}
+        aria-expanded={open}
         aria-label={pending ? "Regenerating meal" : "Regenerate meal"}
         title={pending ? "Regenerating meal" : "Regenerate meal"}
-        onClick={() => {
-          void onSwap();
-        }}
+        onClick={() => setOpen((current) => !current)}
       >
         <RegenIcon spinning={pending} />
       </button>
+      {open ? (
+        <form
+          className="swap-popover"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void onSwap();
+          }}
+        >
+          <label className="field" style={{ margin: 0, flex: 1 }}>
+            <span className="sr-only">How should this meal change?</span>
+            <input
+              className="input"
+              value={prompt}
+              maxLength={200}
+              disabled={pending}
+              placeholder="e.g. made on the grill"
+              onChange={(event) => setPrompt(event.target.value)}
+            />
+          </label>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={pending}
+          >
+            {pending ? "Regenerating…" : "Regenerate"}
+          </button>
+        </form>
+      ) : null}
       {error ? (
         <p role="alert" className="alert">
           {error}

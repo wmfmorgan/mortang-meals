@@ -195,6 +195,46 @@ describe("API smoke path", () => {
     expect(body.shoppingList).toEqual(mergeShoppingList(current!.meals));
   });
 
+  it("swaps with a prompt and still only replaces that meal", async () => {
+    const existing = getCurrentPlan();
+    expect(existing).toBeTruthy();
+    const monday = existing!.meals.find((meal) => meal.day === "monday");
+    expect(monday).toBeDefined();
+    const otherTitles = existing!.meals
+      .filter((meal) => meal.day !== "monday")
+      .map((meal) => meal.title);
+
+    const swapped: GeneratedMeal = {
+      ...WEEK_DINNERS[0],
+      title: "Grilled trout",
+      method: "grill",
+      ingredients: [{ name: "trout", quantity: "1", unit: "lb", aisle: "meat" }],
+    };
+    const { complete, requests } = fakeComplete([
+      { ok: true, text: JSON.stringify({ meal: swapped }) },
+    ]);
+
+    const result = await handleSwap(
+      {
+        planId: existing!.id,
+        mealId: monday!.id,
+        prompt: "made on the grill",
+      },
+      { complete },
+    );
+
+    expect(result.status).toBe(200);
+    expect((result.body as { meal: Meal }).meal.title).toBe("Grilled trout");
+    expect(requests[0]!.messages[1]!.content.toLowerCase()).toContain(
+      "made on the grill",
+    );
+    expect(
+      getCurrentPlan()
+        ?.meals.filter((meal) => meal.day !== "monday")
+        .map((meal) => meal.title),
+    ).toEqual(otherTitles);
+  });
+
   it("marks generated meals as usedWebSearch when the Grok toggle is on", async () => {
     saveSettings({ webSearch: true });
     try {

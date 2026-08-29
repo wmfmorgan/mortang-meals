@@ -15,7 +15,7 @@ Suggested build order by leverage, not original request numbering.
 | # | Item | Size | Status |
 |---|---|---|---|
 | 1 | Collapsible slots to generate | S | done |
-| 2 | Prompted meal refresh | M | later |
+| 2 | Prompted meal refresh | M | done |
 | 3 | Manual recipe input | M | done |
 | 4 | AI source links | M | done |
 | 5 | Animated progress icon | S | later |
@@ -60,7 +60,7 @@ Changing which slots exist, the mask data model, or generate behavior.
 
 ## 2. Prompted meal refresh
 
-**Status:** later
+**Status:** done
 **Size:** M
 **Request:** Refresh and customize a single meal card — e.g. "give me a dinner I make on the grill" or "give me a lamb-based meal."
 
