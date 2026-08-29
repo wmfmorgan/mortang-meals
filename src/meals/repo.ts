@@ -90,7 +90,7 @@ function mealInsertValues(
     pinned: extras.pinned,
     weekStart: extras.weekStart,
     createdAt: extras.createdAt ?? new Date().toISOString(),
-    sourceUrl: extras.sourceUrl ?? null,
+    sourceUrl: extras.sourceUrl ?? meal.sourceUrl ?? null,
   };
 }
 
@@ -322,7 +322,7 @@ export function replaceMeal(
     pinned: existing.pinned,
     weekStart: existing.weekStart,
     createdAt: existing.createdAt,
-    sourceUrl: existing.sourceUrl,
+    sourceUrl: next.sourceUrl ?? null,
   });
   db.update(meals).set(row).where(eq(meals.id, mealId)).run();
   return mapMeal(row);

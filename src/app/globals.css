@@ -481,6 +481,25 @@ a.badge-link:hover {
   margin-top: 0.45rem;
 }
 
+.source-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0 0 1.5rem;
+}
+
+.source-link-url {
+  color: var(--color-olive);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+.source-link-url:hover {
+  text-decoration: underline;
+}
+
 .icon-spin {
   animation: icon-spin 0.8s linear infinite;
 }

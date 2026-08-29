@@ -52,6 +52,7 @@ export type GeneratedMeal = {
   method: string;
   ingredients: Ingredient[];
   steps: string[];
+  sourceUrl?: string | null;
 };
 
 export type Meal = GeneratedMeal & {

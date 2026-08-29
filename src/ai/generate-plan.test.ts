@@ -382,4 +382,66 @@ describe("generateWeekPlan", () => {
       "validating",
     ]);
   });
+
+  it("keeps an https sourceUrl when web search is on", async () => {
+    const cited = {
+      ...validMondayDinner,
+      sourceUrl: "https://example.com/salmon",
+    };
+    const adapter = fakeAdapter([{ ok: true, text: mealsText([cited]) }]);
+
+    const result = await generateWeekPlan({
+      household,
+      kitchen,
+      slotMask: mondayDinnerMask(),
+      adapter,
+      logTrace: () => {},
+      settings: { ...settings, webSearch: true },
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.meals[0]?.sourceUrl).toBe("https://example.com/salmon");
+    }
+    expect(adapter.requests).toHaveLength(1);
+  });
+
+  it("strips an invented sourceUrl when web search is off", async () => {
+    const invented = {
+      ...validMondayDinner,
+      sourceUrl: "https://example.com/invented",
+    };
+    const adapter = fakeAdapter([{ ok: true, text: mealsText([invented]) }]);
+
+    const result = await generateWeekPlan({
+      household,
+      kitchen,
+      slotMask: mondayDinnerMask(),
+      adapter,
+      logTrace: () => {},
+      settings,
+    });
+
+    expect(result).toEqual({ ok: true, meals: [validMondayDinner] });
+    expect(adapter.requests).toHaveLength(1);
+  });
+
+  it("does not retry when sourceUrl is junk", async () => {
+    const junk = { ...validMondayDinner, sourceUrl: "not-a-url" };
+    const adapter = fakeAdapter([{ ok: true, text: mealsText([junk]) }]);
+    const traces: Omit<AiTrace, "id" | "createdAt">[] = [];
+
+    const result = await generateWeekPlan({
+      household,
+      kitchen,
+      slotMask: mondayDinnerMask(),
+      adapter,
+      logTrace: (t) => traces.push(t),
+      settings: { ...settings, webSearch: true },
+    });
+
+    expect(result).toEqual({ ok: true, meals: [validMondayDinner] });
+    expect(adapter.requests).toHaveLength(1);
+    expect(traces[0]).toMatchObject({ kind: "generate", validation: "ok" });
+  });
 });

@@ -50,6 +50,19 @@ function renderDetail(overrides: Partial<ComponentProps<typeof MealDetail>> = {}
   );
 }
 
+describe("MealDetail source", () => {
+  it("shows a clickable source URL on the full recipe", () => {
+    renderDetail({
+      meal: { ...meal, sourceUrl: "https://example.com/salmon" },
+    });
+    const source = screen.getByRole("link", {
+      name: "https://example.com/salmon",
+    });
+    expect(source.getAttribute("href")).toBe("https://example.com/salmon");
+    expect(source.getAttribute("target")).toBe("_blank");
+  });
+});
+
 describe("MealDetail print", () => {
   it("shows a Print recipe control on the recipe page", () => {
     renderDetail();

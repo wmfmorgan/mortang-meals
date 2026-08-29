@@ -141,6 +141,37 @@ describe("meals repo", () => {
     expect(getCurrentPlan()?.meals[0]?.usedWebSearch).toBe(false);
   });
 
+  it("stores a generate sourceUrl and lets swap replace it", () => {
+    const slotMask = emptyMask();
+    slotMask.monday.dinner = true;
+
+    const plan = saveGeneratedPlan({
+      weekStart: "2026-01-26",
+      slotMask,
+      meals: [
+        meal({
+          title: "Cited salmon",
+          sourceUrl: "https://example.com/salmon",
+        }),
+      ],
+      usedWebSearch: true,
+    });
+    expect(plan.meals[0]?.sourceUrl).toBe("https://example.com/salmon");
+
+    const swapped = replaceMeal(
+      plan.id,
+      plan.meals[0]!.id,
+      meal({
+        title: "Cited trout",
+        sourceUrl: "https://example.com/trout",
+      }),
+    );
+    expect(swapped.sourceUrl).toBe("https://example.com/trout");
+    expect(getCurrentPlan()?.meals[0]?.sourceUrl).toBe(
+      "https://example.com/trout",
+    );
+  });
+
   it("lists unique library meals for a slot, newest week first", () => {
     const slotMask = emptyMask();
     slotMask.monday.dinner = true;

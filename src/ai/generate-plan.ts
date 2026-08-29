@@ -1,7 +1,11 @@
 import { buildHouseholdBrief } from "@/household/brief";
 import { findAllergen } from "@/meals/allergen";
 import { isDuplicateTitle } from "@/meals/duplicates";
-import { mealsJsonSchema, parseMealsResponse } from "@/meals/schema";
+import {
+  applySourceUrl,
+  mealsJsonSchema,
+  parseMealsResponse,
+} from "@/meals/schema";
 import type {
   AdapterRequest,
   AdapterResult,
@@ -45,10 +49,13 @@ const HARD_RULES = [
   'Ingredient quantity must be a string such as "1", "1/2", or "1/4". Never use 0 for an ingredient that is used.',
 ].join("\n");
 
+const NO_URL_RULE = "sourceUrl must be null. Do not invent URLs.";
+
 const WEB_SEARCH_RULES = [
   "Use web_search to find real published recipes for each requested slot.",
   "Copy accurate quantities, units, cook times, and steps from the sources.",
   "Do not invent amounts when a source lists them.",
+  "Set sourceUrl to the cited page URL, or null if you cannot cite a real page.",
 ].join("\n");
 
 export function collectAllergies(household: Household): string[] {
@@ -147,7 +154,9 @@ export async function generateWeekPlan(input: {
     mode: input.settings.mode,
     webSearch: input.settings.webSearch === true,
   });
-  const rules = timeRule ? `${HARD_RULES}\n${timeRule}` : HARD_RULES;
+  const rules = [HARD_RULES, timeRule, searchOn ? null : NO_URL_RULE]
+    .filter(Boolean)
+    .join("\n");
   const system = searchOn
     ? `${brief}\n\n${rules}\n${WEB_SEARCH_RULES}`
     : `${brief}\n\n${rules}`;
@@ -287,7 +296,10 @@ export async function generateWeekPlan(input: {
     }
 
     log("ok", result.text);
-    return { ok: true, meals: parsed.meals };
+    return {
+      ok: true,
+      meals: parsed.meals.map((meal) => applySourceUrl(meal, searchOn)),
+    };
   }
 
   return { ok: false, message: UNUSABLE_PLAN };

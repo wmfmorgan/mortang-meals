@@ -125,7 +125,7 @@ Do not revive “save a brand-new plan on every generate.” Pins and the librar
 
 ### Swap
 
-`POST /api/swap` `{ planId, mealId, useIngredients? }`. Same brief, but only the use-ingredient for that day/slot, plus a do-not-repeat list of the current title and every other title on that plan. Response is `{ meal: ... }`. `replaceMeal` keeps the same meal id, `pinned`, `createdAt`, `sourceUrl`, and `weekStart`. Failure leaves the card as-is.
+`POST /api/swap` `{ planId, mealId, useIngredients? }`. Same brief, but only the use-ingredient for that day/slot, plus a do-not-repeat list of the current title and every other title on that plan. Response is `{ meal: ... }`. `replaceMeal` keeps the same meal id, `pinned`, `createdAt`, and `weekStart`. `sourceUrl` comes from the new meal (http(s) only; otherwise null). Failure leaves the card as-is.
 
 Swap is not streamed. The flyout SwapButton is a single request + `router.refresh()`.
 
@@ -165,7 +165,7 @@ Meals → Add recipe → `/meals/new` → `POST /api/create`. Same fields as edi
 
 `grokWebSearchEnabled` is `mode === "grok" && webSearch`. Web search is a Grok-only setting. Meals found that way get `usedWebSearch` and a star badge.
 
-JSON shapes (`src/meals/schema.ts`): generate `{ meals: Meal[] }`, swap/import `{ meal: Meal }`. Each meal: `day`, `slot`, `title`, `whyItFits`, `cookMinutes`, `method`, `ingredients[]` (`name`, `quantity` string, `unit`, `aisle`), `steps[]`.
+JSON shapes (`src/meals/schema.ts`): generate `{ meals: Meal[] }`, swap/import `{ meal: Meal }`. Each meal: `day`, `slot`, `title`, `whyItFits`, `cookMinutes`, `method`, `ingredients[]` (`name`, `quantity` string, `unit`, `aisle`), `steps[]`, `sourceUrl` (`string | null`). Generate/swap persist `sourceUrl` only when web search is on and the value is a real `http(s)` URL; otherwise it is stored as null. Import still stores the URL the user typed.
 
 Brief (`src/household/brief.ts`) includes people, diet, notes, allergies, avoidances, enabled kitchen items, expertise/involved/time, per-slot diets, requested slots, use-ingredients, servings, extra rules (do-not-repeat).
 
@@ -225,7 +225,7 @@ Household and kitchen writes are server actions (`src/app/household/actions.ts`,
 
 - Desktop This Week is a 7-column grid (days as columns, B/L/D as rows). Narrow viewports stack by day. Empty cells are dashed; on the current plan they open the library flyout.
 - Recipe cards are a flyout, not a navigation, except “Open full recipe”.
-- Star badge = web search. Arrow badge = imported (`sourceUrl`).
+- Star badge = web search. Arrow badge = stored `sourceUrl` (import or a cited generate/swap). “Source recipe” in the flyout and full recipe is the clickable link.
 - Historical plans are view-only for pin/place/use-ingredient. Generate still targets the current plan.
 - Session slot mask, slot-picker open/closed, and use-ingredients survive in-tab navigation. On This Week the slot picker collapses to a summary when a plan exists (or after the user collapses it); setup wizard keeps the full table.
 

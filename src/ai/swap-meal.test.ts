@@ -164,4 +164,25 @@ describe("swapMeal", () => {
     expect(user).toContain("lemon herb salmon");
     expect(user).toContain("crockpot chicken");
   });
+
+  it("keeps an https sourceUrl when web search is on", async () => {
+    const cited = { ...trout, sourceUrl: "https://example.com/trout" };
+    const adapter = fakeAdapter([{ ok: true, text: mealText(cited) }]);
+
+    const result = await swapMeal({
+      household,
+      kitchen,
+      slotMask: mondayDinnerMask(),
+      current,
+      otherMeals,
+      adapter,
+      logTrace: () => {},
+      settings: { ...settings, webSearch: true },
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.meal.sourceUrl).toBe("https://example.com/trout");
+    }
+  });
 });

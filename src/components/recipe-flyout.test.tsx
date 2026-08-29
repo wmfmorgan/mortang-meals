@@ -64,8 +64,29 @@ describe("RecipeFlyout", () => {
       />,
     );
     expect(screen.getByText("Imported from a URL")).toBeTruthy();
-    const source = screen.getByRole("link", { name: /source recipe/i });
+    const source = screen.getByRole("link", {
+      name: "https://example.com/salmon",
+    });
     expect(source.getAttribute("href")).toBe("https://example.com/salmon");
     expect(screen.queryByRole("button", { name: /regenerate meal/i })).toBeNull();
+  });
+
+  it("shows a source link on a web-search meal that cites a page", () => {
+    render(
+      <RecipeFlyout
+        meal={{
+          ...meal,
+          usedWebSearch: true,
+          sourceUrl: "https://example.com/week-salmon",
+        }}
+        servings={2}
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByText("Found with web search")).toBeTruthy();
+    const source = screen.getByRole("link", {
+      name: "https://example.com/week-salmon",
+    });
+    expect(source.getAttribute("href")).toBe("https://example.com/week-salmon");
   });
 });

@@ -25,7 +25,37 @@ export const mealEditSchema = z.object({
 export const mealSchema = mealEditSchema.extend({
   day: dayEnum,
   slot: slotEnum,
+  sourceUrl: z.union([z.string(), z.null()]).optional(),
 });
+
+export function normalizeSourceUrl(
+  raw: unknown,
+  webSearch: boolean,
+): string | null {
+  if (!webSearch) return null;
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+export function applySourceUrl<T extends { sourceUrl?: string | null }>(
+  meal: T,
+  webSearch: boolean,
+): T {
+  const sourceUrl = normalizeSourceUrl(meal.sourceUrl, webSearch);
+  if (!sourceUrl) {
+    const { sourceUrl: _dropped, ...rest } = meal;
+    return rest as T;
+  }
+  return { ...meal, sourceUrl };
+}
 
 export const mealsResponseSchema = z.object({
   meals: z.array(mealSchema),
@@ -81,6 +111,7 @@ const mealJsonSchema = {
     "method",
     "ingredients",
     "steps",
+    "sourceUrl",
   ],
   properties: {
     day: { type: "string", enum: [...DAYS] },
@@ -89,6 +120,7 @@ const mealJsonSchema = {
     whyItFits: { type: "string", minLength: 1 },
     cookMinutes: { type: "integer", exclusiveMinimum: 0 },
     method: { type: "string", minLength: 1 },
+    sourceUrl: { type: ["string", "null"] },
     ingredients: {
       type: "array",
       minItems: 1,

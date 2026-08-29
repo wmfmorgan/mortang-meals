@@ -17,7 +17,7 @@ Suggested build order by leverage, not original request numbering.
 | 1 | Collapsible slots to generate | S | done |
 | 2 | Prompted meal refresh | M | later |
 | 3 | Manual recipe input | M | done |
-| 4 | AI source links | M | later |
+| 4 | AI source links | M | done |
 | 5 | Animated progress icon | S | later |
 | 6 | Sides and desserts | L | later |
 
@@ -125,7 +125,7 @@ OCR, photo import, or parsing a pasted blob on v1 of this item. Editing existing
 
 ## 4. AI source links
 
-**Status:** later
+**Status:** done
 **Size:** M
 **Request:** Have AI return links to source recipes/meals and store them.
 

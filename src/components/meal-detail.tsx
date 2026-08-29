@@ -6,6 +6,7 @@ import type { Aisle, Ingredient, Meal, MealSlot } from "@/lib/types";
 import { AISLES, SLOTS } from "@/lib/types";
 import { PageHeader } from "./page-header";
 import { MealBadges, SwapButton, TrashIcon } from "./meal-card";
+import { SourceLink } from "./recipe-flyout";
 
 function emptyIngredient(): Ingredient {
   return { name: "", quantity: "", unit: "", aisle: "other" };
@@ -532,18 +533,7 @@ export function MealDetail({
             {servings}
             {` · ${source.cookMinutes} min · ${source.method}`}
           </p>
-          {source.sourceUrl ? (
-            <p className="mb-8">
-              <a
-                href={source.sourceUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm text-olive"
-              >
-                Source recipe
-              </a>
-            </p>
-          ) : null}
+          {source.sourceUrl ? <SourceLink href={source.sourceUrl} /> : null}
 
           <div className="surface grid gap-8 p-6 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] sm:p-8">
             <section>

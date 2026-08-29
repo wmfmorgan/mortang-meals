@@ -15,6 +15,24 @@ const DAY_LABELS = {
   sunday: "Sunday",
 } as const;
 
+export function SourceLink({ href }: { href: string }) {
+  return (
+    <p className="source-link">
+      <span className="page-eyebrow" style={{ margin: 0 }}>
+        Source
+      </span>
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        className="source-link-url"
+      >
+        {href}
+      </a>
+    </p>
+  );
+}
+
 export function recipeEyebrow(meal: Meal, onCurrentWeek = false): string {
   if (onCurrentWeek || meal.planId) {
     return `${DAY_LABELS[meal.day]} ${meal.slot}`;
@@ -72,18 +90,7 @@ export function RecipeFlyout({
         <p className="mb-6 font-mono text-[0.72rem] uppercase tracking-[0.12em] text-herb">
           Serves {servings} · {meal.cookMinutes} min · {meal.method}
         </p>
-        {meal.sourceUrl ? (
-          <p className="mb-6">
-            <a
-              href={meal.sourceUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-sm text-olive"
-            >
-              Source recipe
-            </a>
-          </p>
-        ) : null}
+        {meal.sourceUrl ? <SourceLink href={meal.sourceUrl} /> : null}
 
         <section className="mb-6">
           <h3 className="page-eyebrow">Ingredients</h3>

@@ -1,7 +1,11 @@
 import { buildHouseholdBrief } from "@/household/brief";
 import { findAllergen } from "@/meals/allergen";
 import { isDuplicateTitle, normalizeTitle } from "@/meals/duplicates";
-import { parseSingleMealResponse, singleMealJsonSchema } from "@/meals/schema";
+import {
+  applySourceUrl,
+  parseSingleMealResponse,
+  singleMealJsonSchema,
+} from "@/meals/schema";
 import type {
   AdapterRequest,
   AdapterResult,
@@ -36,10 +40,13 @@ const HARD_RULES = [
   'Ingredient quantity must be a string such as "1", "1/2", or "1/4". Never use 0 for an ingredient that is used.',
 ].join("\n");
 
+const NO_URL_RULE = "sourceUrl must be null. Do not invent URLs.";
+
 const WEB_SEARCH_RULES = [
   "Use web_search to find a real published recipe for this slot.",
   "Copy accurate quantities, units, cook times, and steps from the source.",
   "Do not invent amounts when a source lists them.",
+  "Set sourceUrl to the cited page URL, or null if you cannot cite a real page.",
 ].join("\n");
 
 export async function swapMeal(input: {
@@ -80,7 +87,7 @@ export async function swapMeal(input: {
   });
   const system = searchOn
     ? `${brief}\n\n${HARD_RULES}\n${WEB_SEARCH_RULES}`
-    : `${brief}\n\n${HARD_RULES}`;
+    : `${brief}\n\n${HARD_RULES}\n${NO_URL_RULE}`;
   const user = `Replace ${input.current.day} ${input.current.slot}. Do not repeat: ${titles}.`;
   const allergies = collectAllergies(input.household);
 
@@ -159,7 +166,7 @@ export async function swapMeal(input: {
     }
 
     log("ok", result.text);
-    return { ok: true, meal };
+    return { ok: true, meal: applySourceUrl(meal, searchOn) };
   }
 
   return { ok: false, message: SWAP_FAIL };

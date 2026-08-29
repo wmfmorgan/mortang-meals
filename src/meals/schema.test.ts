@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   mealEditSchema,
+  normalizeSourceUrl,
   parseMealsResponse,
   parseSingleMealResponse,
 } from "./schema";
@@ -74,6 +75,54 @@ describe("parseSingleMealResponse", () => {
   it("parses a valid single meal payload", () => {
     const result = parseSingleMealResponse(JSON.stringify({ meal: validMeal }));
     expect(result).toEqual({ ok: true, meal: validMeal });
+  });
+});
+
+describe("sourceUrl on generate JSON", () => {
+  it("parses an https sourceUrl", () => {
+    const result = parseMealsResponse(
+      JSON.stringify({
+        meals: [{ ...validMeal, sourceUrl: "https://example.com/salmon" }],
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.meals[0]?.sourceUrl).toBe("https://example.com/salmon");
+    }
+  });
+
+  it("parses a null sourceUrl", () => {
+    const result = parseSingleMealResponse(
+      JSON.stringify({ meal: { ...validMeal, sourceUrl: null } }),
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.meal.sourceUrl).toBeNull();
+    }
+  });
+});
+
+describe("normalizeSourceUrl", () => {
+  it("keeps http and https URLs when web search is on", () => {
+    expect(
+      normalizeSourceUrl("https://example.com/pie", true),
+    ).toBe("https://example.com/pie");
+    expect(normalizeSourceUrl("http://example.com/pie", true)).toBe(
+      "http://example.com/pie",
+    );
+  });
+
+  it("drops empty, junk, and non-http schemes", () => {
+    expect(normalizeSourceUrl("", true)).toBeNull();
+    expect(normalizeSourceUrl("not-a-url", true)).toBeNull();
+    expect(normalizeSourceUrl("javascript:alert(1)", true)).toBeNull();
+    expect(normalizeSourceUrl(null, true)).toBeNull();
+  });
+
+  it("always returns null when web search is off", () => {
+    expect(
+      normalizeSourceUrl("https://example.com/invented", false),
+    ).toBeNull();
   });
 });
 
