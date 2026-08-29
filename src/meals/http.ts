@@ -11,6 +11,7 @@ import {
   listLibraryMeals,
   placeMeal,
   saveImportedMeal,
+  saveStandaloneMeal,
   setPinned,
   setPlanPinned,
   updateMeal,
@@ -191,6 +192,26 @@ export async function handleImportRecipe(
 const updateBodySchema = mealEditSchema.extend({
   mealId: z.string().min(1),
 });
+
+const createBodySchema = mealEditSchema
+  .omit({ whyItFits: true })
+  .extend({
+    slot: slotEnum,
+    whyItFits: z.string().optional().default(""),
+  });
+
+export function handleCreateMeal(body: unknown): HttpResult {
+  const parsed = createBodySchema.safeParse(body);
+  if (!parsed.success) {
+    return jsonError(400, "Title, ingredients, and steps are required.");
+  }
+  const { slot, ...fields } = parsed.data;
+  const meal = saveStandaloneMeal({
+    meal: { ...fields, day: "monday", slot },
+    slot,
+  });
+  return { status: 200, body: { meal } };
+}
 
 export function handleUpdateMeal(body: unknown): HttpResult {
   const parsed = updateBodySchema.safeParse(body);

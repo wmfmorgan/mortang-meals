@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { Meal, MealSlot } from "@/lib/types";
 import { SLOTS } from "@/lib/types";
@@ -49,6 +50,11 @@ export function MealsCatalog({
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Link href="/meals/new" className="btn btn-primary">
+          Add recipe
+        </Link>
+      </div>
       <form className="surface space-y-3 p-5" onSubmit={onImport}>
         <h2 className="mt-0 mb-1 text-xl font-medium tracking-[-0.03em]">
           Import from URL

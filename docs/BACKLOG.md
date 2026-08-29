@@ -16,7 +16,7 @@ Suggested build order by leverage, not original request numbering.
 |---|---|---|---|
 | 1 | Collapsible slots to generate | S | done |
 | 2 | Prompted meal refresh | M | later |
-| 3 | Manual recipe input | M | later |
+| 3 | Manual recipe input | M | done |
 | 4 | AI source links | M | later |
 | 5 | Animated progress icon | S | later |
 | 6 | Sides and desserts | L | later |
@@ -93,7 +93,7 @@ Replacing generate, changing the slot mask, or treating the prompt as a new meal
 
 ## 3. Manual recipe input
 
-**Status:** later
+**Status:** done
 **Size:** M
 **Request:** Let the user type in a recipe instead of generating or importing it.
 

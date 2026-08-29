@@ -464,6 +464,23 @@ a.badge-link:hover {
   color: var(--color-alert);
 }
 
+.step-grip {
+  margin-top: 0.45rem;
+  cursor: grab;
+}
+
+.step-grip:active {
+  cursor: grabbing;
+}
+
+.step-row-dragging {
+  opacity: 0.55;
+}
+
+.step-row .icon-button-danger {
+  margin-top: 0.45rem;
+}
+
 .icon-spin {
   animation: icon-spin 0.8s linear infinite;
 }

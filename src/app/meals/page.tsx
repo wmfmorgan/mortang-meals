@@ -13,7 +13,7 @@ export default function MealsPage() {
       <PageHeader
         eyebrow="Library"
         title="Meals"
-        lede="Everything generated, placed, or imported. Search, filter, or add a recipe from a URL."
+        lede="Everything generated, placed, imported, or typed in. Search, filter, or add a recipe from a URL."
       />
       <MealsCatalog
         meals={meals}

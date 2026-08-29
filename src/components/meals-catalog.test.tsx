@@ -37,6 +37,15 @@ const meal: Meal = {
 };
 
 describe("MealsCatalog", () => {
+  it("links to the add-recipe page", () => {
+    render(
+      <MealsCatalog meals={[meal]} servings={2} currentPlanId={null} />,
+    );
+    expect(
+      screen.getByRole("link", { name: "Add recipe" }).getAttribute("href"),
+    ).toBe("/meals/new");
+  });
+
   it("opens the recipe flyout instead of linking the card to the detail page", () => {
     render(
       <MealsCatalog meals={[meal]} servings={2} currentPlanId={null} />,

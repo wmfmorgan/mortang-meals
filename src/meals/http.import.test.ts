@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { resetDbForTests } from "@/lib/db";
-import { handleImportRecipe, handleUpdateMeal } from "./http";
+import { handleCreateMeal, handleImportRecipe, handleUpdateMeal } from "./http";
 import { getMeal } from "./repo";
 
 const dbPath = path.join(
@@ -120,6 +120,63 @@ describe("handleUpdateMeal", () => {
       method: "pot",
       ingredients: [{ name: "beef", quantity: "1", unit: "lb", aisle: "meat" }],
       steps: ["Simmer"],
+    });
+    expect(result.status).toBe(400);
+  });
+});
+
+const typedRecipe = {
+  title: "Grandma chili",
+  whyItFits: "Cold-night staple",
+  cookMinutes: 45,
+  method: "dutch oven",
+  ingredients: [{ name: "beans", quantity: "2", unit: "can", aisle: "pantry" }],
+  steps: ["Simmer"],
+};
+
+describe("handleCreateMeal", () => {
+  it("saves a typed library meal", () => {
+    const result = handleCreateMeal({ ...typedRecipe, slot: "lunch" });
+    expect(result.status).toBe(200);
+    const meal = (result.body as { meal: ReturnType<typeof getMeal> }).meal;
+    expect(meal?.title).toBe("Grandma chili");
+    expect(meal?.slot).toBe("lunch");
+    expect(meal?.planId).toBe("");
+    expect(meal?.sourceUrl).toBeNull();
+    expect(meal?.usedWebSearch).toBe(false);
+    expect(getMeal(meal!.id)?.title).toBe("Grandma chili");
+  });
+
+  it("rejects an empty title", () => {
+    const result = handleCreateMeal({ ...typedRecipe, title: "", slot: "dinner" });
+    expect(result.status).toBe(400);
+  });
+
+  it("rejects a recipe with no ingredients", () => {
+    const result = handleCreateMeal({
+      ...typedRecipe,
+      ingredients: [],
+      slot: "dinner",
+    });
+    expect(result.status).toBe(400);
+  });
+
+  it("allows an empty why-it-fits", () => {
+    const result = handleCreateMeal({
+      ...typedRecipe,
+      whyItFits: "",
+      slot: "dinner",
+    });
+    expect(result.status).toBe(200);
+    const meal = (result.body as { meal: { whyItFits: string } }).meal;
+    expect(meal.whyItFits).toBe("");
+  });
+
+  it("rejects a recipe with no steps", () => {
+    const result = handleCreateMeal({
+      ...typedRecipe,
+      steps: [],
+      slot: "dinner",
     });
     expect(result.status).toBe(400);
   });

@@ -141,10 +141,10 @@ export function listAllMeals(): Meal[] {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
 }
 
-export function saveImportedMeal(input: {
+export function saveStandaloneMeal(input: {
   meal: GeneratedMeal;
   slot: MealSlot;
-  sourceUrl: string;
+  sourceUrl?: string | null;
   usedWebSearch?: boolean;
 }): Meal {
   const db = getDb();
@@ -156,11 +156,20 @@ export function saveImportedMeal(input: {
       usedWebSearch: input.usedWebSearch === true ? 1 : 0,
       pinned: 0,
       weekStart,
-      sourceUrl: input.sourceUrl,
+      sourceUrl: input.sourceUrl ?? null,
     },
   );
   db.insert(meals).values(row).run();
   return mapMeal(row);
+}
+
+export function saveImportedMeal(input: {
+  meal: GeneratedMeal;
+  slot: MealSlot;
+  sourceUrl: string;
+  usedWebSearch?: boolean;
+}): Meal {
+  return saveStandaloneMeal(input);
 }
 
 export function getMeal(id: string): Meal | null {

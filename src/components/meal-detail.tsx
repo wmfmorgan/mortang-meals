@@ -1,45 +1,142 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Aisle, Ingredient, Meal } from "@/lib/types";
-import { AISLES } from "@/lib/types";
+import type { Aisle, Ingredient, Meal, MealSlot } from "@/lib/types";
+import { AISLES, SLOTS } from "@/lib/types";
 import { PageHeader } from "./page-header";
-import { MealBadges, SwapButton } from "./meal-card";
+import { MealBadges, SwapButton, TrashIcon } from "./meal-card";
 
 function emptyIngredient(): Ingredient {
   return { name: "", quantity: "", unit: "", aisle: "other" };
 }
+
+const LEAVE_RECIPE_MESSAGE =
+  "Leave without saving? Your changes will be lost.";
+
+const EMPTY_DRAFT: Meal = {
+  id: "",
+  planId: "",
+  day: "monday",
+  slot: "dinner",
+  title: "",
+  whyItFits: "",
+  cookMinutes: 30,
+  method: "",
+  ingredients: [emptyIngredient()],
+  steps: [""],
+  usedWebSearch: false,
+  pinned: false,
+  createdAt: "",
+  sourceUrl: null,
+};
 
 export function MealDetail({
   meal,
   servings,
   canSwap,
   eyebrow,
+  mode = "edit",
 }: {
-  meal: Meal;
+  meal?: Meal;
   servings: string;
   canSwap: boolean;
   eyebrow: string;
+  mode?: "edit" | "create";
 }) {
+  const creating = mode === "create";
+  const source = meal ?? EMPTY_DRAFT;
   const router = useRouter();
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(creating);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [title, setTitle] = useState(meal.title);
-  const [whyItFits, setWhyItFits] = useState(meal.whyItFits);
-  const [cookMinutes, setCookMinutes] = useState(String(meal.cookMinutes));
-  const [method, setMethod] = useState(meal.method);
-  const [ingredients, setIngredients] = useState<Ingredient[]>(meal.ingredients);
-  const [steps, setSteps] = useState<string[]>(meal.steps);
+  const [title, setTitle] = useState(source.title);
+  const [whyItFits, setWhyItFits] = useState(source.whyItFits);
+  const [cookMinutes, setCookMinutes] = useState(String(source.cookMinutes));
+  const [method, setMethod] = useState(source.method);
+  const [slot, setSlot] = useState<MealSlot>(source.slot);
+  const [ingredients, setIngredients] = useState<Ingredient[]>(source.ingredients);
+  const [steps, setSteps] = useState<string[]>(source.steps);
+  const [dragFrom, setDragFrom] = useState<number | null>(null);
+
+  const dirty =
+    editing &&
+    (title !== source.title ||
+      whyItFits !== source.whyItFits ||
+      cookMinutes !== String(source.cookMinutes) ||
+      method !== source.method ||
+      slot !== source.slot ||
+      JSON.stringify(steps) !== JSON.stringify(source.steps) ||
+      JSON.stringify(ingredients) !== JSON.stringify(source.ingredients));
+
+  useEffect(() => {
+    if (!dirty) return;
+
+    function onBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+
+    function onDocumentClick(event: MouseEvent) {
+      if (event.defaultPrevented || event.button !== 0) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+      const anchor = (event.target as HTMLElement | null)?.closest("a");
+      if (!anchor) return;
+      const href = anchor.getAttribute("href");
+      if (!href || href.startsWith("#")) return;
+      if (anchor.target === "_blank" || anchor.hasAttribute("download")) return;
+      try {
+        const url = new URL(anchor.href, window.location.href);
+        if (url.origin !== window.location.origin) return;
+        if (
+          url.pathname === window.location.pathname &&
+          url.search === window.location.search
+        ) {
+          return;
+        }
+      } catch {
+        return;
+      }
+      if (!window.confirm(LEAVE_RECIPE_MESSAGE)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    }
+
+    window.addEventListener("beforeunload", onBeforeUnload);
+    document.addEventListener("click", onDocumentClick, true);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      document.removeEventListener("click", onDocumentClick, true);
+    };
+  }, [dirty]);
+
+  function moveStep(from: number, to: number) {
+    if (from === to || from < 0 || to < 0) return;
+    setSteps((list) => {
+      if (from >= list.length || to >= list.length) return list;
+      const next = [...list];
+      const [item] = next.splice(from, 1);
+      next.splice(to, 0, item!);
+      return next;
+    });
+  }
 
   function resetForm() {
-    setTitle(meal.title);
-    setWhyItFits(meal.whyItFits);
-    setCookMinutes(String(meal.cookMinutes));
-    setMethod(meal.method);
-    setIngredients(meal.ingredients);
-    setSteps(meal.steps);
+    if (creating) {
+      if (dirty && !window.confirm(LEAVE_RECIPE_MESSAGE)) return;
+      router.push("/meals");
+      return;
+    }
+    setTitle(source.title);
+    setWhyItFits(source.whyItFits);
+    setCookMinutes(String(source.cookMinutes));
+    setMethod(source.method);
+    setSlot(source.slot);
+    setIngredients(source.ingredients);
+    setSteps(source.steps);
     setError(null);
     setEditing(false);
   }
@@ -47,28 +144,35 @@ export function MealDetail({
   async function onSave() {
     setPending(true);
     setError(null);
+    const fields = {
+      title: title.trim(),
+      whyItFits: whyItFits.trim(),
+      cookMinutes: Number(cookMinutes),
+      method: method.trim(),
+      ingredients: ingredients.map((item) => ({
+        ...item,
+        name: item.name.trim(),
+        quantity: item.quantity.trim(),
+        unit: item.unit.trim(),
+      })),
+      steps: steps.map((step) => step.trim()).filter(Boolean),
+    };
     try {
-      const res = await fetch("/api/update", {
+      const res = await fetch(creating ? "/api/create" : "/api/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mealId: meal.id,
-          title: title.trim(),
-          whyItFits: whyItFits.trim(),
-          cookMinutes: Number(cookMinutes),
-          method: method.trim(),
-          ingredients: ingredients.map((item) => ({
-            ...item,
-            name: item.name.trim(),
-            quantity: item.quantity.trim(),
-            unit: item.unit.trim(),
-          })),
-          steps: steps.map((step) => step.trim()).filter(Boolean),
-        }),
+        body: JSON.stringify(
+          creating ? { ...fields, slot } : { mealId: source.id, ...fields },
+        ),
       });
       const data = (await res.json()) as { message?: string };
       if (!res.ok) {
         setError(data.message ?? "Couldn’t save those changes.");
+        return;
+      }
+      if (creating) {
+        router.push("/meals");
+        router.refresh();
         return;
       }
       setEditing(false);
@@ -100,12 +204,10 @@ export function MealDetail({
   const actions = editing ? (
     <div className="no-print flex flex-wrap items-center gap-2">
       <button
-        type="button"
+        type="submit"
+        form="recipe-edit-form"
         className="btn btn-primary"
         disabled={pending}
-        onClick={() => {
-          void onSave();
-        }}
       >
         {pending ? "Saving…" : "Save"}
       </button>
@@ -121,7 +223,7 @@ export function MealDetail({
   ) : (
     <div className="no-print flex flex-wrap items-center gap-2">
       <PrintButton />
-      {canSwap ? <SwapButton meal={meal} /> : null}
+      {canSwap && meal ? <SwapButton meal={meal} /> : null}
       <button
         type="button"
         className="btn btn-ghost"
@@ -148,11 +250,11 @@ export function MealDetail({
         eyebrow={eyebrow}
         title={
           <span className="inline-flex items-center gap-2">
-            <MealBadges meal={meal} />
-            {editing ? "Edit recipe" : meal.title}
+            {meal ? <MealBadges meal={meal} /> : null}
+            {creating ? "Add recipe" : editing ? "Edit recipe" : source.title}
           </span>
         }
-        lede={editing ? undefined : meal.whyItFits}
+        lede={editing ? undefined : source.whyItFits}
         action={actions}
       />
       {error ? (
@@ -163,6 +265,7 @@ export function MealDetail({
 
       {editing ? (
         <form
+          id="recipe-edit-form"
           className="space-y-6"
           onSubmit={(event) => {
             event.preventDefault();
@@ -186,7 +289,7 @@ export function MealDetail({
                 rows={3}
                 value={whyItFits}
                 onChange={(event) => setWhyItFits(event.target.value)}
-                required
+                required={!creating}
               />
             </label>
             <label className="field">
@@ -209,6 +312,25 @@ export function MealDetail({
                 required
               />
             </label>
+            {creating ? (
+              <label className="field">
+                Meal
+                <select
+                  className="input"
+                  value={slot}
+                  required
+                  onChange={(event) =>
+                    setSlot(event.target.value as MealSlot)
+                  }
+                >
+                  {SLOTS.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
           </div>
 
           <section className="surface space-y-3 p-5">
@@ -293,12 +415,16 @@ export function MealDetail({
                   </label>
                   <button
                     type="button"
-                    className="btn btn-ghost self-end"
+                    className="icon-button icon-button-danger self-end"
+                    aria-label={`Delete ingredient ${index + 1}`}
+                    title="Delete ingredient"
                     onClick={() =>
-                      setIngredients((list) => list.filter((_, i) => i !== index))
+                      setIngredients((list) =>
+                        list.filter((_, i) => i !== index),
+                      )
                     }
                   >
-                    Remove
+                    <TrashIcon />
                   </button>
                 </li>
               ))}
@@ -320,57 +446,81 @@ export function MealDetail({
             </div>
             <ol className="space-y-3">
               {steps.map((step, index) => (
-                <li key={index} className="flex items-start gap-2">
+                <li
+                  key={index}
+                  className={`step-row flex items-start gap-2${
+                    dragFrom === index ? " step-row-dragging" : ""
+                  }`}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    let transferred = Number.NaN;
+                    try {
+                      transferred = Number(
+                        event.dataTransfer?.getData("text/plain") ?? "",
+                      );
+                    } catch {
+                      transferred = Number.NaN;
+                    }
+                    const from = dragFrom ?? transferred;
+                    moveStep(from, index);
+                    setDragFrom(null);
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="icon-button step-grip"
+                    draggable
+                    aria-label={`Reorder step ${index + 1}`}
+                    title="Drag to reorder"
+                    onDragStart={(event) => {
+                      setDragFrom(index);
+                      try {
+                        if (event.dataTransfer) {
+                          event.dataTransfer.effectAllowed = "move";
+                          event.dataTransfer.setData(
+                            "text/plain",
+                            String(index),
+                          );
+                        }
+                      } catch {
+                        // happy-dom may expose a read-only DataTransfer
+                      }
+                    }}
+                    onDragEnd={() => setDragFrom(null)}
+                  >
+                    <GripIcon />
+                  </button>
                   <span className="mt-3 font-mono text-[0.72rem] text-olive">
                     {index + 1}
                   </span>
                   <textarea
                     className="input flex-1"
                     rows={2}
+                    aria-label={`Step ${index + 1}`}
                     value={step}
                     onChange={(event) =>
                       setSteps((list) =>
-                        list.map((item, i) => (i === index ? event.target.value : item)),
+                        list.map((item, i) =>
+                          i === index ? event.target.value : item,
+                        ),
                       )
                     }
                   />
-                  <div className="flex flex-col gap-1">
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      disabled={index === 0}
-                      onClick={() =>
-                        setSteps((list) => {
-                          const next = [...list];
-                          [next[index - 1], next[index]] = [next[index]!, next[index - 1]!];
-                          return next;
-                        })
-                      }
-                    >
-                      Up
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      disabled={index === steps.length - 1}
-                      onClick={() =>
-                        setSteps((list) => {
-                          const next = [...list];
-                          [next[index], next[index + 1]] = [next[index + 1]!, next[index]!];
-                          return next;
-                        })
-                      }
-                    >
-                      Down
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      onClick={() => setSteps((list) => list.filter((_, i) => i !== index))}
-                    >
-                      Remove
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    className="icon-button icon-button-danger"
+                    aria-label={`Delete step ${index + 1}`}
+                    title="Delete step"
+                    onClick={() =>
+                      setSteps((list) => list.filter((_, i) => i !== index))
+                    }
+                  >
+                    <TrashIcon />
+                  </button>
                 </li>
               ))}
             </ol>
@@ -380,12 +530,12 @@ export function MealDetail({
         <>
           <p className="mb-4 font-mono text-[0.72rem] uppercase tracking-[0.12em] text-herb">
             {servings}
-            {` · ${meal.cookMinutes} min · ${meal.method}`}
+            {` · ${source.cookMinutes} min · ${source.method}`}
           </p>
-          {meal.sourceUrl ? (
+          {source.sourceUrl ? (
             <p className="mb-8">
               <a
-                href={meal.sourceUrl}
+                href={source.sourceUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="text-sm text-olive"
@@ -399,7 +549,7 @@ export function MealDetail({
             <section>
               <h2 className="page-eyebrow">Ingredients</h2>
               <ul className="mt-3 space-y-2">
-                {meal.ingredients.map((ingredient) => (
+                {source.ingredients.map((ingredient) => (
                   <li
                     key={`${ingredient.name}-${ingredient.unit}`}
                     className="flex gap-3 border-b border-wheat/80 py-2 text-[0.95rem]"
@@ -415,7 +565,7 @@ export function MealDetail({
             <section>
               <h2 className="page-eyebrow">Method</h2>
               <ol className="mt-3 space-y-3">
-                {meal.steps.map((step, index) => (
+                {source.steps.map((step, index) => (
                   <li
                     key={`${index}-${step}`}
                     className="flex gap-3 text-[0.98rem] leading-relaxed"
@@ -446,6 +596,25 @@ function PrintButton() {
     >
       <PrinterIcon />
     </button>
+  );
+}
+
+function GripIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      width="18"
+      height="18"
+      fill="currentColor"
+    >
+      <circle cx="7" cy="5" r="1.35" />
+      <circle cx="13" cy="5" r="1.35" />
+      <circle cx="7" cy="10" r="1.35" />
+      <circle cx="13" cy="10" r="1.35" />
+      <circle cx="7" cy="15" r="1.35" />
+      <circle cx="13" cy="15" r="1.35" />
+    </svg>
   );
 }
 

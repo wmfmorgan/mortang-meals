@@ -17,6 +17,7 @@ import {
   replaceMeal,
   saveGeneratedPlan,
   saveImportedMeal,
+  saveStandaloneMeal,
   setPinned,
   setPlanPinned,
   updateMeal,
@@ -268,6 +269,20 @@ describe("meals repo", () => {
     const reloaded = getCurrentPlan();
     expect(reloaded?.meals.map((item) => item.title)).toEqual(["Keep me"]);
     expect(reloaded?.meals.find((item) => item.id === doomed.id)).toBeUndefined();
+  });
+
+  it("saveStandaloneMeal stores a library meal without a source URL", () => {
+    const saved = saveStandaloneMeal({
+      meal: meal({ title: "Grandma chili", slot: "lunch" }),
+      slot: "lunch",
+    });
+    expect(saved.planId).toBe("");
+    expect(saved.slot).toBe("lunch");
+    expect(saved.title).toBe("Grandma chili");
+    expect(saved.sourceUrl).toBeNull();
+    expect(saved.usedWebSearch).toBe(false);
+    expect(saved.pinned).toBe(false);
+    expect(listAllMeals().some((item) => item.id === saved.id)).toBe(true);
   });
 
   it("updateMeal changes recipe fields and leaves source and pin alone", () => {

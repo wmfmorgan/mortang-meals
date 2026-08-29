@@ -73,7 +73,8 @@ Thin `src/app/api/*/route.ts` files parse JSON and call a handler. Keep logic in
 | --- | --- |
 | `/setup` | First-run wizard: household → kitchen checklist → slot mask. Redirect target when there is no household or no named people. |
 | `/` This Week | Home. Collapsible slot picker (session-backed open/closed), generate, pin all, “use what I have” ingredients, week grid, recipe flyout, library flyout. `?plan=` opens a historical plan. |
-| `/meals` | Library catalog: search / filter / group, import-from-URL form. |
+| `/meals` | Library catalog: search / filter / group, import-from-URL form, add-recipe. |
+| `/meals/new` | Type a recipe into the library (same editor as `/meals/[id]`, create mode). |
 | `/meals/[id]` | Full recipe editor (title, why, time, method, ingredients, steps). Swap only if the meal is on the current plan. |
 | `/shopping-list` | Derived list for the open plan (`?plan=` supported). Not stored. |
 | `/household` | People, leftovers of diet style/notes/servings. |
@@ -97,7 +98,7 @@ Generation UX is global (`GenerationProvider` in `AppShell`): NDJSON stream. Mod
 
 **Week plan** — `weekStart` (Monday `YYYY-MM-DD`), `isCurrent`, `slotMask` JSON. History stays readable from This Week / shopping list.
 
-**Meal** — belongs to a plan **or** stands alone. Fields: day, slot, title, whyItFits, cookMinutes, method, ingredients[], steps[], `usedWebSearch`, `pinned`, `weekStart`, `createdAt`, optional `sourceUrl`. Imported meals are saved with `planId = ""`. Deleting a plan deletes the plan row only; meals stay so the library keeps the recipes.
+**Meal** — belongs to a plan **or** stands alone. Fields: day, slot, title, whyItFits, cookMinutes, method, ingredients[], steps[], `usedWebSearch`, `pinned`, `weekStart`, `createdAt`, optional `sourceUrl`. Imported and typed meals are saved with `planId = ""`. Deleting a plan deletes the plan row only; meals stay so the library keeps the recipes.
 
 **UseIngredient** — `{ name, day, slot }`. Session-only (`sessionStorage` key `mortang.useIngredients`). Instructs generate/swap that that slot must feature that ingredient. Cleared after a successful generate.
 
@@ -140,6 +141,10 @@ Empty or filled cell on the current week opens `MealLibraryFlyout` → `GET /api
 
 Meals page form → `POST /api/import` NDJSON stream. Always uses the Grok adapter **with web search on**, regardless of Settings mode. Model reads the page and returns one meal. Saved via `saveImportedMeal` (`planId ""`, `sourceUrl` set, `usedWebSearch true`). Not placed on the week until the user places it.
 
+### Manual recipe
+
+Meals → Add recipe → `/meals/new` → `POST /api/create`. Same fields as edit plus a slot. Saved via `saveStandaloneMeal` (`planId ""`, no `sourceUrl`, `usedWebSearch false`). Not placed on the week until the user places it.
+
 ### Edit / delete
 
 `POST /api/update` uses `mealEditSchema` (no day/slot). `POST /api/delete` `{ mealId }` removes the row. `POST /api/plans/delete` `{ planId }` removes the plan, keeps meals.
@@ -178,8 +183,8 @@ Brief (`src/household/brief.ts`) includes people, diet, notes, allergies, avoida
 | `src/household/*` | Household repo, brief, people normalize |
 | `src/kitchen/*` | Items repo, prefs repo, built-in defaults |
 | `src/meals/schema.ts` | Zod + JSON Schema for model output |
-| `src/meals/repo.ts` | Plans and meals persistence (merge, place, pin, library, import) |
-| `src/meals/http.ts` | Library / pin / place / import / update / delete handlers |
+| `src/meals/repo.ts` | Plans and meals persistence (merge, place, pin, library, import, typed create) |
+| `src/meals/http.ts` | Library / pin / place / import / create / update / delete handlers |
 | `src/meals/catalog.ts` | Search / filter / group for `/meals` |
 | `src/meals/{allergen,duplicates,shopping-list}.ts` | Pure validators / list merge |
 | `src/ai/adapter.ts` | Provider client |
@@ -203,6 +208,7 @@ All mutating meal/AI routes are `POST` JSON unless noted. Generate and import re
 | `POST /api/generate` | `handleGenerate` — stream |
 | `POST /api/swap` | `handleSwap` |
 | `POST /api/import` | `handleImportRecipe` — stream |
+| `POST /api/create` | `handleCreateMeal` — typed library meal |
 | `GET /api/library?slot=` | `handleListLibrary` |
 | `POST /api/place` | `handlePlaceMeal` |
 | `POST /api/pin` | `handlePin` |
