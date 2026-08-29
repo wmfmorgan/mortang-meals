@@ -702,3 +702,80 @@ a.badge-link:hover {
     border-radius: 1.15rem 1.15rem 0 0;
   }
 }
+
+@media print {
+  @page {
+    margin: 0.6in;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #1a1610;
+  }
+
+  .no-print,
+  .generate-modal-root,
+  .web-search-star,
+  .import-icon {
+    display: none !important;
+  }
+
+  .page-shell {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .page-header {
+    margin-bottom: 0.75rem;
+    align-items: flex-start;
+  }
+
+  .page-title {
+    font-size: 1.7rem;
+    color: #1a1610;
+  }
+
+  .page-lede {
+    color: #4a453c;
+  }
+
+  .recipe-page,
+  .recipe-page * {
+    letter-spacing: 0 !important;
+  }
+
+  .recipe-page .page-eyebrow {
+    letter-spacing: 0.06em !important;
+    color: #4a453c;
+  }
+
+  .surface {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0 !important;
+  }
+
+  .recipe-page .surface.grid {
+    display: block;
+  }
+
+  .recipe-page .surface.grid > section + section {
+    margin-top: 1.25rem;
+  }
+
+  .recipe-page li {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .recipe-page a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    color: #4a453c;
+  }
+}

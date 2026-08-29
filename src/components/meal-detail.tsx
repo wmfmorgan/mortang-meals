@@ -98,7 +98,7 @@ export function MealDetail({
   }
 
   const actions = editing ? (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="no-print flex flex-wrap items-center gap-2">
       <button
         type="button"
         className="btn btn-primary"
@@ -119,7 +119,8 @@ export function MealDetail({
       </button>
     </div>
   ) : (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="no-print flex flex-wrap items-center gap-2">
+      <PrintButton />
       {canSwap ? <SwapButton meal={meal} /> : null}
       <button
         type="button"
@@ -431,5 +432,39 @@ export function MealDetail({
         </>
       )}
     </>
+  );
+}
+
+function PrintButton() {
+  return (
+    <button
+      type="button"
+      className="icon-button"
+      aria-label="Print recipe"
+      title="Print recipe"
+      onClick={() => window.print()}
+    >
+      <PrinterIcon />
+    </button>
+  );
+}
+
+function PrinterIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M5.2 7.2V3.4h9.6v3.8" />
+      <path d="M5.2 14.2H3.8A1.4 1.4 0 0 1 2.4 12.8V8.6A1.4 1.4 0 0 1 3.8 7.2h12.4A1.4 1.4 0 0 1 17.6 8.6v4.2a1.4 1.4 0 0 1-1.4 1.4h-1.4" />
+      <rect x="5.2" y="11.6" width="9.6" height="5" rx="0.8" />
+    </svg>
   );
 }

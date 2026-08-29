@@ -43,8 +43,8 @@ export function GenerationBanner() {
     <div
       className={
         state.status === "error"
-          ? "border-b border-wheat bg-alert-wash"
-          : "border-b border-wheat bg-paper"
+          ? "no-print border-b border-wheat bg-alert-wash"
+          : "no-print border-b border-wheat bg-paper"
       }
       role={state.status === "error" ? "alert" : "status"}
       aria-live="polite"

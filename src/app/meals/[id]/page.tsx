@@ -33,10 +33,10 @@ export default async function RecipePage({
       : meal.slot;
 
   return (
-    <article className="mx-auto max-w-2xl">
+    <article className="recipe-page mx-auto max-w-2xl">
       <Link
         href="/meals"
-        className="mb-6 inline-block text-sm text-herb no-underline hover:text-ink"
+        className="no-print mb-6 inline-block text-sm text-herb no-underline hover:text-ink"
       >
         ← Meals
       </Link>

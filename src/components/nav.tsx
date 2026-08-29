@@ -31,7 +31,7 @@ export function Nav({ developerTools }: NavProps) {
   const pathname = usePathname() ?? "/";
 
   return (
-    <header className="sticky top-0 z-50 border-b border-wheat bg-paper/90 backdrop-blur-md">
+    <header className="no-print sticky top-0 z-50 border-b border-wheat bg-paper/90 backdrop-blur-md">
       <div className="mx-auto flex w-[min(1280px,calc(100%-2rem))] flex-wrap items-center justify-between gap-x-8 gap-y-3 py-3.5">
         <Link
           href="/"
