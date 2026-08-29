@@ -614,6 +614,12 @@ a.badge-link:hover {
   gap: 0.3rem 0.45rem;
 }
 
+.meal-extra-row .meal-extra-open,
+.meal-extra-row .meal-extra-title {
+  flex: 1 1 6rem;
+  min-width: 0;
+}
+
 .meal-extra-toggle {
   display: inline-flex;
   overflow: hidden;
@@ -665,8 +671,17 @@ a.badge-link:hover {
 
 .meal-extra-tools {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.15rem;
+  margin-left: auto;
+}
+
+.meal-extra-tools .icon-button {
+  width: 1.4rem;
+  height: 1.4rem;
+  font-size: 1.05rem;
+  line-height: 1;
 }
 
 .meal-extra-add-btn:disabled,

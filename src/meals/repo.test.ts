@@ -20,6 +20,7 @@ import {
   saveStandaloneMeal,
   setMealExtra,
   clearMealExtra,
+  placeExtra,
   setPinned,
   setPlanPinned,
   updateMeal,
@@ -497,6 +498,28 @@ describe("meals repo", () => {
     expect(merged.meals.find((item) => item.day === "tuesday")?.extras).toEqual(
       EMPTY_EXTRAS,
     );
+  });
+
+  it("placeExtra copies a library recipe onto a lunch as a side", () => {
+    const slotMask = emptyMask();
+    slotMask.monday.lunch = true;
+    const plan = saveGeneratedPlan({
+      weekStart: "2026-05-11",
+      slotMask,
+      meals: [meal({ day: "monday", slot: "lunch", title: "Chicken pita" })],
+    });
+    const source = saveStandaloneMeal({
+      meal: meal({ title: "Greek salad", slot: "side" }),
+      slot: "side",
+    });
+    const updated = placeExtra({
+      sourceMealId: source.id,
+      mealId: plan.meals[0]!.id,
+      kind: "side",
+    });
+    expect(updated.extras.side?.title).toBe("Greek salad");
+    expect(updated.extras.side?.mode).toBe("recipe");
+    expect(updated.extras.side?.id).toBe(source.id);
   });
 
   it("placeMeal does not copy extras onto the week", () => {

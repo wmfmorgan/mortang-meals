@@ -42,12 +42,24 @@ function meal(overrides: Partial<Meal> = {}): Meal {
 
 describe("MealCard extras", () => {
   it("lets an editable lunch add a side or dessert", () => {
-    render(<MealCard meal={meal({ slot: "lunch" })} editable />);
+    render(
+      <MealCard
+        meal={meal({ slot: "lunch" })}
+        editable
+        onChooseExtra={() => {}}
+      />,
+    );
     const side = screen.getByRole("group", { name: "Add a side" });
     expect(within(side).getByRole("button", { name: "Add side" })).toBeTruthy();
     expect(within(side).getByRole("button", { name: "Suggestion" })).toBeTruthy();
     expect(within(side).getByRole("button", { name: "Recipe" })).toBeTruthy();
+    expect(
+      within(side).getByRole("button", { name: "Choose a past side" }),
+    ).toBeTruthy();
     expect(screen.getByRole("button", { name: "Add dessert" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Choose a past dessert" }),
+    ).toBeTruthy();
   });
 
   it("does not show extras on breakfast", () => {
@@ -75,6 +87,9 @@ describe("MealCard extras", () => {
     expect(screen.getByText("Side · Baked potato")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /baked potato/i })).toBeNull();
     expect(screen.getByRole("button", { name: "Get recipe" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^remove$/i })).toBeNull();
+    const clear = screen.getByRole("button", { name: "Remove side" });
+    expect(clear.textContent).toBe("×");
   });
 
   it("opens a recipe extra without opening the parent meal", () => {

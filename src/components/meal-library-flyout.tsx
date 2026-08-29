@@ -1,24 +1,28 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { DayOfWeek, LibraryMeal, MealSlot } from "@/lib/types";
+import type { DayOfWeek, ExtraKind, LibraryMeal, MealSlot } from "@/lib/types";
 
 const SLOT_WORDS: Record<MealSlot, string> = {
   breakfast: "breakfasts",
   lunch: "lunches",
   dinner: "dinners",
+  side: "sides",
+  dessert: "desserts",
 };
 
 export function MealLibraryFlyout({
   day,
   slot,
   weekStart,
+  placeExtra,
   onClose,
   onPlaced,
 }: {
-  day: DayOfWeek;
+  day?: DayOfWeek;
   slot: MealSlot;
   weekStart?: string;
+  placeExtra?: { mealId: string; kind: ExtraKind };
   onClose: () => void;
   onPlaced: () => void;
 }) {
@@ -58,15 +62,23 @@ export function MealLibraryFlyout({
     setPendingId(sourceMealId);
     setError(null);
     try {
-      const res = await fetch("/api/place", {
+      const res = await fetch(placeExtra ? "/api/place-extra" : "/api/place", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sourceMealId,
-          day,
-          slot,
-          ...(weekStart ? { weekStart } : {}),
-        }),
+        body: JSON.stringify(
+          placeExtra
+            ? {
+                sourceMealId,
+                mealId: placeExtra.mealId,
+                kind: placeExtra.kind,
+              }
+            : {
+                sourceMealId,
+                day,
+                slot,
+                ...(weekStart ? { weekStart } : {}),
+              },
+        ),
       });
       const data = (await res.json()) as { message?: string };
       if (!res.ok) throw new Error(data.message ?? "Couldn’t place that meal.");
@@ -116,7 +128,7 @@ export function MealLibraryFlyout({
           <p className="text-sm text-herb">Loading past meals…</p>
         ) : meals.length === 0 ? (
           <p className="text-sm text-herb">
-            No past {SLOT_WORDS[slot]} yet. Generate a week first.
+            No past {SLOT_WORDS[slot]} yet. Generate one or add a recipe.
           </p>
         ) : (
           <ul className="space-y-2">

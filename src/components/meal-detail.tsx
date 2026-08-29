@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Aisle, Ingredient, Meal, MealSlot } from "@/lib/types";
 import { EMPTY_EXTRAS } from "@/meals/extras";
-import { AISLES, SLOTS } from "@/lib/types";
+import { AISLES, RECIPE_SLOTS } from "@/lib/types";
 import { PageHeader } from "./page-header";
 import { MealBadges, SwapButton, TrashIcon } from "./meal-card";
 import { SourceLink } from "./recipe-flyout";
@@ -326,7 +326,7 @@ export function MealDetail({
                     setSlot(event.target.value as MealSlot)
                   }
                 >
-                  {SLOTS.map((item) => (
+                  {RECIPE_SLOTS.map((item) => (
                     <option key={item} value={item}>
                       {item}
                     </option>

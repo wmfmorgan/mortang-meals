@@ -35,7 +35,7 @@ Env: copy `.env.example` to `.env.local` and set `XAI_API_KEY`. Optional `MORTAN
 - Browser talks only to local API routes / server actions. Keys stay on the server.
 - Grok key is `process.env.XAI_API_KEY` only. Never store it in SQLite. Custom-provider keys may live in settings.
 - Automated tests mock the adapter (`complete`). No live model calls.
-- One household. Week is Monday–Sunday (`mondayOf` in `src/lib/week.ts`). Slots are `breakfast | lunch | dinner` (21 cells).
+- One household. Week is Monday–Sunday (`mondayOf` in `src/lib/week.ts`). Week slots are `breakfast | lunch | dinner` (21 cells). Library recipes may also be `side` or `dessert`.
 - At most one plan has `isCurrent = 1`.
 - Last good plan / meal / extra is never replaced by a failed generate, swap, extra, or import.
 - Ingredient `quantity` is a **string** (`"1"`, `"1/2"`, `"1/4"`). Never a number. Never `0` for a used ingredient.
@@ -100,7 +100,7 @@ Generation UX is global (`GenerationProvider` in `AppShell`): NDJSON stream. Mod
 
 **Meal** — belongs to a plan **or** stands alone. Fields: day, slot, title, whyItFits, cookMinutes, method, ingredients[], steps[], `usedWebSearch`, `pinned`, `weekStart`, `createdAt`, optional `sourceUrl`, `extras`. Imported and typed meals are saved with `planId = ""`. Deleting a plan deletes the plan row only; meals stay so the library keeps the recipes.
 
-**Meal extra** — nested on a lunch or dinner (`extras_json`). At most one `side` and one `dessert`. Each is a **suggestion** (title only) or a **recipe** (full ingredients/steps). Not their own slots, library rows, or pin targets. Breakfast never has extras. Added on the card after the meal exists; week generate does not fill them.
+**Meal extra** — nested on a lunch or dinner (`extras_json`). At most one `side` and one `dessert`. Each is a **suggestion** (title only) or a **recipe** (full ingredients/steps). Breakfast never has extras. Added on the card after the meal exists; week generate does not fill them. A generated extra **recipe** is also saved as a standalone library meal (`slot` `side` or `dessert`). You can attach an existing library side/dessert with `POST /api/place-extra`. Suggestions are not library meals.
 
 **UseIngredient** — `{ name, day, slot }`. Session-only (`sessionStorage` key `mortang.useIngredients`). Instructs generate/swap that that slot must feature that ingredient. Cleared after a successful generate.
 
@@ -153,7 +153,7 @@ Meals → Add recipe → `/meals/new` → `POST /api/create`. Same fields as edi
 
 ### Sides and desserts
 
-Lunch and dinner cards on the **current** plan can add one side and one dessert after the meal exists. Toggle **Suggestion** (default) vs **Recipe**, then Add. Suggestion shows as text (`Side · Baked potato`) plus **Get recipe**. Recipe title is clickable and opens the existing flyout (`canSwap` and “Open full recipe” off). `POST /api/extra` `{ mealId, kind, mode }` is swap-shaped (not streamed). Upgrade a suggestion with `mode: "recipe"` (keeps the title). `DELETE /api/extra` `{ mealId, kind }` clears that extra. Breakfast, historical plans, and a slot that already has that extra (except suggestion → recipe) return 400. Generate that replaces an unpinned occupant drops extras (new meal row). Pinned occupants keep extras.
+Lunch and dinner cards on the **current** plan can add one side and one dessert after the meal exists. Toggle **Suggestion** (default) vs **Recipe**, then Add, or **Choose a past side/dessert**. Suggestion shows as text (`Side · Baked potato`) plus **Get recipe**. Recipe title is clickable and opens the existing flyout (`canSwap` off; “Open full recipe” on, because extra recipes are library meals). `POST /api/extra` `{ mealId, kind, mode }` is swap-shaped (not streamed). Recipe extras are saved with `saveStandaloneMeal`. `POST /api/place-extra` `{ sourceMealId, mealId, kind }` copies a library recipe onto the parent. Upgrade a suggestion with `mode: "recipe"` (keeps the title, then saves). `DELETE /api/extra` `{ mealId, kind }` clears that extra from the card, not the library. Breakfast, historical plans, and a slot that already has that extra (except suggestion → recipe) return 400. Generate that replaces an unpinned occupant drops extras (new meal row). Pinned occupants keep extras. Typed create and import accept `side` / `dessert` in the meal dropdown.
 
 ### Shopping list
 
@@ -216,9 +216,10 @@ All mutating meal/AI routes are `POST` JSON unless noted. Generate and import re
 | `POST /api/swap` | `handleSwap` |
 | `POST /api/extra` | `handleGenerateExtra` |
 | `DELETE /api/extra` | `handleDeleteExtra` |
+| `POST /api/place-extra` | `handlePlaceExtra` |
 | `POST /api/import` | `handleImportRecipe` — stream |
 | `POST /api/create` | `handleCreateMeal` — typed library meal |
-| `GET /api/library?slot=` | `handleListLibrary` |
+| `GET /api/library?slot=` | `handleListLibrary` — `breakfast \| lunch \| dinner \| side \| dessert` |
 | `POST /api/place` | `handlePlaceMeal` |
 | `POST /api/pin` | `handlePin` |
 | `POST /api/update` | `handleUpdateMeal` |

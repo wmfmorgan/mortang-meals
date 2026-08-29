@@ -4,7 +4,12 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { saveSettings } from "@/ai/settings-repo";
 import { handleGenerate, handleGenerateExtra, handleSwap } from "@/ai/http";
-import { handleDeleteExtra } from "@/meals/http";
+import {
+  handleCreateMeal,
+  handleDeleteExtra,
+  handleListLibrary,
+  handlePlaceExtra,
+} from "@/meals/http";
 import { getHousehold, replacePeople, upsertHousehold } from "@/household/repo";
 import { seedKitchenIfEmpty } from "@/kitchen/repo";
 import { resetDbForTests } from "@/lib/db";
@@ -452,5 +457,73 @@ describe("API smoke path", () => {
     expect(result.status).toBe(422);
     expect(getCurrentPlan()?.meals[0]?.extras.side?.mode).toBe("suggestion");
     expect(getCurrentPlan()?.meals[0]?.extras.side?.title).toBe("Baked potato");
+  });
+
+  it("saves a generated extra recipe to the library and lets you place it", async () => {
+    const mask = emptyMask();
+    mask.monday.dinner = true;
+    const { complete: generateComplete } = fakeComplete([
+      { ok: true, text: JSON.stringify({ meals: [WEEK_DINNERS[0]] }) },
+    ]);
+    const generated = await handleGenerate(
+      { weekStart: "2026-09-28", slotMask: mask },
+      { complete: generateComplete },
+    );
+    const dinnerMeal = (generated.body as { plan: WeekPlan }).plan.meals[0]!;
+    const potato = {
+      title: "Baked potato",
+      whyItFits: "Simple starch",
+      cookMinutes: 45,
+      method: "oven",
+      ingredients: [
+        { name: "russet potato", quantity: "2", unit: "count", aisle: "produce" },
+      ],
+      steps: ["Bake at 425°F"],
+    };
+    const { complete } = fakeComplete([
+      { ok: true, text: JSON.stringify(potato) },
+    ]);
+    const added = await handleGenerateExtra(
+      { mealId: dinnerMeal.id, kind: "side", mode: "recipe" },
+      { complete },
+    );
+    expect(added.status).toBe(200);
+    const extraId = (added.body as { meal: Meal }).meal.extras.side?.id;
+    expect(extraId).toBeTruthy();
+    const library = handleListLibrary("side");
+    expect(library.status).toBe(200);
+    expect(
+      (library.body as { meals: { title: string }[] }).meals.map((item) => item.title),
+    ).toContain("Baked potato");
+
+    handleDeleteExtra({ mealId: dinnerMeal.id, kind: "side" });
+    const placed = handlePlaceExtra({
+      sourceMealId: extraId,
+      mealId: dinnerMeal.id,
+      kind: "side",
+    });
+    expect(placed.status).toBe(200);
+    expect((placed.body as { meal: Meal }).meal.extras.side?.title).toBe(
+      "Baked potato",
+    );
+  });
+
+  it("creates a typed dessert in the library", () => {
+    const result = handleCreateMeal({
+      title: "Key lime pie",
+      cookMinutes: 20,
+      method: "no bake",
+      slot: "dessert",
+      ingredients: [
+        { name: "lime juice", quantity: "1/2", unit: "cup", aisle: "produce" },
+      ],
+      steps: ["Mix", "Chill"],
+    });
+    expect(result.status).toBe(200);
+    expect((result.body as { meal: Meal }).meal.slot).toBe("dessert");
+    const library = handleListLibrary("dessert");
+    expect(
+      (library.body as { meals: { title: string }[] }).meals.map((item) => item.title),
+    ).toContain("Key lime pie");
   });
 });

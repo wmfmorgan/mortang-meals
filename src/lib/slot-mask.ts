@@ -1,4 +1,4 @@
-import type { DayOfWeek, Meal, MealSlot, SlotMask } from "./types";
+import type { DayOfWeek, Meal, SlotMask, WeekSlot } from "./types";
 import { DAYS, SLOTS } from "./types";
 
 export const SLOT_MASK_KEY = "mortang.slotMask";
@@ -14,7 +14,7 @@ const DAY_SHORT: Record<DayOfWeek, string> = {
   sunday: "Sun",
 };
 
-const SLOT_PLURAL: Record<MealSlot, string> = {
+const SLOT_PLURAL: Record<WeekSlot, string> = {
   breakfast: "breakfasts",
   lunch: "lunches",
   dinner: "dinners",
@@ -41,7 +41,7 @@ export function hasAnySlot(mask: SlotMask): boolean {
   return DAYS.some((day) => SLOTS.some((slot) => Boolean(mask[day]?.[slot])));
 }
 
-export function slotKey(day: DayOfWeek, slot: MealSlot): string {
+export function slotKey(day: DayOfWeek, slot: WeekSlot): string {
   return `${day}:${slot}`;
 }
 
@@ -64,7 +64,7 @@ export function maskMinusPinned(mask: SlotMask, meals: Meal[]): SlotMask {
 export function toggleSlot(
   mask: SlotMask,
   day: DayOfWeek,
-  slot: MealSlot,
+  slot: WeekSlot,
   enabled: boolean,
   locked: Set<string> = new Set(),
 ): SlotMask {
@@ -94,13 +94,13 @@ export function toggleDay(
         slot,
         locked.has(slotKey(day, slot)) ? false : enable,
       ]),
-    ) as Record<MealSlot, boolean>,
+    ) as Record<WeekSlot, boolean>,
   };
 }
 
 export function toggleMealRow(
   mask: SlotMask,
-  slot: MealSlot,
+  slot: WeekSlot,
   locked: Set<string> = new Set(),
 ): SlotMask {
   const free = DAYS.filter((day) => !locked.has(slotKey(day, slot)));
@@ -131,7 +131,7 @@ export function writeSessionMask(mask: SlotMask) {
   sessionStorage.setItem(SLOT_MASK_KEY, JSON.stringify(mask));
 }
 
-function daysOnForSlot(mask: SlotMask, slot: MealSlot): DayOfWeek[] {
+function daysOnForSlot(mask: SlotMask, slot: WeekSlot): DayOfWeek[] {
   return DAYS.filter((day) => Boolean(mask[day]?.[slot]));
 }
 
@@ -143,7 +143,7 @@ function isConsecutive(days: DayOfWeek[]): boolean {
   );
 }
 
-function summarizeOneSlot(slot: MealSlot, days: DayOfWeek[]): string {
+function summarizeOneSlot(slot: WeekSlot, days: DayOfWeek[]): string {
   if (days.length === 7) return `7 ${SLOT_PLURAL[slot]}`;
   if (isConsecutive(days)) {
     return `${DAY_SHORT[days[0]]}–${DAY_SHORT[days[days.length - 1]]} ${slot}`;

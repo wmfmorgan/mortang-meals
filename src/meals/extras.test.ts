@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_EXTRAS, parseMealExtras, suggestionExtra } from "./extras";
+import {
+  EMPTY_EXTRAS,
+  extraFromMeal,
+  parseMealExtras,
+  suggestionExtra,
+} from "./extras";
 
 describe("parseMealExtras", () => {
   it("returns empty extras for missing or blank JSON", () => {
@@ -44,6 +49,34 @@ describe("parseMealExtras", () => {
         }),
       ),
     ).toEqual({ side, dessert });
+  });
+
+  it("copies a saved recipe onto an extra", () => {
+    const extra = extraFromMeal(
+      {
+        id: "lib-potato",
+        title: "Baked potato",
+        whyItFits: "Simple starch",
+        cookMinutes: 45,
+        method: "oven",
+        ingredients: [
+          { name: "russet potato", quantity: "2", unit: "count", aisle: "produce" },
+        ],
+        steps: ["Bake"],
+        usedWebSearch: true,
+        sourceUrl: "https://example.com/potato",
+      },
+      "side",
+    );
+    expect(extra).toMatchObject({
+      id: "lib-potato",
+      kind: "side",
+      mode: "recipe",
+      title: "Baked potato",
+      cookMinutes: 45,
+      usedWebSearch: true,
+      sourceUrl: "https://example.com/potato",
+    });
   });
 
   it("drops a malformed extra and keeps the other", () => {

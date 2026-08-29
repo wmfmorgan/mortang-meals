@@ -17,9 +17,11 @@ function extraLine(kind: ExtraKind, title: string): string {
 function ExtraAdd({
   mealId,
   kind,
+  onChoosePast,
 }: {
   mealId: string;
   kind: ExtraKind;
+  onChoosePast?: (kind: ExtraKind) => void;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<ExtraMode>("suggestion");
@@ -83,6 +85,16 @@ function ExtraAdd({
       >
         {pending ? pendingLabel : addLabel}
       </button>
+      {onChoosePast ? (
+        <button
+          type="button"
+          className="meal-extra-add-btn"
+          disabled={pending}
+          onClick={() => onChoosePast(kind)}
+        >
+          {kind === "side" ? "Choose a past side" : "Choose a past dessert"}
+        </button>
+      ) : null}
       {error ? (
         <p role="alert" className="alert">
           {error}
@@ -183,7 +195,7 @@ function ExtraRow({
           ) : null}
           <button
             type="button"
-            className="meal-extra-text-btn"
+            className="icon-button icon-button-danger"
             aria-label={`Remove ${extra.kind}`}
             title={`Remove ${extra.kind}`}
             disabled={pending !== null}
@@ -191,7 +203,7 @@ function ExtraRow({
               void onRemove();
             }}
           >
-            Remove
+            ×
           </button>
         </div>
       ) : null}
@@ -208,10 +220,12 @@ export function MealExtras({
   meal,
   editable = false,
   onOpenExtra,
+  onChoosePast,
 }: {
   meal: Meal;
   editable?: boolean;
   onOpenExtra?: (extra: MealExtra) => void;
+  onChoosePast?: (kind: ExtraKind) => void;
 }) {
   if (meal.slot === "breakfast") return null;
   const extras = meal.extras ?? EMPTY_EXTRAS;
@@ -227,7 +241,7 @@ export function MealExtras({
           onOpenExtra={onOpenExtra}
         />
       ) : editable ? (
-        <ExtraAdd mealId={meal.id} kind="side" />
+        <ExtraAdd mealId={meal.id} kind="side" onChoosePast={onChoosePast} />
       ) : null}
       {extras.dessert ? (
         <ExtraRow
@@ -237,7 +251,7 @@ export function MealExtras({
           onOpenExtra={onOpenExtra}
         />
       ) : editable ? (
-        <ExtraAdd mealId={meal.id} kind="dessert" />
+        <ExtraAdd mealId={meal.id} kind="dessert" onChoosePast={onChoosePast} />
       ) : null}
     </div>
   );

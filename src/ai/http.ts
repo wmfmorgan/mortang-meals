@@ -19,6 +19,7 @@ import {
   getPlan,
   mergeGeneratedPlan,
   replaceMeal,
+  saveStandaloneMeal,
   setMealExtra,
 } from "@/meals/repo";
 import { mergeShoppingList } from "@/meals/shopping-list";
@@ -337,11 +338,30 @@ export async function handleGenerateExtra(
     return jsonError(422, result.message);
   }
 
-  const extra = {
+  let extra = {
     id: existing?.id ?? crypto.randomUUID(),
     kind: parsed.data.kind,
     ...result.extra,
   };
+  if (extra.mode === "recipe") {
+    const saved = saveStandaloneMeal({
+      meal: {
+        day: "monday",
+        slot: parsed.data.kind,
+        title: extra.title,
+        whyItFits: extra.whyItFits,
+        cookMinutes: extra.cookMinutes,
+        method: extra.method,
+        ingredients: extra.ingredients,
+        steps: extra.steps,
+        sourceUrl: extra.sourceUrl,
+      },
+      slot: parsed.data.kind,
+      sourceUrl: extra.sourceUrl,
+      usedWebSearch: extra.usedWebSearch,
+    });
+    extra = { ...extra, id: saved.id };
+  }
   return { status: 200, body: { meal: setMealExtra(meal.id, extra) } };
 }
 

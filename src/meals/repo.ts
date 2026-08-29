@@ -18,7 +18,7 @@ import { DAYS, SLOTS } from "@/lib/types";
 import { emptySlotMask } from "@/lib/slot-mask";
 import { mondayOf } from "@/lib/week";
 import { normalizeTitle } from "./duplicates";
-import { EMPTY_EXTRAS, parseMealExtras } from "./extras";
+import { EMPTY_EXTRAS, extraFromMeal, parseMealExtras } from "./extras";
 
 type PlanRow = typeof weekPlans.$inferSelect;
 type MealRow = typeof meals.$inferSelect;
@@ -196,6 +196,28 @@ export function setMealExtra(mealId: string, extra: MealExtra): Meal {
   const extrasJson = JSON.stringify(extras);
   db.update(meals).set({ extrasJson }).where(eq(meals.id, mealId)).run();
   return mapMeal({ ...existing, extrasJson });
+}
+
+export function placeExtra(input: {
+  sourceMealId: string;
+  mealId: string;
+  kind: ExtraKind;
+}): Meal {
+  const source = getMeal(input.sourceMealId);
+  if (!source) throw new Error("Meal not found");
+  const parent = getMeal(input.mealId);
+  if (!parent) throw new Error("Meal not found");
+  const current = getCurrentPlan();
+  if (!current || parent.planId !== current.id) {
+    throw new Error("Sides and desserts can only be added on this week.");
+  }
+  if (parent.slot !== "lunch" && parent.slot !== "dinner") {
+    throw new Error("Breakfasts don’t have sides or desserts.");
+  }
+  if (parent.extras[input.kind]) {
+    throw new Error(`That meal already has a ${input.kind}.`);
+  }
+  return setMealExtra(parent.id, extraFromMeal(source, input.kind));
 }
 
 export function clearMealExtra(

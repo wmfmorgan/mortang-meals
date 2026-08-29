@@ -58,6 +58,35 @@ export function parseMealExtras(raw: unknown): MealExtras {
   };
 }
 
+export function extraFromMeal(
+  meal: {
+    id: string;
+    title: string;
+    whyItFits: string;
+    cookMinutes: number;
+    method: string;
+    ingredients: MealExtra["ingredients"];
+    steps: string[];
+    usedWebSearch: boolean;
+    sourceUrl: string | null;
+  },
+  kind: ExtraKind,
+): MealExtra {
+  return {
+    id: meal.id,
+    kind,
+    mode: "recipe",
+    title: meal.title,
+    whyItFits: meal.whyItFits,
+    cookMinutes: meal.cookMinutes,
+    method: meal.method,
+    ingredients: meal.ingredients,
+    steps: meal.steps,
+    usedWebSearch: meal.usedWebSearch,
+    sourceUrl: meal.sourceUrl,
+  };
+}
+
 export function suggestionExtra(input: {
   id: string;
   kind: ExtraKind;

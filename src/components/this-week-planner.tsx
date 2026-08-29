@@ -74,10 +74,11 @@ export function ThisWeekPlanner({
     | { type: "extra"; mealId: string; kind: ExtraKind }
     | null
   >(null);
-  const [library, setLibrary] = useState<{
-    day: DayOfWeek;
-    slot: MealSlot;
-  } | null>(null);
+  const [library, setLibrary] = useState<
+    | { type: "week"; day: DayOfWeek; slot: MealSlot }
+    | { type: "extra"; mealId: string; kind: ExtraKind }
+    | null
+  >(null);
   const [pinPending, setPinPending] = useState(false);
   const [useIngredients, setUseIngredients] = useState<UseIngredient[]>([]);
   const [focusName, setFocusName] = useState("");
@@ -290,8 +291,13 @@ export function ThisWeekPlanner({
         onSelectExtra={(meal, extra) =>
           setSelected({ type: "extra", mealId: meal.id, kind: extra.kind })
         }
-        onAdd={(day, slot) => setLibrary({ day, slot })}
-        onReplace={(meal) => setLibrary({ day: meal.day, slot: meal.slot })}
+        onAdd={(day, slot) => setLibrary({ type: "week", day, slot })}
+        onReplace={(meal) =>
+          setLibrary({ type: "week", day: meal.day, slot: meal.slot })
+        }
+        onChooseExtra={(meal, kind) =>
+          setLibrary({ type: "extra", mealId: meal.id, kind })
+        }
         editable={editable}
         useIngredients={useIngredients}
       />
@@ -301,15 +307,25 @@ export function ThisWeekPlanner({
           servings={servings}
           onClose={() => setSelected(null)}
           canSwap={selected?.type === "meal"}
-          showOpenFullRecipe={selected?.type === "meal"}
+          showOpenFullRecipe={
+            selected?.type === "meal" || selectedExtra?.mode === "recipe"
+          }
           eyebrow={extraEyebrow}
         />
       ) : null}
-      {library ? (
+      {library?.type === "week" ? (
         <MealLibraryFlyout
           day={library.day}
           slot={library.slot}
           weekStart={weekStart}
+          onClose={() => setLibrary(null)}
+          onPlaced={() => router.refresh()}
+        />
+      ) : null}
+      {library?.type === "extra" ? (
+        <MealLibraryFlyout
+          slot={library.kind}
+          placeExtra={{ mealId: library.mealId, kind: library.kind }}
           onClose={() => setLibrary(null)}
           onPlaced={() => router.refresh()}
         />

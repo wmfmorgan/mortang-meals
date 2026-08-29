@@ -3,7 +3,7 @@ import { createAdapter } from "@/ai/adapter";
 import { getSettings } from "@/ai/settings-repo";
 import { mondayOf } from "@/lib/week";
 import type { AdapterRequest, AdapterResult, MealSlot } from "@/lib/types";
-import { DAYS, SLOTS } from "@/lib/types";
+import { DAYS, RECIPE_SLOTS, SLOTS } from "@/lib/types";
 import {
   clearMealExtra,
   deleteMeal,
@@ -11,6 +11,7 @@ import {
   getCurrentPlan,
   getMeal,
   listLibraryMeals,
+  placeExtra,
   placeMeal,
   saveImportedMeal,
   saveStandaloneMeal,
@@ -27,6 +28,7 @@ import {
 export type HttpResult = { status: number; body: unknown };
 
 const slotEnum = z.enum(SLOTS as [MealSlot, ...MealSlot[]]);
+const recipeSlotEnum = z.enum(RECIPE_SLOTS as [MealSlot, ...MealSlot[]]);
 const dayEnum = z.enum(DAYS as [(typeof DAYS)[number], ...typeof DAYS]);
 
 const placeBodySchema = z.object({
@@ -41,6 +43,12 @@ const deleteBodySchema = z.object({
 });
 
 const deleteExtraBodySchema = z.object({
+  mealId: z.string().min(1),
+  kind: z.enum(["side", "dessert"]),
+});
+
+const placeExtraBodySchema = z.object({
+  sourceMealId: z.string().min(1),
   mealId: z.string().min(1),
   kind: z.enum(["side", "dessert"]),
 });
@@ -64,7 +72,7 @@ function jsonError(status: number, message: string): HttpResult {
 }
 
 export function handleListLibrary(slotRaw: string | null): HttpResult {
-  const parsed = slotEnum.safeParse(slotRaw);
+  const parsed = recipeSlotEnum.safeParse(slotRaw);
   if (!parsed.success) {
     return jsonError(400, "slot is required.");
   }
@@ -87,6 +95,22 @@ export function handlePlaceMeal(body: unknown): HttpResult {
     return { status: 200, body: { meal, plan } };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Couldn’t place meal.";
+    if (message === "Meal not found") return jsonError(404, message);
+    return jsonError(400, message);
+  }
+}
+
+export function handlePlaceExtra(body: unknown): HttpResult {
+  const parsed = placeExtraBodySchema.safeParse(body);
+  if (!parsed.success) {
+    return jsonError(400, "sourceMealId, mealId, and kind are required.");
+  }
+  try {
+    const meal = placeExtra(parsed.data);
+    return { status: 200, body: { meal, plan: getCurrentPlan() } };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Couldn’t place that extra.";
     if (message === "Meal not found") return jsonError(404, message);
     return jsonError(400, message);
   }
@@ -138,7 +162,7 @@ export function handleDeletePlan(body: unknown): HttpResult {
 
 const importBodySchema = z.object({
   url: z.string().url(),
-  slot: slotEnum,
+  slot: recipeSlotEnum,
 });
 
 export type ImportProgressEvent = { phase: string; message: string };
@@ -217,7 +241,7 @@ const updateBodySchema = mealEditSchema.extend({
 const createBodySchema = mealEditSchema
   .omit({ whyItFits: true })
   .extend({
-    slot: slotEnum,
+    slot: recipeSlotEnum,
     whyItFits: z.string().optional().default(""),
   });
 

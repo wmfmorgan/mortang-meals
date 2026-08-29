@@ -194,6 +194,14 @@ describe("MealDetail create", () => {
     expect(screen.getByRole("heading", { name: /add recipe/i })).toBeTruthy();
     expect(screen.getByLabelText(/^title$/i)).toBeTruthy();
     expect(screen.getByLabelText(/^meal$/i)).toBeTruthy();
+    const mealSelect = screen.getByLabelText(/^meal$/i) as HTMLSelectElement;
+    expect([...mealSelect.options].map((option) => option.value)).toEqual([
+      "breakfast",
+      "lunch",
+      "dinner",
+      "side",
+      "dessert",
+    ]);
     expect(
       (screen.getByLabelText(/^why it fits$/i) as HTMLTextAreaElement).required,
     ).toBe(false);

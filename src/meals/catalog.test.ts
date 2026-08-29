@@ -55,10 +55,12 @@ describe("groupCatalogMeals", () => {
       meal({ id: "a", slot: "dinner" }),
       meal({ id: "b", slot: "breakfast", createdAt: "2026-08-12T00:00:00.000Z" }),
     ];
-    expect(groupCatalogMeals(meals, "slot").map((g) => g.key)).toEqual([
-      "breakfast",
-      "dinner",
-    ]);
+    expect(
+      groupCatalogMeals(
+        [...meals, meal({ id: "c", slot: "dessert" })],
+        "slot",
+      ).map((g) => g.key),
+    ).toEqual(["breakfast", "dinner", "dessert"]);
     expect(groupCatalogMeals(meals, "date").map((g) => g.key)).toEqual([
       "2026-08-12",
       "2026-08-10",

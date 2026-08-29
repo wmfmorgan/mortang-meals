@@ -1,4 +1,6 @@
-export type MealSlot = "breakfast" | "lunch" | "dinner";
+export type WeekSlot = "breakfast" | "lunch" | "dinner";
+export type ExtraKind = "side" | "dessert";
+export type MealSlot = WeekSlot | ExtraKind;
 export type DayOfWeek =
   | "monday"
   | "tuesday"
@@ -18,7 +20,6 @@ export type TraceKind =
   | "extra"
   | "extra-retry"
   | "test";
-export type ExtraKind = "side" | "dessert";
 export type ExtraMode = "suggestion" | "recipe";
 export type ValidationResult =
   | "ok"
@@ -37,7 +38,14 @@ export const DAYS: DayOfWeek[] = [
   "saturday",
   "sunday",
 ];
-export const SLOTS: MealSlot[] = ["breakfast", "lunch", "dinner"];
+export const SLOTS: WeekSlot[] = ["breakfast", "lunch", "dinner"];
+export const RECIPE_SLOTS: MealSlot[] = [
+  "breakfast",
+  "lunch",
+  "dinner",
+  "side",
+  "dessert",
+];
 export const AISLES: Aisle[] = ["produce", "meat", "dairy", "pantry", "other"];
 
 export type Ingredient = {
@@ -138,12 +146,12 @@ export type KitchenPrefs = {
   involved: InvolvedLevel;
 };
 
-export type SlotMask = Record<DayOfWeek, Record<MealSlot, boolean>>;
+export type SlotMask = Record<DayOfWeek, Record<WeekSlot, boolean>>;
 
 export type UseIngredient = {
   name: string;
   day: DayOfWeek;
-  slot: MealSlot;
+  slot: WeekSlot;
 };
 
 export type WeekPlan = {

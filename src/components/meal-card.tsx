@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Meal, MealExtra } from "@/lib/types";
+import type { ExtraKind, Meal, MealExtra } from "@/lib/types";
 import { readUseIngredients } from "@/lib/use-ingredients";
 import { MealExtras } from "./meal-extras";
 
@@ -264,12 +264,14 @@ export function MealCard({
   meal,
   onOpen,
   onOpenExtra,
+  onChooseExtra,
   onReplace,
   editable = false,
 }: {
   meal: Meal;
   onOpen?: (meal: Meal) => void;
   onOpenExtra?: (extra: MealExtra) => void;
+  onChooseExtra?: (kind: ExtraKind) => void;
   onReplace?: (meal: Meal) => void;
   editable?: boolean;
 }) {
@@ -297,7 +299,12 @@ export function MealCard({
           </div>
         ) : null}
       </div>
-      <MealExtras meal={meal} editable={editable} onOpenExtra={onOpenExtra} />
+      <MealExtras
+        meal={meal}
+        editable={editable}
+        onOpenExtra={onOpenExtra}
+        onChoosePast={onChooseExtra}
+      />
       <div className="meal-card-actions">
         {editable && onReplace ? (
           <button

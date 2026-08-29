@@ -44,6 +44,8 @@ export function groupCatalogMeals(
     breakfast: "Breakfast",
     lunch: "Lunch",
     dinner: "Dinner",
+    side: "Side",
+    dessert: "Dessert",
   };
   const buckets = new Map<string, Meal[]>();
   for (const meal of meals) {
@@ -54,7 +56,7 @@ export function groupCatalogMeals(
   }
   const keys = [...buckets.keys()].sort((a, b) => {
     if (by === "slot") {
-      const order = ["breakfast", "lunch", "dinner"];
+      const order = ["breakfast", "lunch", "dinner", "side", "dessert"];
       return order.indexOf(a) - order.indexOf(b);
     }
     return b.localeCompare(a);

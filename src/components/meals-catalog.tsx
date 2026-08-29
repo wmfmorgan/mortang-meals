@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { Meal, MealSlot } from "@/lib/types";
-import { SLOTS } from "@/lib/types";
+import { RECIPE_SLOTS } from "@/lib/types";
 import { filterCatalogMeals, groupCatalogMeals, mealDate } from "@/meals/catalog";
 import { useGeneration } from "./generation-provider";
 import { MealBadges } from "./meal-card";
@@ -84,7 +84,7 @@ export function MealsCatalog({
                 setImportSlot(event.target.value as MealSlot)
               }
             >
-              {SLOTS.map((item) => (
+              {RECIPE_SLOTS.map((item) => (
                 <option key={item} value={item}>
                   {item}
                 </option>
@@ -117,7 +117,7 @@ export function MealsCatalog({
             }
           >
             <option value="all">all</option>
-            {SLOTS.map((item) => (
+            {RECIPE_SLOTS.map((item) => (
               <option key={item} value={item}>
                 {item}
               </option>
@@ -146,7 +146,7 @@ export function MealsCatalog({
             value={groupBy}
             onChange={(event) => setGroupBy(event.target.value as GroupBy)}
           >
-            <option value="slot">breakfast / lunch / dinner</option>
+            <option value="slot">breakfast / lunch / dinner / side / dessert</option>
             <option value="date">date generated</option>
             <option value="none">none</option>
           </select>
