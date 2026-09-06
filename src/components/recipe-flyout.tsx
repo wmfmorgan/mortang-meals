@@ -97,9 +97,9 @@ export function RecipeFlyout({
         <section className="mb-6">
           <h3 className="page-eyebrow">Ingredients</h3>
           <ul className="mt-3">
-            {meal.ingredients.map((ingredient) => (
+            {meal.ingredients.map((ingredient, index) => (
               <li
-                key={`${ingredient.name}-${ingredient.unit}`}
+                key={`${index}-${ingredient.quantity}-${ingredient.name}-${ingredient.unit}`}
                 className="flex gap-3 border-b border-wheat/80 py-2 text-[0.95rem]"
               >
                 <span className="w-24 shrink-0 font-mono text-[0.78rem] text-herb">

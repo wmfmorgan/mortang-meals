@@ -92,6 +92,34 @@ describe("RecipeFlyout", () => {
     expect(source.getAttribute("href")).toBe("https://example.com/week-salmon");
   });
 
+  it("renders two ingredients that share a name and unit", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    render(
+      <RecipeFlyout
+        meal={{
+          ...meal,
+          ingredients: [
+            { name: "butter", quantity: "1", unit: "tablespoon", aisle: "dairy" },
+            { name: "butter", quantity: "2", unit: "tablespoon", aisle: "dairy" },
+          ],
+        }}
+        servings={2}
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByText("1 tablespoon")).toBeTruthy();
+    expect(screen.getByText("2 tablespoon")).toBeTruthy();
+    expect(
+      error.mock.calls.some((call) =>
+        call.some(
+          (arg) =>
+            typeof arg === "string" && arg.includes("same key"),
+        ),
+      ),
+    ).toBe(false);
+    error.mockRestore();
+  });
+
   it("can hide the full recipe link for extras", () => {
     render(
       <RecipeFlyout

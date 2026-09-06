@@ -541,9 +541,9 @@ export function MealDetail({
             <section>
               <h2 className="page-eyebrow">Ingredients</h2>
               <ul className="mt-3 space-y-2">
-                {source.ingredients.map((ingredient) => (
+                {source.ingredients.map((ingredient, index) => (
                   <li
-                    key={`${ingredient.name}-${ingredient.unit}`}
+                    key={`${index}-${ingredient.quantity}-${ingredient.name}-${ingredient.unit}`}
                     className="flex gap-3 border-b border-wheat/80 py-2 text-[0.95rem]"
                   >
                     <span className="w-24 shrink-0 font-mono text-[0.78rem] text-herb">
