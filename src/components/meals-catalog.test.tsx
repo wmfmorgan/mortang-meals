@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Meal } from "@/lib/types";
 import { EMPTY_EXTRAS } from "@/meals/extras";
 import { MealsCatalog } from "./meals-catalog";
@@ -13,11 +13,23 @@ vi.mock("./generation-provider", () => ({
   useGeneration: () => ({
     state: { status: "idle", kind: "import" },
     startImport: vi.fn(),
+    startLibrary: vi.fn(),
   }),
 }));
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
+});
+
+beforeEach(() => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ prefs: null }),
+    }),
+  );
 });
 
 const meal: Meal = {
@@ -36,6 +48,10 @@ const meal: Meal = {
   createdAt: "2026-08-10T12:00:00.000Z",
   sourceUrl: "https://example.com/salmon",
   extras: EMPTY_EXTRAS,
+  draft: false,
+  stars: 0,
+  takeout: false,
+  leftover: false,
 };
 
 describe("MealsCatalog", () => {
@@ -69,5 +85,39 @@ describe("MealsCatalog", () => {
       <MealsCatalog meals={[meal]} servings={2} currentPlanId={null} />,
     );
     expect(screen.getByRole("option", { name: "none" })).toBeTruthy();
+  });
+
+  it("puts generate, drafts, then the saved catalog on the meals page", () => {
+    const draft: Meal = {
+      ...meal,
+      id: "draft-chili",
+      title: "Draft chili",
+      sourceUrl: null,
+      draft: true,
+    };
+    render(
+      <MealsCatalog
+        meals={[meal]}
+        drafts={[draft]}
+        people={[
+          {
+            id: "p1",
+            name: "Alex",
+            age: 40,
+            sex: "male",
+            allergies: [],
+            avoidances: [],
+          },
+        ]}
+        servings={2}
+        currentPlanId={null}
+      />,
+    );
+    expect(screen.getByRole("heading", { name: "Generate library" })).toBeTruthy();
+    expect(screen.getByText("Review before they join the library")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Approve" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Reject" })).toBeTruthy();
+    expect(screen.getByText("Draft chili")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "4 stars" })).toBeTruthy();
   });
 });

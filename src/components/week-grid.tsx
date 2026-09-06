@@ -50,6 +50,10 @@ export function WeekGrid({
   onSelectExtra,
   onChooseExtra,
   onAdd,
+  onTakeout,
+  onLeftover,
+  leftoverFrom = null,
+  onPlaceLeftover,
   onReplace,
   editable = false,
   useIngredients = [],
@@ -59,6 +63,10 @@ export function WeekGrid({
   onSelectExtra?: (meal: Meal, extra: MealExtra) => void;
   onChooseExtra?: (meal: Meal, kind: ExtraKind) => void;
   onAdd?: (day: DayOfWeek, slot: MealSlot) => void;
+  onTakeout?: (day: DayOfWeek, slot: MealSlot) => void;
+  onLeftover?: (meal: Meal) => void;
+  leftoverFrom?: Meal | null;
+  onPlaceLeftover?: (day: DayOfWeek, slot: MealSlot) => void;
   onReplace?: (meal: Meal) => void;
   editable?: boolean;
   useIngredients?: UseIngredient[];
@@ -138,18 +146,46 @@ export function WeekGrid({
                         ? (kind) => onChooseExtra(meal, kind)
                         : undefined
                     }
-                    onReplace={onReplace}
+                    onReplace={meal.takeout ? undefined : onReplace}
+                    onLeftover={
+                      meal.takeout || meal.leftover ? undefined : onLeftover
+                    }
                     editable={editable}
+                    canSwap={false}
                   />
-                ) : editable && onAdd ? (
-                  <button
-                    type="button"
-                    className="week-cell-add"
-                    aria-label={`Add ${day} ${slot}`}
-                    onClick={() => onAdd(day, slot)}
-                  >
-                    Add {slot}
-                  </button>
+                ) : editable ? (
+                  <div className="week-cell-empty-actions">
+                    {leftoverFrom && onPlaceLeftover ? (
+                      <button
+                        type="button"
+                        className="week-cell-add"
+                        aria-label={`Leftovers ${day} ${slot}`}
+                        onClick={() => onPlaceLeftover(day, slot)}
+                      >
+                        Leftovers
+                      </button>
+                    ) : null}
+                    {onAdd ? (
+                      <button
+                        type="button"
+                        className="week-cell-add"
+                        aria-label={`Add ${day} ${slot}`}
+                        onClick={() => onAdd(day, slot)}
+                      >
+                        Add {slot}
+                      </button>
+                    ) : null}
+                    {onTakeout ? (
+                      <button
+                        type="button"
+                        className="week-cell-add"
+                        aria-label={`Takeout ${day} ${slot}`}
+                        onClick={() => onTakeout(day, slot)}
+                      >
+                        Takeout
+                      </button>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
             );

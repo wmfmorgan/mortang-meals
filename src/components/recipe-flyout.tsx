@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import type { Meal } from "@/lib/types";
 import { MealBadges, SwapButton } from "./meal-card";
+import { StarRating } from "./star-rating";
 
 const DAY_LABELS = {
   monday: "Monday",
@@ -34,6 +35,10 @@ export function SourceLink({ href }: { href: string }) {
 }
 
 export function recipeEyebrow(meal: Meal, onCurrentWeek = false): string {
+  if (meal.takeout) return "Takeout";
+  if (meal.leftover) {
+    return `Leftovers · ${DAY_LABELS[meal.day]} ${meal.slot}`;
+  }
   if (onCurrentWeek || meal.planId) {
     return `${DAY_LABELS[meal.day]} ${meal.slot}`;
   }
@@ -48,6 +53,7 @@ export function RecipeFlyout({
   canSwap = true,
   eyebrow,
   showOpenFullRecipe = true,
+  onRate,
 }: {
   meal: Meal;
   servings: number;
@@ -55,6 +61,7 @@ export function RecipeFlyout({
   canSwap?: boolean;
   eyebrow?: string;
   showOpenFullRecipe?: boolean;
+  onRate?: (stars: number) => void;
 }) {
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -89,6 +96,11 @@ export function RecipeFlyout({
           {meal.title}
         </h2>
         <p className="mt-0 mb-2 text-herb">{meal.whyItFits}</p>
+        {!meal.draft ? (
+          <div className="mb-3">
+            <StarRating value={meal.stars} onChange={onRate} />
+          </div>
+        ) : null}
         <p className="mb-6 font-mono text-[0.72rem] uppercase tracking-[0.12em] text-herb">
           Serves {servings} · {meal.cookMinutes} min · {meal.method}
         </p>

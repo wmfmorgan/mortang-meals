@@ -36,6 +36,10 @@ const meal: Meal = {
   createdAt: "2026-08-10T12:00:00.000Z",
   sourceUrl: null,
   extras: EMPTY_EXTRAS,
+  draft: false,
+  stars: 0,
+  takeout: false,
+  leftover: false,
 };
 
 describe("SwapButton", () => {

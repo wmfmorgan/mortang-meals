@@ -9,11 +9,9 @@ import type {
   MealExtra,
   MealSlot,
   SlotMask,
-  UseIngredient,
   WeekPlan,
 } from "@/lib/types";
 import { EMPTY_EXTRAS } from "@/meals/extras";
-import { DAYS, SLOTS } from "@/lib/types";
 import {
   defaultSlotMask,
   maskMinusPinned,
@@ -22,12 +20,6 @@ import {
   writeSessionMask,
   writeSlotPickerOpen,
 } from "@/lib/slot-mask";
-import {
-  readUseIngredients,
-  writeUseIngredients,
-} from "@/lib/use-ingredients";
-import { GenerateButton } from "./generate-button";
-import { useGeneration } from "./generation-provider";
 import { MealLibraryFlyout } from "./meal-library-flyout";
 import { RecipeFlyout, recipeEyebrow } from "./recipe-flyout";
 import { SlotPicker } from "./slot-picker";
@@ -46,6 +38,10 @@ function extraAsMeal(parent: Meal, extra: MealExtra): Meal {
     usedWebSearch: extra.usedWebSearch,
     sourceUrl: extra.sourceUrl,
     extras: EMPTY_EXTRAS,
+    draft: false,
+    stars: 0,
+    takeout: false,
+    leftover: false,
   };
 }
 
@@ -57,15 +53,12 @@ export function ThisWeekPlanner({
   plan,
   weekStart,
   servings,
-  disabledReason,
 }: {
   plan: WeekPlan | null;
   weekStart?: string;
   servings: number;
-  disabledReason: string | null;
 }) {
   const router = useRouter();
-  const { state: generation } = useGeneration();
   const [slotMask, setSlotMask] = useState<SlotMask>(
     () => plan?.slotMask ?? defaultSlotMask(),
   );
@@ -80,10 +73,11 @@ export function ThisWeekPlanner({
     | null
   >(null);
   const [pinPending, setPinPending] = useState(false);
-  const [useIngredients, setUseIngredients] = useState<UseIngredient[]>([]);
-  const [focusName, setFocusName] = useState("");
-  const [focusDay, setFocusDay] = useState<DayOfWeek>("monday");
-  const [focusSlot, setFocusSlot] = useState<MealSlot>("dinner");
+  const [fillPending, setFillPending] = useState(false);
+  const [allowRepeats, setAllowRepeats] = useState(false);
+  const [leftoverLunches, setLeftoverLunches] = useState(false);
+  const [maxProtein, setMaxProtein] = useState(2);
+  const [leftoverFrom, setLeftoverFrom] = useState<Meal | null>(null);
   const [pickerOpen, setPickerOpen] = useState(() => !plan);
 
   const pinnedMeals = plan?.meals.filter((meal) => meal.pinned) ?? [];
@@ -103,21 +97,9 @@ export function ThisWeekPlanner({
   }, [slotMask]);
 
   useEffect(() => {
-    setUseIngredients(readUseIngredients());
-  }, []);
-
-  useEffect(() => {
-    writeUseIngredients(useIngredients);
-  }, [useIngredients]);
-
-  useEffect(() => {
     const stored = readSlotPickerOpen();
     setPickerOpen(stored ?? !plan);
   }, [plan]);
-
-  useEffect(() => {
-    if (generation.status === "success") setUseIngredients([]);
-  }, [generation.status]);
 
   const editable = !plan || plan.isCurrent;
   const selectedMeal =
@@ -154,6 +136,64 @@ export function ThisWeekPlanner({
     }
   }
 
+  async function onFill() {
+    setFillPending(true);
+    try {
+      await fetch("/api/fill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slotMask,
+          weekStart,
+          planId: plan?.id,
+          allowRepeats,
+          leftoverLunches,
+          maxProtein,
+        }),
+      });
+      router.refresh();
+    } finally {
+      setFillPending(false);
+    }
+  }
+
+  async function onTakeout(day: DayOfWeek, slot: MealSlot) {
+    const title = window.prompt("Restaurant name (optional)", "");
+    if (title === null) return;
+    await fetch("/api/takeout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ day, slot, title, weekStart }),
+    });
+    router.refresh();
+  }
+
+  async function onPlaceLeftover(day: DayOfWeek, slot: MealSlot) {
+    if (!leftoverFrom) return;
+    await fetch("/api/leftover", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sourceMealId: leftoverFrom.id,
+        day,
+        slot,
+      }),
+    });
+    setLeftoverFrom(null);
+    router.refresh();
+  }
+
+  async function onEditThisWeek() {
+    if (!plan) return;
+    await fetch("/api/plans/open", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ weekStart: plan.weekStart }),
+    });
+    router.push("/");
+    router.refresh();
+  }
+
   return (
     <div className="space-y-6">
       <SlotPicker
@@ -167,122 +207,82 @@ export function ThisWeekPlanner({
           writeSlotPickerOpen(open);
         }}
       />
-      <div className="flex flex-wrap items-center gap-2">
-        <GenerateButton
-          disabledReason={disabledReason}
-          weekStart={weekStart}
-          slotMask={slotMask}
-          pinnedMeals={pinnedMeals}
-          useIngredients={useIngredients}
-        />
-        {editable && plan && plan.meals.length > 0 ? (
+      {editable ? (
+        <div className="flex flex-wrap items-end gap-3">
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={fillPending}
+            onClick={() => void onFill()}
+          >
+            {fillPending ? "Filling…" : "Fill empty slots"}
+          </button>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={allowRepeats}
+              onChange={(event) => setAllowRepeats(event.target.checked)}
+            />
+            Allow repeats
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={leftoverLunches}
+              onChange={(event) => setLeftoverLunches(event.target.checked)}
+            />
+            Leftover lunches
+          </label>
+          <label className="field" style={{ width: "9rem" }}>
+            Max protein / meal
+            <input
+              className="input"
+              type="number"
+              min={0}
+              max={21}
+              value={maxProtein}
+              onChange={(event) =>
+                setMaxProtein(Number(event.target.value) || 0)
+              }
+            />
+          </label>
+          {plan && plan.meals.length > 0 ? (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={pinPending}
+              onClick={() => {
+                void onPinAll();
+              }}
+            >
+              {allPinned ? "Unlock all" : "Lock all"}
+            </button>
+          ) : null}
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="m-0 text-sm text-herb">
+            This is an older plan. Open it to edit.
+          </p>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => void onEditThisWeek()}
+          >
+            Edit this week
+          </button>
+        </div>
+      )}
+      {leftoverFrom ? (
+        <p className="m-0 text-sm text-herb">
+          Place leftovers of {leftoverFrom.title} on an empty cell.{" "}
           <button
             type="button"
             className="btn btn-ghost"
-            disabled={pinPending}
-            onClick={() => {
-              void onPinAll();
-            }}
+            onClick={() => setLeftoverFrom(null)}
           >
-            {allPinned ? "Unpin all" : "Pin all"}
+            Cancel
           </button>
-        ) : null}
-      </div>
-      {editable ? (
-        <form
-          className="surface space-y-3 p-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const name = focusName.trim();
-            if (!name) return;
-            setUseIngredients((current) => [
-              ...current,
-              { name, day: focusDay, slot: focusSlot },
-            ]);
-            setFocusName("");
-          }}
-        >
-          <p className="page-eyebrow" style={{ margin: 0 }}>
-            Use what I have
-          </p>
-          <p className="m-0 text-sm text-herb">
-            Point an ingredient at a specific meal, e.g. chicken on Monday
-            dinner.
-          </p>
-          <div className="flex flex-wrap items-end gap-2">
-            <label className="field min-w-[10rem] flex-1">
-              Ingredient
-              <input
-                className="input"
-                value={focusName}
-                onChange={(event) => setFocusName(event.target.value)}
-                placeholder="chicken"
-              />
-            </label>
-            <label className="field">
-              Day
-              <select
-                className="input"
-                value={focusDay}
-                onChange={(event) =>
-                  setFocusDay(event.target.value as DayOfWeek)
-                }
-              >
-                {DAYS.map((day) => (
-                  <option key={day} value={day}>
-                    {day}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              Meal
-              <select
-                className="input"
-                value={focusSlot}
-                onChange={(event) =>
-                  setFocusSlot(event.target.value as MealSlot)
-                }
-              >
-                {SLOTS.map((slot) => (
-                  <option key={slot} value={slot}>
-                    {slot}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button type="submit" className="btn btn-secondary">
-              Add
-            </button>
-          </div>
-          {useIngredients.length > 0 ? (
-            <ul className="use-ingredient-chips">
-              {useIngredients.map((item, index) => (
-                <li key={`${item.day}-${item.slot}-${item.name}-${index}`}>
-                  <span>
-                    {item.name} · {item.day} {item.slot}
-                  </span>
-                  <button
-                    type="button"
-                    className="icon-button icon-button-danger"
-                    aria-label={`Remove ${item.name} from ${item.day} ${item.slot}`}
-                    onClick={() =>
-                      setUseIngredients((current) =>
-                        current.filter((_, i) => i !== index),
-                      )
-                    }
-                  >
-                    ×
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </form>
-      ) : null}
-      {!editable ? (
-        <p className="text-sm text-herb">
-          This is an older plan. Switch to the current week to pin or replace meals.
         </p>
       ) : null}
       <WeekGrid
@@ -292,6 +292,10 @@ export function ThisWeekPlanner({
           setSelected({ type: "extra", mealId: meal.id, kind: extra.kind })
         }
         onAdd={(day, slot) => setLibrary({ type: "week", day, slot })}
+        onTakeout={(day, slot) => void onTakeout(day, slot)}
+        onLeftover={(meal) => setLeftoverFrom(meal)}
+        leftoverFrom={leftoverFrom}
+        onPlaceLeftover={(day, slot) => void onPlaceLeftover(day, slot)}
         onReplace={(meal) =>
           setLibrary({ type: "week", day: meal.day, slot: meal.slot })
         }
@@ -299,14 +303,13 @@ export function ThisWeekPlanner({
           setLibrary({ type: "extra", mealId: meal.id, kind })
         }
         editable={editable}
-        useIngredients={useIngredients}
       />
       {openMeal ? (
         <RecipeFlyout
           meal={openMeal}
           servings={servings}
           onClose={() => setSelected(null)}
-          canSwap={selected?.type === "meal"}
+          canSwap={false}
           showOpenFullRecipe={
             selected?.type === "meal" || selectedExtra?.mode === "recipe"
           }

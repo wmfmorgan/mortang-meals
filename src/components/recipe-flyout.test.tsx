@@ -29,6 +29,10 @@ const meal: Meal = {
   createdAt: "2026-08-10T12:00:00.000Z",
   sourceUrl: null,
   extras: EMPTY_EXTRAS,
+  draft: false,
+  stars: 0,
+  takeout: false,
+  leftover: false,
 };
 
 describe("RecipeFlyout", () => {
@@ -71,6 +75,23 @@ describe("RecipeFlyout", () => {
     });
     expect(source.getAttribute("href")).toBe("https://example.com/salmon");
     expect(screen.queryByRole("button", { name: /regenerate meal/i })).toBeNull();
+  });
+
+  it("hides rating stars on drafts", () => {
+    render(
+      <RecipeFlyout
+        meal={{ ...meal, draft: true }}
+        servings={2}
+        onClose={() => {}}
+        canSwap={false}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "4 stars" })).toBeNull();
+  });
+
+  it("shows rating stars on saved meals", () => {
+    render(<RecipeFlyout meal={meal} servings={2} onClose={() => {}} />);
+    expect(screen.getByRole("button", { name: "4 stars" })).toBeTruthy();
   });
 
   it("shows a source link on a web-search meal that cites a page", () => {

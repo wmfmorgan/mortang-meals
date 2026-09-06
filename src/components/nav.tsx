@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { GenerationStatus } from "./generation-status";
 
 type NavProps = {
   developerTools: boolean;
@@ -39,30 +40,33 @@ export function Nav({ developerTools }: NavProps) {
         >
           Mortang <span className="text-olive">Meals</span>
         </Link>
-        <nav className="flex flex-wrap items-center gap-x-5 gap-y-2">
-          {LINKS.map((link) => {
-            const current = isCurrent(pathname, link.href);
-            return (
+        <div className="flex flex-wrap items-center justify-end gap-x-5 gap-y-2">
+          <nav className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            {LINKS.map((link) => {
+              const current = isCurrent(pathname, link.href);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  aria-current={current ? "page" : undefined}
+                  className={navClass(current)}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+            {developerTools ? (
               <Link
-                key={link.href}
-                href={link.href}
-                aria-current={current ? "page" : undefined}
-                className={navClass(current)}
+                href="/developer"
+                aria-current={pathname === "/developer" ? "page" : undefined}
+                className={navClass(pathname === "/developer")}
               >
-                {link.label}
+                Developer
               </Link>
-            );
-          })}
-          {developerTools ? (
-            <Link
-              href="/developer"
-              aria-current={pathname === "/developer" ? "page" : undefined}
-              className={navClass(pathname === "/developer")}
-            >
-              Developer
-            </Link>
-          ) : null}
-        </nav>
+            ) : null}
+          </nav>
+          <GenerationStatus />
+        </div>
       </div>
     </header>
   );

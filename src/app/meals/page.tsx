@@ -1,10 +1,10 @@
 import { PageHeader } from "@/components/page-header";
 import { MealsCatalog } from "@/components/meals-catalog";
 import { getHousehold } from "@/household/repo";
-import { getCurrentPlan, listAllMeals } from "@/meals/repo";
+import { getCurrentPlan, listCatalogMeals, listDraftMeals } from "@/meals/repo";
 
 export default function MealsPage() {
-  const meals = listAllMeals();
+  const meals = listCatalogMeals();
   const household = getHousehold();
   const current = getCurrentPlan();
 
@@ -13,10 +13,12 @@ export default function MealsPage() {
       <PageHeader
         eyebrow="Library"
         title="Meals"
-        lede="Everything generated, placed, imported, or typed in. Search, filter, or add a recipe from a URL."
+        lede="Generate drafts, approve keepers, then search the saved library."
       />
       <MealsCatalog
         meals={meals}
+        drafts={listDraftMeals()}
+        people={household?.people ?? []}
         servings={household?.servings ?? 2}
         currentPlanId={current?.id ?? null}
       />

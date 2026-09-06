@@ -74,11 +74,18 @@ function extraRecipeIngredients(
 }
 
 export function mergeShoppingList(
-  meals: Array<Pick<Meal, "ingredients"> & { extras?: MealExtras }>,
+  meals: Array<
+    Pick<Meal, "ingredients"> & {
+      extras?: MealExtras;
+      takeout?: boolean;
+      leftover?: boolean;
+    }
+  >,
 ): ShoppingList {
   const merged = new Map<string, ShoppingItem>();
 
   for (const meal of meals) {
+    if (meal.takeout || meal.leftover) continue;
     const ingredients = [
       ...meal.ingredients,
       ...extraRecipeIngredients(meal.extras),

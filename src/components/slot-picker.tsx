@@ -59,7 +59,7 @@ export function SlotPicker({
         >
           <span className="slot-picker-toggle-copy">
             <span className="page-eyebrow" style={{ marginBottom: 0 }}>
-              Slots to generate
+              Slots to fill
             </span>
             <span className="slot-picker-summary">{summary}</span>
           </span>
@@ -69,10 +69,10 @@ export function SlotPicker({
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
           <div>
             <p className="page-eyebrow" style={{ marginBottom: 4 }}>
-              Slots to generate
+              Slots to fill
             </p>
             <p className="m-0 text-sm text-herb">
-              Check the meals you want. Day and meal labels toggle a whole row
+              Check the meals to fill. Day and meal labels toggle a whole row
               or column. Pinned meals stay off.
             </p>
           </div>
@@ -82,7 +82,7 @@ export function SlotPicker({
         <>
           {collapsible ? (
             <p className="mb-3 mt-3 text-sm text-herb">
-              Check the meals you want. Day and meal labels toggle a whole row
+              Check the meals to fill. Day and meal labels toggle a whole row
               or column. Pinned meals stay off.
             </p>
           ) : null}

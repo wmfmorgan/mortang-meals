@@ -38,7 +38,7 @@ export default async function ShoppingListPage({
       />
 
       {groups.length === 0 ? (
-        <p className="page-lede">Generate a week to build a shopping list.</p>
+        <p className="page-lede">Fill this week to build a shopping list.</p>
       ) : (
         <div className="grid gap-5 md:grid-cols-2">
           {groups.map((group) => (

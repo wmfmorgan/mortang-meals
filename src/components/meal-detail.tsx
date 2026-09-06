@@ -8,6 +8,7 @@ import { AISLES, RECIPE_SLOTS } from "@/lib/types";
 import { PageHeader } from "./page-header";
 import { MealBadges, SwapButton, TrashIcon } from "./meal-card";
 import { SourceLink } from "./recipe-flyout";
+import { StarRating } from "./star-rating";
 
 function emptyIngredient(): Ingredient {
   return { name: "", quantity: "", unit: "", aisle: "other" };
@@ -32,6 +33,10 @@ const EMPTY_DRAFT: Meal = {
   createdAt: "",
   sourceUrl: null,
   extras: EMPTY_EXTRAS,
+  draft: false,
+  stars: 0,
+  takeout: false,
+  leftover: false,
 };
 
 export function MealDetail({
@@ -61,6 +66,7 @@ export function MealDetail({
   const [ingredients, setIngredients] = useState<Ingredient[]>(source.ingredients);
   const [steps, setSteps] = useState<string[]>(source.steps);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
+  const [stars, setStars] = useState(source.stars);
 
   const dirty =
     editing &&
@@ -187,7 +193,20 @@ export function MealDetail({
     }
   }
 
+  async function onRate(next: number) {
+    if (!meal || meal.draft) return;
+    const res = await fetch("/api/library/rate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mealId: meal.id, stars: next }),
+    });
+    if (!res.ok) return;
+    setStars(next);
+    router.refresh();
+  }
+
   async function onDelete() {
+    if (!meal) return;
     if (!window.confirm("Delete this meal from the library?")) return;
     setPending(true);
     try {
@@ -531,6 +550,11 @@ export function MealDetail({
         </form>
       ) : (
         <>
+          {meal && !meal.draft ? (
+            <div className="mb-3">
+              <StarRating value={stars} onChange={(next) => void onRate(next)} />
+            </div>
+          ) : null}
           <p className="mb-4 font-mono text-[0.72rem] uppercase tracking-[0.12em] text-herb">
             {servings}
             {` · ${source.cookMinutes} min · ${source.method}`}

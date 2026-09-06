@@ -2,13 +2,15 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { resetDbForTests } from "@/lib/db";
+import { getDb, resetDbForTests } from "@/lib/db";
+import { meals as mealsTable } from "@/lib/schema";
 import type { GeneratedMeal, SlotMask } from "@/lib/types";
 import { DAYS, SLOTS } from "@/lib/types";
 import {
   deleteMeal,
   deletePlan,
   getCurrentPlan,
+  getPlan,
   listAllMeals,
   listLibraryMeals,
   listPlans,
@@ -21,6 +23,16 @@ import {
   setMealExtra,
   clearMealExtra,
   placeExtra,
+  listDraftMeals,
+  listCatalogMeals,
+  approveDraft,
+  rejectDraft,
+  setMealStars,
+  openPlan,
+  saveTakeoutMeal,
+  saveLeftoverMeal,
+  fillEmptySlots,
+  dedupeLibraryMeals,
   setPinned,
   setPlanPinned,
   updateMeal,
@@ -540,6 +552,343 @@ describe("meals repo", () => {
     });
     expect(placed.title).toBe("Library chili");
     expect(placed.extras).toEqual(EMPTY_EXTRAS);
+  });
+
+  it("keeps drafts out of the library until they are approved", () => {
+    const draft = saveStandaloneMeal({
+      meal: meal({ title: "Draft chili", slot: "dinner" }),
+      slot: "dinner",
+      draft: true,
+    });
+    expect(listAllMeals().some((item) => item.id === draft.id)).toBe(false);
+    expect(listDraftMeals().some((item) => item.id === draft.id)).toBe(true);
+    expect(listLibraryMeals("dinner").some((item) => item.id === draft.id)).toBe(
+      false,
+    );
+
+    const saved = approveDraft(draft.id);
+    expect(saved.draft).toBe(false);
+    expect(listAllMeals().some((item) => item.id === draft.id)).toBe(true);
+    expect(listDraftMeals()).toHaveLength(0);
+  });
+
+  it("deletes a rejected draft", () => {
+    const draft = saveStandaloneMeal({
+      meal: meal({ title: "Reject me", slot: "lunch" }),
+      slot: "lunch",
+      draft: true,
+    });
+    rejectDraft(draft.id);
+    expect(listDraftMeals().some((item) => item.id === draft.id)).toBe(false);
+    expect(listAllMeals().some((item) => item.id === draft.id)).toBe(false);
+  });
+
+  it("rates a saved meal and refuses a draft", () => {
+    const saved = saveStandaloneMeal({
+      meal: meal({ title: "Rated stew", slot: "dinner" }),
+      slot: "dinner",
+    });
+    expect(setMealStars(saved.id, 4).stars).toBe(4);
+    const draft = saveStandaloneMeal({
+      meal: meal({ title: "Unrated draft", slot: "dinner" }),
+      slot: "dinner",
+      draft: true,
+    });
+    expect(() => setMealStars(draft.id, 5)).toThrow(/draft/i);
+  });
+
+  it("opens another week without deleting this week", () => {
+    const first = saveGeneratedPlan({
+      weekStart: "2026-06-01",
+      slotMask: emptyMask(),
+      meals: [meal({ title: "June chili" })],
+    });
+    const next = openPlan("2026-06-08");
+    expect(next.weekStart).toBe("2026-06-08");
+    expect(next.isCurrent).toBe(true);
+    expect(getPlan(first.id)?.meals.some((item) => item.title === "June chili")).toBe(
+      true,
+    );
+    const back = openPlan("2026-06-01");
+    expect(back.id).toBe(first.id);
+    expect(back.meals.some((item) => item.title === "June chili")).toBe(true);
+  });
+
+  it("saves takeout without ingredients", () => {
+    const mealRow = saveTakeoutMeal({
+      day: "friday",
+      slot: "dinner",
+      title: "Thai Palace",
+      weekStart: "2026-06-15",
+    });
+    expect(mealRow.takeout).toBe(true);
+    expect(mealRow.ingredients).toEqual([]);
+    expect(listLibraryMeals("dinner").some((item) => item.id === mealRow.id)).toBe(
+      false,
+    );
+  });
+
+  it("copies leftovers onto another cell", () => {
+    const plan = saveGeneratedPlan({
+      weekStart: "2026-06-22",
+      slotMask: emptyMask(),
+      meals: [meal({ title: "Chili", day: "monday", slot: "dinner" })],
+    });
+    const source = plan.meals[0]!;
+    const leftover = saveLeftoverMeal({
+      sourceMealId: source.id,
+      day: "tuesday",
+      slot: "lunch",
+    });
+    expect(leftover.leftover).toBe(true);
+    expect(leftover.title).toBe("Chili");
+  });
+
+  it("fill respects the protein cap", () => {
+    const chicken = {
+      ingredients: [
+        { name: "chicken", quantity: "1", unit: "lb", aisle: "meat" },
+      ],
+    };
+    saveStandaloneMeal({
+      meal: meal({ title: "Chicken A", slot: "dinner", ...chicken }),
+      slot: "dinner",
+    });
+    saveStandaloneMeal({
+      meal: meal({ title: "Chicken B", slot: "dinner", ...chicken }),
+      slot: "dinner",
+    });
+    const mask = emptyMask();
+    mask.monday.dinner = true;
+    mask.tuesday.dinner = true;
+    mask.wednesday.dinner = true;
+    const plan = fillEmptySlots({
+      weekStart: "2026-06-29",
+      slotMask: mask,
+      allowRepeats: true,
+      leftoverLunches: false,
+      maxProtein: 2,
+      allergies: [],
+      maxCookMinutes: 45,
+    });
+    const chickenDinners = plan.meals.filter(
+      (item) =>
+        item.slot === "dinner" &&
+        item.ingredients.some((ingredient) =>
+          ingredient.name.toLowerCase().includes("chicken"),
+        ),
+    );
+    expect(chickenDinners.length).toBeLessThanOrEqual(2);
+  });
+
+  it("fill still uses a dinner recipe after it was leftover as lunch", () => {
+    const source = saveStandaloneMeal({
+      meal: meal({
+        title: "Thighs for fill",
+        slot: "dinner",
+        ingredients: [
+          { name: "chicken thighs", quantity: "1", unit: "lb", aisle: "meat" },
+        ],
+      }),
+      slot: "dinner",
+    });
+    setMealStars(source.id, 5);
+    const week = "2026-07-13";
+    const placed = placeMeal({
+      sourceMealId: source.id,
+      day: "monday",
+      slot: "dinner",
+      weekStart: week,
+    });
+    saveLeftoverMeal({
+      sourceMealId: placed.id,
+      day: "tuesday",
+      slot: "lunch",
+    });
+    openPlan("2026-07-20");
+    const mask = emptyMask();
+    mask.monday.dinner = true;
+    const filled = fillEmptySlots({
+      weekStart: "2026-07-20",
+      slotMask: mask,
+      allowRepeats: false,
+      leftoverLunches: false,
+      maxProtein: 2,
+      allergies: [],
+      maxCookMinutes: 45,
+    });
+    expect(filled.meals.some((item) => item.title === "Thighs for fill")).toBe(
+      true,
+    );
+  });
+
+  it("fill repeats, protein, and leftover lunches only look at the plan being filled", () => {
+    const chicken = {
+      ingredients: [
+        { name: "chicken thighs", quantity: "1", unit: "lb", aisle: "meat" },
+      ],
+    };
+    const thighs = saveStandaloneMeal({
+      meal: meal({ title: "BBQ chicken thighs", slot: "dinner", ...chicken }),
+      slot: "dinner",
+    });
+    setMealStars(thighs.id, 5);
+    setMealStars(
+      saveStandaloneMeal({
+        meal: meal({ title: "Mushroom chicken skillet", slot: "dinner", ...chicken }),
+        slot: "dinner",
+      }).id,
+      5,
+    );
+    setMealStars(
+      saveStandaloneMeal({
+        meal: meal({
+          title: "Lemon herb salmon fill",
+          slot: "dinner",
+          ingredients: [
+            { name: "salmon", quantity: "1", unit: "lb", aisle: "meat" },
+          ],
+        }),
+        slot: "dinner",
+      }).id,
+      5,
+    );
+    const prior = placeMeal({
+      sourceMealId: thighs.id,
+      day: "thursday",
+      slot: "dinner",
+      weekStart: "2026-08-10",
+    });
+    saveLeftoverMeal({
+      sourceMealId: prior.id,
+      day: "friday",
+      slot: "lunch",
+    });
+    const current = openPlan("2026-08-17");
+    const mask = emptyMask();
+    mask.monday.dinner = true;
+    mask.tuesday.dinner = true;
+    mask.wednesday.dinner = true;
+    mask.tuesday.lunch = true;
+    const filled = fillEmptySlots({
+      planId: current.id,
+      weekStart: "2026-08-17",
+      slotMask: mask,
+      allowRepeats: false,
+      leftoverLunches: true,
+      maxProtein: 2,
+      allergies: [],
+      maxCookMinutes: 45,
+    });
+    expect(filled.id).toBe(current.id);
+    expect(getPlan(prior.planId)?.meals).toHaveLength(2);
+    const dinners = filled.meals.filter((item) => item.slot === "dinner");
+    expect(dinners).toHaveLength(3);
+    expect(dinners.some((item) => item.title === "BBQ chicken thighs")).toBe(
+      true,
+    );
+    expect(
+      dinners.filter((item) =>
+        item.ingredients.some((ingredient) =>
+          ingredient.name.toLowerCase().includes("chicken"),
+        ),
+      ),
+    ).toHaveLength(2);
+    const leftoverLunch = filled.meals.find(
+      (item) => item.day === "tuesday" && item.slot === "lunch",
+    );
+    expect(leftoverLunch?.leftover).toBe(true);
+    expect(leftoverLunch?.title).toBe(dinners.find((item) => item.day === "monday")?.title);
+  });
+
+  it("fill writes only to the given plan, not another week's leftover", () => {
+    setMealStars(
+      saveStandaloneMeal({
+        meal: meal({ title: "Plan scoped chili", slot: "dinner" }),
+        slot: "dinner",
+      }).id,
+      5,
+    );
+    const other = openPlan("2026-09-07");
+    const current = openPlan("2026-09-14");
+    const mask = emptyMask();
+    mask.monday.dinner = true;
+    const filled = fillEmptySlots({
+      planId: current.id,
+      weekStart: other.weekStart,
+      slotMask: mask,
+      allowRepeats: false,
+      leftoverLunches: true,
+      maxProtein: 2,
+      allergies: [],
+      maxCookMinutes: 45,
+    });
+    expect(filled.id).toBe(current.id);
+    expect(filled.meals.map((item) => item.title)).toEqual(["Plan scoped chili"]);
+    expect(getPlan(other.id)?.meals).toEqual([]);
+  });
+
+  it("refuses a second standalone with the same title", () => {
+    saveStandaloneMeal({
+      meal: meal({ title: "Unique stew", slot: "dinner" }),
+      slot: "dinner",
+    });
+    expect(() =>
+      saveStandaloneMeal({
+        meal: meal({ title: "unique stew!", slot: "dinner" }),
+        slot: "dinner",
+      }),
+    ).toThrow(/already in the library/i);
+  });
+
+  it("catalog lists a placed copy once", () => {
+    const source = saveStandaloneMeal({
+      meal: meal({ title: "Catalog chili", slot: "dinner" }),
+      slot: "dinner",
+    });
+    placeMeal({
+      sourceMealId: source.id,
+      day: "monday",
+      slot: "dinner",
+      weekStart: "2026-07-06",
+    });
+    const matches = listCatalogMeals().filter((item) => item.title === "Catalog chili");
+    expect(matches).toHaveLength(1);
+  });
+
+  it("dedupes extra standalone copies and keeps the week row", () => {
+    const first = saveStandaloneMeal({
+      meal: meal({ title: "Dedupe soup", slot: "dinner" }),
+      slot: "dinner",
+    });
+    getDb().insert(mealsTable)
+      .values({
+        id: crypto.randomUUID(),
+        planId: "",
+        day: "monday",
+        slot: "dinner",
+        title: "Dedupe soup",
+        whyItFits: "",
+        cookMinutes: 20,
+        method: "pot",
+        ingredientsJson: "[]",
+        stepsJson: "[]",
+        usedWebSearch: 0,
+        pinned: 0,
+        weekStart: "",
+        createdAt: "2020-01-01T00:00:00.000Z",
+        extrasJson: "{}",
+        draft: 0,
+        stars: 0,
+        takeout: 0,
+        leftover: 0,
+      })
+      .run();
+    expect(dedupeLibraryMeals()).toBeGreaterThanOrEqual(1);
+    expect(
+      listCatalogMeals().filter((item) => /dedupe soup/i.test(item.title)),
+    ).toHaveLength(1);
+    expect(listCatalogMeals().some((item) => item.id === first.id)).toBe(true);
   });
 });
 

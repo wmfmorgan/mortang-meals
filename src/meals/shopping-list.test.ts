@@ -9,6 +9,34 @@ describe("normalizeIngredientName", () => {
 });
 
 describe("mergeShoppingList", () => {
+  it("skips takeout and leftover meals", () => {
+    const list = mergeShoppingList([
+      {
+        ingredients: [
+          { name: "chicken", quantity: "1", unit: "lb", aisle: "meat" },
+        ],
+      },
+      {
+        leftover: true,
+        ingredients: [
+          { name: "chicken", quantity: "1", unit: "lb", aisle: "meat" },
+        ],
+      },
+      {
+        takeout: true,
+        ingredients: [
+          { name: "pad thai", quantity: "1", unit: "order", aisle: "other" },
+        ],
+      },
+    ]);
+    expect(list).toEqual([
+      {
+        aisle: "meat",
+        items: [{ name: "chicken", quantity: "1", unit: "lb", aisle: "meat" }],
+      },
+    ]);
+  });
+
   it("merges the same name+unit and groups by aisle", () => {
     const list = mergeShoppingList([
       {

@@ -17,8 +17,10 @@ import type {
 import { DAYS, SLOTS } from "@/lib/types";
 import { emptySlotMask } from "@/lib/slot-mask";
 import { mondayOf } from "@/lib/week";
-import { normalizeTitle } from "./duplicates";
+import { isDuplicateTitle, normalizeTitle } from "./duplicates";
 import { EMPTY_EXTRAS, extraFromMeal, parseMealExtras } from "./extras";
+import { uniqueCatalogMeals } from "./catalog";
+import { pickFillMeals } from "./fill";
 
 type PlanRow = typeof weekPlans.$inferSelect;
 type MealRow = typeof meals.$inferSelect;
@@ -40,6 +42,10 @@ function mapMeal(row: MealRow): Meal {
     createdAt: row.createdAt,
     sourceUrl: row.sourceUrl,
     extras: parseMealExtras(row.extrasJson),
+    draft: row.draft === 1,
+    stars: row.stars,
+    takeout: row.takeout === 1,
+    leftover: row.leftover === 1,
   };
 }
 
@@ -79,6 +85,10 @@ function mealInsertValues(
     sourceUrl?: string | null;
     id?: string;
     extras?: MealExtras;
+    draft?: number;
+    stars?: number;
+    takeout?: number;
+    leftover?: number;
   },
 ) {
   return {
@@ -98,6 +108,10 @@ function mealInsertValues(
     createdAt: extras.createdAt ?? new Date().toISOString(),
     sourceUrl: extras.sourceUrl ?? meal.sourceUrl ?? null,
     extrasJson: JSON.stringify(extras.extras ?? EMPTY_EXTRAS),
+    draft: extras.draft ?? 0,
+    stars: extras.stars ?? 0,
+    takeout: extras.takeout ?? 0,
+    leftover: extras.leftover ?? 0,
   };
 }
 
@@ -145,6 +159,28 @@ export function listAllMeals(): Meal[] {
     .from(meals)
     .all()
     .map(mapMeal)
+    .filter((meal) => !meal.draft)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
+}
+
+export function listCatalogMeals(): Meal[] {
+  return uniqueCatalogMeals(listAllMeals());
+}
+
+export function titleTaken(title: string, exceptId?: string): boolean {
+  return listCatalogMeals().some(
+    (meal) => meal.id !== exceptId && isDuplicateTitle(meal.title, [title]),
+  );
+}
+
+export function listDraftMeals(): Meal[] {
+  const db = getDb();
+  return db
+    .select()
+    .from(meals)
+    .all()
+    .map(mapMeal)
+    .filter((meal) => meal.draft)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
 }
 
@@ -153,7 +189,11 @@ export function saveStandaloneMeal(input: {
   slot: MealSlot;
   sourceUrl?: string | null;
   usedWebSearch?: boolean;
+  draft?: boolean;
 }): Meal {
+  if (input.draft !== true && titleTaken(input.meal.title)) {
+    throw new Error("That recipe is already in the library.");
+  }
   const db = getDb();
   const weekStart = mondayOf(new Date());
   const row = mealInsertValues(
@@ -164,10 +204,54 @@ export function saveStandaloneMeal(input: {
       pinned: 0,
       weekStart,
       sourceUrl: input.sourceUrl ?? null,
+      draft: input.draft === true ? 1 : 0,
     },
   );
   db.insert(meals).values(row).run();
   return mapMeal(row);
+}
+
+export function saveDraftMeals(
+  items: Array<{
+    meal: GeneratedMeal;
+    slot: MealSlot;
+    usedWebSearch?: boolean;
+  }>,
+): Meal[] {
+  return items.map((item) =>
+    saveStandaloneMeal({ ...item, draft: true }),
+  );
+}
+
+export function approveDraft(mealId: string): Meal {
+  const db = getDb();
+  const existing = db.select().from(meals).where(eq(meals.id, mealId)).get();
+  if (!existing) throw new Error("Meal not found");
+  if (existing.draft !== 1) throw new Error("Not a draft");
+  if (titleTaken(existing.title, existing.id)) {
+    throw new Error("That recipe is already in the library.");
+  }
+  db.update(meals).set({ draft: 0 }).where(eq(meals.id, mealId)).run();
+  return mapMeal({ ...existing, draft: 0 });
+}
+
+export function rejectDraft(mealId: string): void {
+  const existing = getMeal(mealId);
+  if (!existing) throw new Error("Meal not found");
+  if (!existing.draft) throw new Error("Not a draft");
+  deleteMeal(mealId);
+}
+
+export function setMealStars(mealId: string, stars: number): Meal {
+  if (!Number.isInteger(stars) || stars < 0 || stars > 5) {
+    throw new Error("Stars must be 0 through 5.");
+  }
+  const db = getDb();
+  const existing = db.select().from(meals).where(eq(meals.id, mealId)).get();
+  if (!existing) throw new Error("Meal not found");
+  if (existing.draft === 1) throw new Error("Drafts cannot be rated.");
+  db.update(meals).set({ stars }).where(eq(meals.id, mealId)).run();
+  return mapMeal({ ...existing, stars });
 }
 
 export function saveImportedMeal(input: {
@@ -205,6 +289,7 @@ export function placeExtra(input: {
 }): Meal {
   const source = getMeal(input.sourceMealId);
   if (!source) throw new Error("Meal not found");
+  if (source.draft) throw new Error("Meal not found");
   const parent = getMeal(input.mealId);
   if (!parent) throw new Error("Meal not found");
   const current = getCurrentPlan();
@@ -250,6 +335,9 @@ export function updateMeal(
   const db = getDb();
   const existing = db.select().from(meals).where(eq(meals.id, id)).get();
   if (!existing) throw new Error("Meal not found");
+  if (titleTaken(fields.title, id)) {
+    throw new Error("That recipe is already in the library.");
+  }
   db.update(meals)
     .set({
       title: fields.title,
@@ -382,6 +470,8 @@ export function replaceMeal(
     createdAt: existing.createdAt,
     sourceUrl: next.sourceUrl ?? null,
     extras: parseMealExtras(existing.extrasJson),
+    draft: existing.draft,
+    stars: existing.stars,
   });
   db.update(meals).set(row).where(eq(meals.id, mealId)).run();
   return mapMeal(row);
@@ -400,6 +490,7 @@ export function listLibraryMeals(slot: MealSlot): LibraryMeal[] {
   const seen = new Set<string>();
   const unique: LibraryMeal[] = [];
   for (const row of rows) {
+    if (row.draft === 1 || row.takeout === 1) continue;
     const key = normalizeTitle(row.title);
     if (!key || seen.has(key)) continue;
     seen.add(key);
@@ -418,8 +509,28 @@ export function listLibraryMeals(slot: MealSlot): LibraryMeal[] {
 }
 
 export function ensureCurrentPlan(weekStart: string): WeekPlan {
-  const current = getCurrentPlan();
-  if (current) return current;
+  return openPlan(weekStart);
+}
+
+export function openPlan(weekStart: string): WeekPlan {
+  const db = getDb();
+  const rows = db
+    .select()
+    .from(weekPlans)
+    .all()
+    .filter((row) => row.weekStart === weekStart)
+    .sort((a, b) => {
+      if (a.isCurrent !== b.isCurrent) return b.isCurrent - a.isCurrent;
+      return b.id.localeCompare(a.id);
+    });
+  if (rows[0]) {
+    const id = rows[0].id;
+    db.transaction((tx) => {
+      tx.update(weekPlans).set({ isCurrent: 0 }).run();
+      tx.update(weekPlans).set({ isCurrent: 1 }).where(eq(weekPlans.id, id)).run();
+    });
+    return getPlan(id)!;
+  }
   return saveGeneratedPlan({
     weekStart,
     slotMask: emptySlotMask(),
@@ -435,6 +546,7 @@ export function placeMeal(input: {
 }): Meal {
   const source = getMeal(input.sourceMealId);
   if (!source) throw new Error("Meal not found");
+  if (source.draft) throw new Error("Meal not found");
 
   const plan = ensureCurrentPlan(input.weekStart);
   const db = getDb();
@@ -473,6 +585,158 @@ export function placeMeal(input: {
   });
   db.insert(meals).values(row).run();
   return mapMeal(row);
+}
+
+function copyOntoPlan(input: {
+  source: Meal;
+  day: DayOfWeek;
+  slot: MealSlot;
+  leftover: boolean;
+  weekStart: string;
+  planId?: string;
+}): Meal {
+  const plan = input.planId
+    ? getPlan(input.planId)
+    : openPlan(input.weekStart);
+  if (!plan) throw new Error("Plan not found");
+  const db = getDb();
+  const occupant = plan.meals.find(
+    (meal) => meal.day === input.day && meal.slot === input.slot,
+  );
+  const copy: GeneratedMeal = {
+    day: input.day,
+    slot: input.slot,
+    title: input.source.title,
+    whyItFits: input.source.whyItFits,
+    cookMinutes: input.source.cookMinutes,
+    method: input.source.method,
+    ingredients: input.source.ingredients,
+    steps: input.source.steps,
+  };
+  const extras = {
+    usedWebSearch: input.source.usedWebSearch ? 1 : 0,
+    pinned: occupant?.pinned ? 1 : 0,
+    weekStart: plan.weekStart,
+    sourceUrl: input.source.sourceUrl,
+    leftover: input.leftover ? 1 : 0,
+    takeout: 0,
+  };
+  if (occupant) {
+    const row = mealInsertValues(plan.id, copy, { ...extras, id: occupant.id });
+    db.update(meals).set(row).where(eq(meals.id, occupant.id)).run();
+    return mapMeal(row);
+  }
+  const row = mealInsertValues(plan.id, copy, extras);
+  db.insert(meals).values(row).run();
+  return mapMeal(row);
+}
+
+export function saveTakeoutMeal(input: {
+  day: DayOfWeek;
+  slot: MealSlot;
+  title?: string;
+  weekStart: string;
+}): Meal {
+  const plan = openPlan(input.weekStart);
+  const occupant = plan.meals.find(
+    (meal) => meal.day === input.day && meal.slot === input.slot,
+  );
+  const title = input.title?.trim() || "Takeout";
+  const generated: GeneratedMeal = {
+    day: input.day,
+    slot: input.slot,
+    title,
+    whyItFits: "Restaurant / takeout",
+    cookMinutes: 0,
+    method: "takeout",
+    ingredients: [],
+    steps: [],
+  };
+  const extras = {
+    usedWebSearch: 0,
+    pinned: occupant?.pinned ? 1 : 0,
+    weekStart: plan.weekStart,
+    sourceUrl: null as string | null,
+    takeout: 1,
+    leftover: 0,
+    extras: EMPTY_EXTRAS,
+  };
+  const db = getDb();
+  if (occupant) {
+    const row = mealInsertValues(plan.id, generated, {
+      ...extras,
+      id: occupant.id,
+    });
+    db.update(meals).set(row).where(eq(meals.id, occupant.id)).run();
+    return mapMeal(row);
+  }
+  const row = mealInsertValues(plan.id, generated, extras);
+  db.insert(meals).values(row).run();
+  return mapMeal(row);
+}
+
+export function saveLeftoverMeal(input: {
+  sourceMealId: string;
+  day: DayOfWeek;
+  slot: MealSlot;
+}): Meal {
+  const source = getMeal(input.sourceMealId);
+  if (!source) throw new Error("Meal not found");
+  if (source.takeout) throw new Error("Takeout cannot be leftovers.");
+  const current = getCurrentPlan();
+  if (!current || source.planId !== current.id) {
+    throw new Error("Leftovers can only be copied from this week.");
+  }
+  return copyOntoPlan({
+    source,
+    day: input.day,
+    slot: input.slot,
+    leftover: true,
+    weekStart: current.weekStart,
+  });
+}
+
+export function fillEmptySlots(input: {
+  weekStart: string;
+  planId?: string;
+  slotMask: SlotMask;
+  allowRepeats: boolean;
+  leftoverLunches: boolean;
+  maxProtein: number;
+  allergies: string[];
+  maxCookMinutes: number;
+}): WeekPlan {
+  const plan = input.planId
+    ? getPlan(input.planId) ?? openPlan(input.weekStart)
+    : openPlan(input.weekStart);
+  const db = getDb();
+  db.update(weekPlans)
+    .set({ slotMaskJson: JSON.stringify(input.slotMask) })
+    .where(eq(weekPlans.id, plan.id))
+    .run();
+
+  const picks = pickFillMeals({
+    mask: input.slotMask,
+    occupied: plan.meals,
+    library: listCatalogMeals(),
+    allergies: input.allergies,
+    maxCookMinutes: input.maxCookMinutes,
+    allowRepeats: input.allowRepeats,
+    leftoverLunches: input.leftoverLunches,
+    maxProtein: input.maxProtein,
+  });
+
+  for (const pick of picks) {
+    copyOntoPlan({
+      source: pick.source,
+      day: pick.day,
+      slot: pick.slot,
+      leftover: pick.leftover,
+      weekStart: plan.weekStart,
+      planId: plan.id,
+    });
+  }
+  return getPlan(plan.id) ?? plan;
 }
 
 export function deletePlan(planId: string): void {
@@ -519,6 +783,45 @@ export function mealAt(
   planMeals: Meal[],
   day: DayOfWeek,
   slot: MealSlot,
-): Meal | undefined {
+  ): Meal | undefined {
   return planMeals.find((meal) => meal.day === day && meal.slot === slot);
+}
+
+export function dedupeLibraryMeals(): number {
+  const db = getDb();
+  const rows = db
+    .select()
+    .from(meals)
+    .all()
+    .map(mapMeal)
+    .filter((meal) => !meal.draft && !meal.takeout);
+  const buckets = new Map<string, Meal[]>();
+  for (const meal of rows) {
+    const key = normalizeTitle(meal.title);
+    if (!key) continue;
+    const list = buckets.get(key) ?? [];
+    list.push(meal);
+    buckets.set(key, list);
+  }
+  let removed = 0;
+  for (const group of buckets.values()) {
+    if (group.length < 2) continue;
+    const ranked = [...group].sort((a, b) => {
+      const aLib = a.planId === "" ? 0 : 1;
+      const bLib = b.planId === "" ? 0 : 1;
+      if (aLib !== bLib) return aLib - bLib;
+      if (Number(a.leftover) !== Number(b.leftover)) {
+        return Number(a.leftover) - Number(b.leftover);
+      }
+      if (b.stars !== a.stars) return b.stars - a.stars;
+      return b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id);
+    });
+    const winner = ranked[0]!;
+    for (const meal of ranked.slice(1)) {
+      if (meal.planId !== "") continue;
+      db.delete(meals).where(eq(meals.id, meal.id)).run();
+      removed += 1;
+    }
+  }
+  return removed;
 }

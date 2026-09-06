@@ -18,7 +18,7 @@ describe("SlotPicker", () => {
       screen.getByRole("checkbox", { name: "monday dinner" }),
     ).toBeTruthy();
     expect(
-      screen.queryByRole("button", { name: /slots to generate/i }),
+      screen.queryByRole("button", { name: /slots to fill/i }),
     ).toBeNull();
   });
 
@@ -35,7 +35,7 @@ describe("SlotPicker", () => {
 
     expect(
       screen
-        .getByRole("button", { name: /slots to generate/i })
+        .getByRole("button", { name: /slots to fill/i })
         .getAttribute("aria-expanded"),
     ).toBe("true");
     expect(
@@ -54,7 +54,7 @@ describe("SlotPicker", () => {
       />,
     );
 
-    const header = screen.getByRole("button", { name: /slots to generate/i });
+    const header = screen.getByRole("button", { name: /slots to fill/i });
     expect(header.getAttribute("aria-expanded")).toBe("false");
     expect(header.textContent).toMatch(/7 dinners/);
     expect(
@@ -74,7 +74,7 @@ describe("SlotPicker", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /slots to generate/i }));
+    fireEvent.click(screen.getByRole("button", { name: /slots to fill/i }));
     expect(onExpandedChange).toHaveBeenCalledWith(true);
   });
 });

@@ -3,12 +3,21 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { saveSettings } from "@/ai/settings-repo";
-import { handleGenerate, handleGenerateExtra, handleSwap } from "@/ai/http";
 import {
+  handleGenerate,
+  handleGenerateExtra,
+  handleGenerateLibrary,
+  handleSwap,
+} from "@/ai/http";
+import {
+  handleApproveDraft,
   handleCreateMeal,
   handleDeleteExtra,
   handleListLibrary,
   handlePlaceExtra,
+  handlePlaceMeal,
+  handleRateMeal,
+  handleRejectDraft,
 } from "@/meals/http";
 import { getHousehold, replacePeople, upsertHousehold } from "@/household/repo";
 import { seedKitchenIfEmpty } from "@/kitchen/repo";
@@ -26,6 +35,8 @@ import type {
 import { DAYS, SLOTS } from "@/lib/types";
 import {
   getCurrentPlan,
+  listAllMeals,
+  listDraftMeals,
   saveGeneratedPlan,
   setMealExtra,
   setPinned,
@@ -565,5 +576,96 @@ describe("API smoke path", () => {
     expect(
       (library.body as { meals: { title: string }[] }).meals.map((item) => item.title),
     ).toContain("Key lime pie");
+  });
+
+  it("generates library drafts, then approve, rate, and reject", async () => {
+    const household = getHousehold();
+    expect(household).toBeTruthy();
+    const personIds = household!.people.map((person) => person.id);
+    const { complete } = fakeComplete([
+      {
+        ok: true,
+        text: JSON.stringify({
+          meals: [dinner("monday", "Library draft stew", "beef")],
+        }),
+      },
+    ]);
+    const result = await handleGenerateLibrary(
+      {
+        personIds,
+        dinner: { count: 1, diet: "high-protein", avoidances: "pork" },
+      },
+      { complete },
+    );
+    expect(result.status).toBe(200);
+    const drafts = (result.body as { meals: Meal[] }).meals;
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]!.draft).toBe(true);
+    expect(listAllMeals().some((item) => item.id === drafts[0]!.id)).toBe(false);
+    expect(
+      (handleListLibrary("dinner").body as { meals: { id: string }[] }).meals.some(
+        (item) => item.id === drafts[0]!.id,
+      ),
+    ).toBe(false);
+
+    const placedDraft = handlePlaceMeal({
+      sourceMealId: drafts[0]!.id,
+      day: "monday",
+      slot: "dinner",
+    });
+    expect(placedDraft.status).toBe(404);
+
+    const approved = handleApproveDraft({ mealId: drafts[0]!.id });
+    expect(approved.status).toBe(200);
+    expect((approved.body as { meal: Meal }).meal.draft).toBe(false);
+    expect(listAllMeals().some((item) => item.id === drafts[0]!.id)).toBe(true);
+
+    const rated = handleRateMeal({ mealId: drafts[0]!.id, stars: 5 });
+    expect(rated.status).toBe(200);
+    expect((rated.body as { meal: Meal }).meal.stars).toBe(5);
+
+    const { complete: rejectComplete } = fakeComplete([
+      {
+        ok: true,
+        text: JSON.stringify({
+          meals: [dinner("monday", "Reject this stew", "turkey")],
+        }),
+      },
+    ]);
+    const second = await handleGenerateLibrary(
+      {
+        personIds,
+        dinner: { count: 1, diet: "high-protein", avoidances: "" },
+      },
+      { complete: rejectComplete },
+    );
+    const rejectId = (second.body as { meals: Meal[] }).meals[0]!.id;
+    const rejected = handleRejectDraft({ mealId: rejectId });
+    expect(rejected.status).toBe(200);
+    expect(listDraftMeals().some((item) => item.id === rejectId)).toBe(false);
+    expect(listAllMeals().some((item) => item.id === rejectId)).toBe(false);
+  });
+
+  it("retries then fails library generate without writing drafts", async () => {
+    const before = listDraftMeals().length;
+    const household = getHousehold()!;
+    const { complete } = fakeComplete([
+      { ok: false, error: "timeout" },
+      { ok: false, error: "timeout" },
+    ]);
+    const result = await handleGenerateLibrary(
+      {
+        personIds: household.people.map((person) => person.id),
+        request: {
+          slot: "dinner",
+          text: "spaghetti sauce",
+          diet: "italian",
+          avoidances: "",
+        },
+      },
+      { complete },
+    );
+    expect(result.status).toBe(422);
+    expect(listDraftMeals()).toHaveLength(before);
   });
 });

@@ -19,6 +19,8 @@ export type TraceKind =
   | "swap-retry"
   | "extra"
   | "extra-retry"
+  | "library"
+  | "library-retry"
   | "test";
 export type ExtraMode = "suggestion" | "recipe";
 export type ValidationResult =
@@ -94,6 +96,10 @@ export type Meal = GeneratedMeal & {
   createdAt: string;
   sourceUrl: string | null;
   extras: MealExtras;
+  draft: boolean;
+  stars: number;
+  takeout: boolean;
+  leftover: boolean;
 };
 
 export type LibraryMeal = {

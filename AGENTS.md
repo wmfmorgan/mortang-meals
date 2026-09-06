@@ -10,7 +10,7 @@ A local, single-household meal planner. The user describes who they cook for and
 
 No auth, no multi-household, no hosted deploy. One Next.js process. The browser never calls an AI provider.
 
-Success path: set up household + kitchen → pick slots on This Week → generate → cook from a card → pin keepers / swap duds / place from the library → shop from the merged list.
+Success path: set up household + kitchen → generate library drafts on Meals (or pick slots on This Week) → approve keepers → cook from a card → pin / swap / place from the library → shop from the merged list.
 
 ## Stack and commands
 
@@ -37,11 +37,11 @@ Env: copy `.env.example` to `.env.local` and set `XAI_API_KEY`. Optional `MORTAN
 - Automated tests mock the adapter (`complete`). No live model calls.
 - One household. Week is Monday–Sunday (`mondayOf` in `src/lib/week.ts`). Week slots are `breakfast | lunch | dinner` (21 cells). Library recipes may also be `side` or `dessert`.
 - At most one plan has `isCurrent = 1`.
-- Last good plan / meal / extra is never replaced by a failed generate, swap, extra, or import.
+- Last good plan / meal / extra is never replaced by a failed generate, swap, extra, import, or library generate. Failed library generate writes no drafts.
 - Ingredient `quantity` is a **string** (`"1"`, `"1/2"`, `"1/4"`). Never a number. Never `0` for a used ingredient.
 - Duplicate = normalized title match only (`src/meals/duplicates.ts`: lowercase, strip non-alphanumerics, collapse spaces). No fuzzy matching.
 - Allergen = case-insensitive substring of an ingredient **name** (`src/meals/allergen.ts`).
-- Generate, swap, and extra retry **once** on transport / invalid JSON / schema / allergen / duplicate. Then keep the previous data.
+- Generate, swap, extra, and library generate retry **once** on transport / invalid JSON / schema / allergen / duplicate. Then keep the previous data.
 - AI traces: always record, keep last 25, redact `Bearer` tokens and `api_key=` values. Developer nav is hidden unless Settings → developer tools is on.
 - Visual language lives in `src/app/globals.css` (olive / linen / paper). Match existing components; do not invent a parallel design system.
 
@@ -52,8 +52,8 @@ UI (server pages + client components)
     │  fetch / server actions
     ▼
 HTTP handlers
-    src/ai/http.ts        generate, swap, extra, settings, traces
-    src/meals/http.ts     library, place, pin, import, update, delete, extra delete
+    src/ai/http.ts        generate, swap, extra, library generate, settings, traces
+    src/meals/http.ts     library, place, pin, import, update, delete, extra delete, drafts, stars
     │
     ├── domain (pure, easy to test)
     │     brief, schema, allergen, duplicates, extras, shopping-list, slot-mask, catalog
@@ -72,8 +72,8 @@ Thin `src/app/api/*/route.ts` files parse JSON and call a handler. Keep logic in
 | Route | Role |
 | --- | --- |
 | `/setup` | First-run wizard: household → kitchen checklist → slot mask. Redirect target when there is no household or no named people. |
-| `/` This Week | Home. Collapsible slot picker (session-backed open/closed), generate, pin all, “use what I have” ingredients, week grid, recipe flyout, library flyout. `?plan=` opens a historical plan. |
-| `/meals` | Library catalog: search / filter / group, import-from-URL form, add-recipe. |
+| `/` This Week | Home. Week switcher, slot picker (cells to fill), fill-empty-slots from the library, takeout, leftovers, week grid, recipe flyout, library flyout. `?plan=` opens a historical plan. |
+| `/meals` | Library: generate drafts (batch or one recipe), approve/reject queue, then search / filter / group, import-from-URL, add-recipe. Catalog is unique by title. Saved meals can be rated 1–5 stars. |
 | `/meals/new` | Type a recipe into the library (same editor as `/meals/[id]`, create mode). |
 | `/meals/[id]` | Full recipe editor (title, why, time, method, ingredients, steps). Swap only if the meal is on the current plan. |
 | `/shopping-list` | Derived list for the open plan (`?plan=` supported). Not stored. |
@@ -84,7 +84,7 @@ Thin `src/app/api/*/route.ts` files parse JSON and call a handler. Keep logic in
 
 Nav: This Week, Meals, Shopping list, Household, Kitchen, Settings, optional Developer (`src/components/nav.tsx`).
 
-Generation UX is global (`GenerationProvider` in `AppShell`): NDJSON stream. Modal on `/` and `/meals*`; compact banner on other routes. Cancel aborts the fetch.
+Generation UX is global (`GenerationProvider` in `AppShell`): NDJSON stream in the tab. A compact chip in the sticky nav shows progress (spinner, percent, elapsed, Cancel). Hover the chip for steps and the current message; click it to pin the panel (required for failure details). No blocking modal. Refresh or closing the tab aborts the fetch. One job at a time.
 
 ## Data model
 
@@ -98,7 +98,9 @@ Generation UX is global (`GenerationProvider` in `AppShell`): NDJSON stream. Mod
 
 **Week plan** — `weekStart` (Monday `YYYY-MM-DD`), `isCurrent`, `slotMask` JSON. History stays readable from This Week / shopping list.
 
-**Meal** — belongs to a plan **or** stands alone. Fields: day, slot, title, whyItFits, cookMinutes, method, ingredients[], steps[], `usedWebSearch`, `pinned`, `weekStart`, `createdAt`, optional `sourceUrl`, `extras`. Imported and typed meals are saved with `planId = ""`. Deleting a plan deletes the plan row only; meals stay so the library keeps the recipes.
+**Meal** — belongs to a plan **or** stands alone. Fields: day, slot, title, whyItFits, cookMinutes, method, ingredients[], steps[], `usedWebSearch`, `pinned`, `weekStart`, `createdAt`, optional `sourceUrl`, `extras`, `draft` (0/1), `stars` (0–5, 0 = unrated). Imported and typed meals are saved with `planId = ""`. Library generate writes `draft = 1` until approve. Deleting a plan deletes the plan row only; meals stay so the library keeps the recipes. `listAllMeals` / `listLibraryMeals` / place exclude drafts.
+
+**Library generate prefs** — one row (`id = default`) of JSON for the Meals generate form (mode, people, per-slot on/count/diet/avoidances). Not used as an AI input.
 
 **Meal extra** — nested on a lunch or dinner (`extras_json`). At most one `side` and one `dessert`. Each is a **suggestion** (title only) or a **recipe** (full ingredients/steps). Breakfast never has extras. Added on the card after the meal exists; week generate does not fill them. A generated extra **recipe** is also saved as a standalone library meal (`slot` `side` or `dessert`). You can attach an existing library side/dessert with `POST /api/place-extra`. Suggestions are not library meals.
 
@@ -108,9 +110,13 @@ Generation UX is global (`GenerationProvider` in `AppShell`): NDJSON stream. Mod
 
 **Settings** — `mode: grok | custom`, `baseUrl` (default `https://api.x.ai/v1`), `model` (default `grok-4.6`), optional `customApiKey`, `developerTools`, `webSearch`. API responses expose `customApiKey` as a boolean only.
 
-**AI trace** — kind `generate | generate-retry | swap | swap-retry | extra | extra-retry | test`, request/response text, validation `ok | invalid-json | schema | allergen | duplicate | transport`. Import is **not** traced today.
+**AI trace** — kind `generate | generate-retry | swap | swap-retry | extra | extra-retry | library | library-retry | test`, request/response text, validation `ok | invalid-json | schema | allergen | duplicate | transport`. Import is **not** traced today.
 
 ## Core flows
+
+### This Week (library planner)
+
+This Week **does not** call the model. Empty cell → library flyout (`POST /api/place`) or **Takeout** (`POST /api/takeout`). **Leftovers** copies a cooked cell onto another (`POST /api/leftover`, shopping list skips leftover and takeout rows). **Fill empty slots** (`POST /api/fill`) picks from the saved library: slot match, allergen skip, unique titles unless allow-repeats, protein cap per breakfast/lunch/dinner row (default 2, from ingredient names), leftover-lunches optional. Pins lock a cell against fill. Week switcher (`POST /api/plans/open`) is one plan per Monday; edits save immediately.
 
 ### Generate
 
@@ -124,6 +130,16 @@ Generation UX is global (`GenerationProvider` in `AppShell`): NDJSON stream. Mod
 6. Generate **always writes the current plan**, even if the user is viewing `?plan=` history. `weekStart` from the request is used only when creating the first plan.
 
 Do not revive “save a brand-new plan on every generate.” Pins and the library depend on merge.
+
+### Library generate
+
+Meals tab, not This Week. `LibraryGenerateForm` at the top of `/meals` → Drafts queue → Add recipe / Import → saved catalog.
+
+Two modes, XOR: **Batch** (per-slot on, count 1–12, diet, extra avoidances) or **One recipe** (`I need a recipe for…` plus that slot’s diet/avoidances). Cap 24 recipes per batch. People checkboxes required; selected people’s **allergies stay hard**. Form diet and avoidances **override** Household/Kitchen diet, per-slot kitchen diets, and people’s household avoidances for that run. Form avoidances are hard excludes (same allergen substring check). Kitchen appliances, expertise, involved, and `maxCookMinutes` still apply. `buildHouseholdBrief({ forLibrary: true })`.
+
+`POST /api/library/generate` NDJSON stream (`kind: library`). Dummy `day: monday`. Duplicates vs saved library titles **and** existing drafts. One retry, then fail with no writes. Success: `saveDraftMeals`. Approve `POST /api/library/approve` sets `draft = 0`. Reject `POST /api/library/reject` deletes the row. Stars `POST /api/library/rate` `{ mealId, stars: 0–5 }` on saved meals only; click the current star to clear to 0. Stars are not an AI input.
+
+Prefs: `GET/PUT /api/library/prefs`.
 
 ### Swap
 
@@ -184,31 +200,34 @@ Brief (`src/household/brief.ts`) includes people, diet, notes, allergies, avoida
 | `src/lib/schema.ts` | Drizzle table defs |
 | `src/lib/slot-mask.ts` | Mask helpers + session persistence |
 | `src/lib/use-ingredients.ts` | Session persistence for assigned ingredients |
-| `src/lib/generate-progress.ts` | Progress % / step labels for generate and import |
+| `src/lib/generate-progress.ts` | Progress % / step labels for generate, import, and library |
 | `src/lib/week.ts` | `mondayOf` |
 | `src/household/*` | Household repo, brief, people normalize |
 | `src/kitchen/*` | Items repo, prefs repo, built-in defaults |
 | `src/meals/schema.ts` | Zod + JSON Schema for model output |
-| `src/meals/repo.ts` | Plans and meals persistence (merge, place, pin, library, import, typed create) |
-| `src/meals/http.ts` | Library / pin / place / import / create / update / delete handlers |
+| `src/meals/repo.ts` | Plans and meals persistence (merge, place, pin, library, import, typed create, drafts, stars) |
+| `src/meals/http.ts` | Library / pin / place / import / create / update / delete / draft approve-reject / rate handlers |
 | `src/meals/catalog.ts` | Search / filter / group for `/meals` |
 | `src/meals/{allergen,duplicates,extras,shopping-list}.ts` | Pure validators / extras parse / list merge |
 | `src/ai/adapter.ts` | Provider client |
 | `src/ai/generate-plan.ts` | Generate loop + validation |
+| `src/ai/generate-library.ts` | Library batch / one-recipe loop + validation |
 | `src/ai/swap-meal.ts` | Swap loop + validation |
 | `src/ai/generate-extra.ts` | Side/dessert suggestion or recipe loop |
-| `src/ai/http.ts` | Generate / swap / extra / settings / traces handlers |
+| `src/ai/http.ts` | Generate / swap / extra / library generate / settings / traces handlers |
+| `src/meals/library-prefs.ts` | Meals generate-form JSON prefs |
 | `src/ai/settings-repo.ts` | Settings row |
 | `src/ai/traces.ts` | Trace log |
 | `src/components/this-week-planner.tsx` | This Week client orchestrator |
-| `src/components/generation-provider.tsx` | Shared generate/import stream client |
-| `src/components/meals-catalog.tsx` | Library UI |
+| `src/components/generation-provider.tsx` | Shared generate/import/library stream client |
+| `src/components/generation-status.tsx` | Nav chip + expandable steps for the in-tab job |
+| `src/components/meals-catalog.tsx` | Library UI: generate form, draft queue, catalog, stars |
 | `src/components/meal-detail.tsx` | Recipe editor |
 | `src/app/api/smoke.test.ts` | HTTP-level smoke tests with a fake adapter |
 
 ## API
 
-All mutating meal/AI routes are `POST` JSON unless noted. Generate and import respond with `application/x-ndjson` (`{type:progress|done|error}` lines).
+All mutating meal/AI routes are `POST` JSON unless noted. Generate, import, and library generate respond with `application/x-ndjson` (`{type:progress|done|error}` lines).
 
 | Route | Handler |
 | --- | --- |
@@ -218,8 +237,13 @@ All mutating meal/AI routes are `POST` JSON unless noted. Generate and import re
 | `DELETE /api/extra` | `handleDeleteExtra` |
 | `POST /api/place-extra` | `handlePlaceExtra` |
 | `POST /api/import` | `handleImportRecipe` — stream |
+| `POST /api/library/generate` | `handleGenerateLibrary` — stream, writes drafts |
+| `POST /api/library/approve` | `handleApproveDraft` |
+| `POST /api/library/reject` | `handleRejectDraft` |
+| `POST /api/library/rate` | `handleRateMeal` — `{ mealId, stars: 0–5 }` |
+| `GET/PUT /api/library/prefs` | generate-form JSON blob |
 | `POST /api/create` | `handleCreateMeal` — typed library meal |
-| `GET /api/library?slot=` | `handleListLibrary` — `breakfast \| lunch \| dinner \| side \| dessert` |
+| `GET /api/library?slot=` | `handleListLibrary` — `breakfast \| lunch \| dinner \| side \| dessert` (no drafts) |
 | `POST /api/place` | `handlePlaceMeal` |
 | `POST /api/pin` | `handlePin` |
 | `POST /api/update` | `handleUpdateMeal` |
@@ -258,4 +282,4 @@ Cook time is currently a **prompt** rule (`Keep cookMinutes at or under N`). It 
 - UI: `*.test.tsx` with happy-dom.
 - HTTP: `src/app/api/smoke.test.ts` and `src/meals/http.import.test.ts` inject `deps.complete`.
 
-When you add a generate/swap/import validation path, cover the retry-then-fail case and assert the previous plan/meal is unchanged.
+When you add a generate/swap/import/library validation path, cover the retry-then-fail case and assert the previous plan/meal is unchanged (library: no drafts written).

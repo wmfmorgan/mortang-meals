@@ -50,6 +50,10 @@ function mondayDinnerPlan(): WeekPlan {
         createdAt: "2026-08-10T12:00:00.000Z",
         sourceUrl: null,
         extras: EMPTY_EXTRAS,
+        draft: false,
+        stars: 0,
+        takeout: false,
+        leftover: false,
       },
     ],
   };
@@ -73,6 +77,15 @@ describe("WeekGrid", () => {
     render(<WeekGrid plan={mondayDinnerPlan()} onAdd={onAdd} editable />);
     fireEvent.click(screen.getByRole("button", { name: /add monday lunch/i }));
     expect(onAdd).toHaveBeenCalledWith("monday", "lunch");
+  });
+
+  it("offers takeout on an empty cell", () => {
+    const onTakeout = vi.fn();
+    render(
+      <WeekGrid plan={mondayDinnerPlan()} onTakeout={onTakeout} editable />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /takeout monday lunch/i }));
+    expect(onTakeout).toHaveBeenCalledWith("monday", "lunch");
   });
 
   it("shows a web-search star on meals generated with search", () => {

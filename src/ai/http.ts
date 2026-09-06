@@ -17,8 +17,11 @@ import {
   getCurrentPlan,
   getMeal,
   getPlan,
+  listCatalogMeals,
+  listDraftMeals,
   mergeGeneratedPlan,
   replaceMeal,
+  saveDraftMeals,
   saveStandaloneMeal,
   setMealExtra,
 } from "@/meals/repo";
@@ -27,6 +30,10 @@ import { createAdapter, grokWebSearchEnabled } from "./adapter";
 import { generateWeekPlan, type GenerateProgressEvent } from "./generate-plan";
 import { getSettings, saveSettings } from "./settings-repo";
 import { generateExtra } from "./generate-extra";
+import {
+  generateLibraryMeals,
+  type LibraryGroup,
+} from "./generate-library";
 import { swapMeal } from "./swap-meal";
 import { clearTraces, listTraces, recordTrace } from "./traces";
 
@@ -90,6 +97,54 @@ const extraBodySchema = z.object({
   kind: z.enum(["side", "dessert"]),
   mode: z.enum(["suggestion", "recipe"]),
 });
+
+const librarySlotGroupSchema = z.object({
+  count: z.number().int().min(1).max(12),
+  diet: z.string().trim().min(1),
+  avoidances: z.string().optional().default(""),
+});
+
+const libraryGenerateBodySchema = z
+  .object({
+    personIds: z.array(z.string().min(1)).min(1),
+    request: z
+      .object({
+        slot: z.enum(["breakfast", "lunch", "dinner"]),
+        text: z.string().trim().min(1),
+        diet: z.string().trim().min(1),
+        avoidances: z.string().optional().default(""),
+      })
+      .optional(),
+    breakfast: librarySlotGroupSchema.optional(),
+    lunch: librarySlotGroupSchema.optional(),
+    dinner: librarySlotGroupSchema.optional(),
+  })
+  .refine(
+    (value) =>
+      Boolean(value.request) !==
+      Boolean(value.breakfast || value.lunch || value.dinner),
+    { message: "Use batch groups or a one-recipe request, not both." },
+  );
+
+function libraryGroupsFromBody(
+  data: z.infer<typeof libraryGenerateBodySchema>,
+): LibraryGroup[] {
+  if (data.request) {
+    return [
+      {
+        slot: data.request.slot,
+        count: 1,
+        diet: data.request.diet,
+        avoidances: data.request.avoidances,
+      },
+    ];
+  }
+  const groups: LibraryGroup[] = [];
+  if (data.breakfast) groups.push({ slot: "breakfast", ...data.breakfast });
+  if (data.lunch) groups.push({ slot: "lunch", ...data.lunch });
+  if (data.dinner) groups.push({ slot: "dinner", ...data.dinner });
+  return groups;
+}
 
 const settingsPatchSchema = z.object({
   mode: z.enum(["grok", "custom"]).optional(),
@@ -346,23 +401,28 @@ export async function handleGenerateExtra(
     ...result.extra,
   };
   if (extra.mode === "recipe") {
-    const saved = saveStandaloneMeal({
-      meal: {
-        day: "monday",
+    try {
+      const saved = saveStandaloneMeal({
+        meal: {
+          day: "monday",
+          slot: parsed.data.kind,
+          title: extra.title,
+          whyItFits: extra.whyItFits,
+          cookMinutes: extra.cookMinutes,
+          method: extra.method,
+          ingredients: extra.ingredients,
+          steps: extra.steps,
+          sourceUrl: extra.sourceUrl,
+        },
         slot: parsed.data.kind,
-        title: extra.title,
-        whyItFits: extra.whyItFits,
-        cookMinutes: extra.cookMinutes,
-        method: extra.method,
-        ingredients: extra.ingredients,
-        steps: extra.steps,
         sourceUrl: extra.sourceUrl,
-      },
-      slot: parsed.data.kind,
-      sourceUrl: extra.sourceUrl,
-      usedWebSearch: extra.usedWebSearch,
-    });
-    extra = { ...extra, id: saved.id };
+        usedWebSearch: extra.usedWebSearch,
+      });
+      extra = { ...extra, id: saved.id };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (!message.includes("already in the library")) throw error;
+    }
   }
   return { status: 200, body: { meal: setMealExtra(meal.id, extra) } };
 }
@@ -383,6 +443,75 @@ function extraReservedTitles(
     }
   }
   return titles;
+}
+
+export async function handleGenerateLibrary(
+  body: unknown,
+  deps?: HandlerDeps,
+): Promise<HttpResult> {
+  const parsed = libraryGenerateBodySchema.safeParse(body);
+  if (!parsed.success) {
+    return jsonError(
+      400,
+      "Choose people and either a batch of meal types or one recipe request.",
+    );
+  }
+
+  const household = getHousehold();
+  if (!household) {
+    return jsonError(400, "Add a household before generating.");
+  }
+  const selected = household.people.filter((person) =>
+    parsed.data.personIds.includes(person.id),
+  );
+  if (selected.length === 0) {
+    return jsonError(400, "Select at least one person.");
+  }
+
+  const settings = getSettings();
+  if (grokKeyMissing(settings)) {
+    return jsonError(400, GROK_KEY_MESSAGE);
+  }
+
+  const groups = libraryGroupsFromBody(parsed.data);
+
+  const total = groups.reduce((sum, group) => sum + group.count, 0);
+  if (total > 24) {
+    return jsonError(400, "Ask for at most 24 recipes at once.");
+  }
+
+  seedKitchenIfEmpty();
+  const reservedTitles = [...listCatalogMeals(), ...listDraftMeals()].map(
+    (meal) => meal.title,
+  );
+  const result = await generateLibraryMeals({
+    household: { ...household, people: selected },
+    kitchen: listKitchen(),
+    prefs: getKitchenPrefs(),
+    groups,
+    request: parsed.data.request
+      ? { slot: parsed.data.request.slot, text: parsed.data.request.text }
+      : undefined,
+    reservedTitles,
+    adapter: resolveAdapter(settings, deps),
+    logTrace: recordTrace,
+    settings,
+    onProgress: deps?.onProgress,
+    signal: deps?.signal,
+  });
+
+  if (!result.ok) return jsonError(422, result.message);
+  if (deps?.signal?.aborted) return jsonError(422, "Generate cancelled.");
+
+  deps?.onProgress?.({ phase: "saving", message: "Saving drafts" });
+  const meals = saveDraftMeals(
+    result.meals.map((meal) => ({
+      meal,
+      slot: meal.slot,
+      usedWebSearch: grokWebSearchEnabled(settings),
+    })),
+  );
+  return { status: 200, body: { meals } };
 }
 
 export function handleGetSettings(): HttpResult {

@@ -107,6 +107,16 @@ function ensureSchema(sqlite: Database.Database): void {
   ensureColumn(sqlite, "meals", "created_at", "TEXT NOT NULL DEFAULT ''");
   ensureColumn(sqlite, "meals", "source_url", "TEXT");
   ensureColumn(sqlite, "meals", "extras_json", "TEXT NOT NULL DEFAULT '{}'");
+  ensureColumn(sqlite, "meals", "draft", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(sqlite, "meals", "stars", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(sqlite, "meals", "takeout", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(sqlite, "meals", "leftover", "INTEGER NOT NULL DEFAULT 0");
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS library_generate_prefs (
+      id TEXT PRIMARY KEY,
+      json TEXT NOT NULL
+    );
+  `);
   sqlite.exec(`
     UPDATE meals
     SET week_start = COALESCE(
@@ -141,6 +151,55 @@ function ensureColumn(
   sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
 }
 
+function normalizeTitleKey(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function dedupeStandaloneMeals(sqlite: Database.Database): void {
+  if (!tableColumns(sqlite, "meals").has("takeout")) return;
+  const rows = sqlite
+    .prepare(
+      `SELECT id, title, plan_id, leftover, stars, created_at
+       FROM meals WHERE draft = 0 AND takeout = 0`,
+    )
+    .all() as {
+    id: string;
+    title: string;
+    plan_id: string;
+    leftover: number;
+    stars: number;
+    created_at: string;
+  }[];
+  const buckets = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const key = normalizeTitleKey(row.title);
+    if (!key) continue;
+    const list = buckets.get(key) ?? [];
+    list.push(row);
+    buckets.set(key, list);
+  }
+  const remove = sqlite.prepare(`DELETE FROM meals WHERE id = ? AND plan_id = ''`);
+  for (const group of buckets.values()) {
+    if (group.length < 2) continue;
+    const ranked = [...group].sort((a, b) => {
+      const aLib = a.plan_id === "" ? 0 : 1;
+      const bLib = b.plan_id === "" ? 0 : 1;
+      if (aLib !== bLib) return aLib - bLib;
+      if (a.leftover !== b.leftover) return a.leftover - b.leftover;
+      if (b.stars !== a.stars) return b.stars - a.stars;
+      return b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id);
+    });
+    for (const row of ranked.slice(1)) {
+      if (row.plan_id !== "") continue;
+      remove.run(row.id);
+    }
+  }
+}
+
 export function openDb(dbPath: string): AppDb {
   if (cached?.path === dbPath) {
     return cached.db;
@@ -156,6 +215,7 @@ export function openDb(dbPath: string): AppDb {
   ensureSchema(sqlite);
   const db = drizzle(sqlite, { schema });
   cached = { path: dbPath, sqlite, db };
+  dedupeStandaloneMeals(sqlite);
   return db;
 }
 

@@ -38,6 +38,10 @@ const meal: Meal = {
   createdAt: "2026-08-10T12:00:00.000Z",
   sourceUrl: null,
   extras: EMPTY_EXTRAS,
+  draft: false,
+  stars: 0,
+  takeout: false,
+  leftover: false,
 };
 
 function renderDetail(overrides: Partial<ComponentProps<typeof MealDetail>> = {}) {
@@ -85,6 +89,29 @@ describe("MealDetail print", () => {
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
     expect(screen.getByRole("heading", { name: /edit recipe/i })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Print recipe" })).toBeNull();
+  });
+});
+
+describe("MealDetail rating", () => {
+  it("rates a saved recipe", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    vi.stubGlobal("fetch", fetchMock);
+    renderDetail();
+    fireEvent.click(screen.getByRole("button", { name: "4 stars" }));
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/library/rate",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ mealId: "meal-salmon", stars: 4 }),
+        }),
+      );
+    });
+  });
+
+  it("hides stars on drafts", () => {
+    renderDetail({ meal: { ...meal, draft: true } });
+    expect(screen.queryByRole("button", { name: "4 stars" })).toBeNull();
   });
 });
 

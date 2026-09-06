@@ -1,20 +1,31 @@
 import { z } from "zod";
 import { createAdapter } from "@/ai/adapter";
 import { getSettings } from "@/ai/settings-repo";
+import { collectAllergies } from "@/ai/generate-plan";
+import { getHousehold } from "@/household/repo";
+import { getKitchenPrefs } from "@/kitchen/prefs-repo";
 import { mondayOf } from "@/lib/week";
 import type { AdapterRequest, AdapterResult, MealSlot } from "@/lib/types";
 import { DAYS, RECIPE_SLOTS, SLOTS } from "@/lib/types";
+import { hasAnySlot as maskHasAny } from "@/lib/slot-mask";
 import {
   clearMealExtra,
   deleteMeal,
   deletePlan,
+  fillEmptySlots,
   getCurrentPlan,
   getMeal,
   listLibraryMeals,
+  openPlan,
   placeExtra,
   placeMeal,
   saveImportedMeal,
+  saveLeftoverMeal,
   saveStandaloneMeal,
+  saveTakeoutMeal,
+  setMealStars,
+  approveDraft,
+  rejectDraft,
   setPinned,
   setPlanPinned,
   updateMeal,
@@ -67,6 +78,48 @@ const pinBodySchema = z
     message: "mealId or planId is required.",
   });
 
+const slotFlagsSchema = z.object({
+  breakfast: z.boolean(),
+  lunch: z.boolean(),
+  dinner: z.boolean(),
+});
+
+const slotMaskSchema = z.object({
+  monday: slotFlagsSchema,
+  tuesday: slotFlagsSchema,
+  wednesday: slotFlagsSchema,
+  thursday: slotFlagsSchema,
+  friday: slotFlagsSchema,
+  saturday: slotFlagsSchema,
+  sunday: slotFlagsSchema,
+});
+
+const takeoutBodySchema = z.object({
+  day: dayEnum,
+  slot: slotEnum,
+  title: z.string().optional(),
+  weekStart: z.string().optional(),
+});
+
+const leftoverBodySchema = z.object({
+  sourceMealId: z.string().min(1),
+  day: dayEnum,
+  slot: slotEnum,
+});
+
+const fillBodySchema = z.object({
+  slotMask: slotMaskSchema,
+  weekStart: z.string().optional(),
+  planId: z.string().min(1).optional(),
+  allowRepeats: z.boolean().optional().default(false),
+  leftoverLunches: z.boolean().optional().default(false),
+  maxProtein: z.number().int().min(0).max(21).optional().default(2),
+});
+
+const openPlanBodySchema = z.object({
+  weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
 function jsonError(status: number, message: string): HttpResult {
   return { status, body: { message } };
 }
@@ -77,6 +130,62 @@ export function handleListLibrary(slotRaw: string | null): HttpResult {
     return jsonError(400, "slot is required.");
   }
   return { status: 200, body: { meals: listLibraryMeals(parsed.data) } };
+}
+
+export function handleTakeoutMeal(body: unknown): HttpResult {
+  const parsed = takeoutBodySchema.safeParse(body);
+  if (!parsed.success) return jsonError(400, "day and slot are required.");
+  const meal = saveTakeoutMeal({
+    day: parsed.data.day,
+    slot: parsed.data.slot,
+    title: parsed.data.title,
+    weekStart: parsed.data.weekStart ?? mondayOf(new Date()),
+  });
+  return { status: 200, body: { meal, plan: getCurrentPlan() } };
+}
+
+export function handleLeftoverMeal(body: unknown): HttpResult {
+  const parsed = leftoverBodySchema.safeParse(body);
+  if (!parsed.success) {
+    return jsonError(400, "sourceMealId, day, and slot are required.");
+  }
+  try {
+    const meal = saveLeftoverMeal(parsed.data);
+    return { status: 200, body: { meal, plan: getCurrentPlan() } };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Couldn’t save leftovers.";
+    if (message === "Meal not found") return jsonError(404, message);
+    return jsonError(400, message);
+  }
+}
+
+export function handleFillEmptySlots(body: unknown): HttpResult {
+  const parsed = fillBodySchema.safeParse(body);
+  if (!parsed.success) return jsonError(400, "slotMask is required.");
+  if (!maskHasAny(parsed.data.slotMask)) {
+    return jsonError(400, "Turn on at least one slot to fill.");
+  }
+  const household = getHousehold();
+  const allergies = household ? collectAllergies(household) : [];
+  const prefs = getKitchenPrefs();
+  const plan = fillEmptySlots({
+    planId: parsed.data.planId,
+    weekStart: parsed.data.weekStart ?? mondayOf(new Date()),
+    slotMask: parsed.data.slotMask,
+    allowRepeats: parsed.data.allowRepeats,
+    leftoverLunches: parsed.data.leftoverLunches,
+    maxProtein: parsed.data.maxProtein,
+    allergies,
+    maxCookMinutes: prefs.maxCookMinutes,
+  });
+  return { status: 200, body: { plan } };
+}
+
+export function handleOpenPlan(body: unknown): HttpResult {
+  const parsed = openPlanBodySchema.safeParse(body);
+  if (!parsed.success) return jsonError(400, "weekStart is required.");
+  return { status: 200, body: { plan: openPlan(parsed.data.weekStart) } };
 }
 
 export function handlePlaceMeal(body: unknown): HttpResult {
@@ -111,6 +220,55 @@ export function handlePlaceExtra(body: unknown): HttpResult {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Couldn’t place that extra.";
+    if (message === "Meal not found") return jsonError(404, message);
+    return jsonError(400, message);
+  }
+}
+
+const draftIdSchema = z.object({
+  mealId: z.string().min(1),
+});
+
+const rateBodySchema = z.object({
+  mealId: z.string().min(1),
+  stars: z.number().int().min(0).max(5),
+});
+
+export function handleApproveDraft(body: unknown): HttpResult {
+  const parsed = draftIdSchema.safeParse(body);
+  if (!parsed.success) return jsonError(400, "mealId is required.");
+  try {
+    return { status: 200, body: { meal: approveDraft(parsed.data.mealId) } };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Couldn’t approve.";
+    if (message === "Meal not found") return jsonError(404, message);
+    return jsonError(400, message);
+  }
+}
+
+export function handleRejectDraft(body: unknown): HttpResult {
+  const parsed = draftIdSchema.safeParse(body);
+  if (!parsed.success) return jsonError(400, "mealId is required.");
+  try {
+    rejectDraft(parsed.data.mealId);
+    return { status: 200, body: { ok: true } };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Couldn’t reject.";
+    if (message === "Meal not found") return jsonError(404, message);
+    return jsonError(400, message);
+  }
+}
+
+export function handleRateMeal(body: unknown): HttpResult {
+  const parsed = rateBodySchema.safeParse(body);
+  if (!parsed.success) return jsonError(400, "mealId and stars are required.");
+  try {
+    return {
+      status: 200,
+      body: { meal: setMealStars(parsed.data.mealId, parsed.data.stars) },
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Couldn’t rate.";
     if (message === "Meal not found") return jsonError(404, message);
     return jsonError(400, message);
   }
@@ -225,13 +383,19 @@ export async function handleImportRecipe(
 
   deps?.onProgress?.({ phase: "saving", message: "Saving the meal" });
 
-  const meal = saveImportedMeal({
-    meal: { ...parsedMeal.meal, slot: parsed.data.slot },
-    slot: parsed.data.slot,
-    sourceUrl: parsed.data.url,
-    usedWebSearch: true,
-  });
-  return { status: 200, body: { meal } };
+  try {
+    const meal = saveImportedMeal({
+      meal: { ...parsedMeal.meal, slot: parsed.data.slot },
+      slot: parsed.data.slot,
+      sourceUrl: parsed.data.url,
+      usedWebSearch: true,
+    });
+    return { status: 200, body: { meal } };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Couldn’t save that recipe.";
+    return jsonError(400, message);
+  }
 }
 
 const updateBodySchema = mealEditSchema.extend({
@@ -251,11 +415,17 @@ export function handleCreateMeal(body: unknown): HttpResult {
     return jsonError(400, "Title, ingredients, and steps are required.");
   }
   const { slot, ...fields } = parsed.data;
-  const meal = saveStandaloneMeal({
-    meal: { ...fields, day: "monday", slot },
-    slot,
-  });
-  return { status: 200, body: { meal } };
+  try {
+    const meal = saveStandaloneMeal({
+      meal: { ...fields, day: "monday", slot },
+      slot,
+    });
+    return { status: 200, body: { meal } };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Couldn’t save that recipe.";
+    return jsonError(400, message);
+  }
 }
 
 export function handleUpdateMeal(body: unknown): HttpResult {

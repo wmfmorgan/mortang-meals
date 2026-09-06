@@ -7,6 +7,14 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/",
 }));
 
+vi.mock("./generation-provider", () => ({
+  useGeneration: () => ({
+    state: { status: "idle" },
+    cancel: vi.fn(),
+    dismiss: vi.fn(),
+  }),
+}));
+
 describe("Nav", () => {
   it("hides Developer when developerTools is false", () => {
     render(<Nav developerTools={false} />);

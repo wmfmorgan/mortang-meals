@@ -164,6 +164,7 @@ describe("handleCreateMeal", () => {
   it("allows an empty why-it-fits", () => {
     const result = handleCreateMeal({
       ...typedRecipe,
+      title: "Weeknight beans",
       whyItFits: "",
       slot: "dinner",
     });

@@ -61,6 +61,15 @@ export const meals = sqliteTable("meals", {
   createdAt: text("created_at").notNull(),
   sourceUrl: text("source_url"),
   extrasJson: text("extras_json").notNull().default("{}"),
+  draft: integer("draft").notNull().default(0),
+  stars: integer("stars").notNull().default(0),
+  takeout: integer("takeout").notNull().default(0),
+  leftover: integer("leftover").notNull().default(0),
+});
+
+export const libraryGeneratePrefs = sqliteTable("library_generate_prefs", {
+  id: text("id").primaryKey(),
+  json: text("json").notNull(),
 });
 
 export const aiSettings = sqliteTable("ai_settings", {

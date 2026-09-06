@@ -2,24 +2,33 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import type { Meal, MealSlot } from "@/lib/types";
+import { useRouter } from "next/navigation";
+import type { Meal, MealSlot, Person } from "@/lib/types";
 import { RECIPE_SLOTS } from "@/lib/types";
 import { filterCatalogMeals, groupCatalogMeals, mealDate } from "@/meals/catalog";
 import { useGeneration } from "./generation-provider";
+import { DraftQueue } from "./draft-queue";
+import { LibraryGenerateForm } from "./library-generate-form";
 import { MealBadges } from "./meal-card";
 import { RecipeFlyout, recipeEyebrow } from "./recipe-flyout";
+import { StarRating } from "./star-rating";
 
 type GroupBy = "slot" | "date" | "none";
 
 export function MealsCatalog({
   meals,
+  drafts = [],
+  people = [],
   servings,
   currentPlanId,
 }: {
   meals: Meal[];
+  drafts?: Meal[];
+  people?: Person[];
   servings: number;
   currentPlanId: string | null;
 }) {
+  const router = useRouter();
   const { state, startImport } = useGeneration();
   const [search, setSearch] = useState("");
   const [slot, setSlot] = useState<MealSlot | "all">("all");
@@ -48,8 +57,19 @@ export function MealsCatalog({
     await startImport({ url: next, slot: importSlot });
   }
 
+  async function onRate(mealId: string, stars: number) {
+    await fetch("/api/library/rate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mealId, stars }),
+    });
+    router.refresh();
+  }
+
   return (
     <div className="space-y-6">
+      <LibraryGenerateForm people={people} />
+      <DraftQueue drafts={drafts} servings={servings} />
       <div className="flex flex-wrap items-center justify-end gap-2">
         <Link href="/meals/new" className="btn btn-primary">
           Add recipe
@@ -161,23 +181,35 @@ export function MealsCatalog({
             {group.label ? <h2 className="page-eyebrow">{group.label}</h2> : null}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {group.meals.map((meal) => (
-                <button
+                <article
                   key={meal.id}
-                  type="button"
-                  className="meal-card meal-card-open text-left"
+                  className="meal-card p-4"
                   data-slot={meal.slot}
-                  onClick={() => setSelected(meal)}
                 >
-                  <h3 className="mt-0 mb-0 flex items-start gap-2">
-                    <MealBadges meal={meal} />
-                    <span className="meal-card-title">{meal.title}</span>
-                  </h3>
-                  <p className="meal-meta">
-                    {meal.slot} · {meal.cookMinutes} min · {meal.method}
-                  </p>
-                  <p className="meal-why">{meal.whyItFits}</p>
-                  <p className="meal-meta">{mealDate(meal)}</p>
-                </button>
+                  <button
+                    type="button"
+                    className="meal-card-open w-full text-left"
+                    onClick={() => setSelected(meal)}
+                  >
+                    <h3 className="mt-0 mb-0 flex items-start gap-2">
+                      <MealBadges meal={meal} />
+                      <span className="meal-card-title">{meal.title}</span>
+                    </h3>
+                    <p className="meal-meta">
+                      {meal.slot} · {meal.cookMinutes} min · {meal.method}
+                    </p>
+                    <p className="meal-why">{meal.whyItFits}</p>
+                    <p className="meal-meta">{mealDate(meal)}</p>
+                  </button>
+                  <div className="mt-2">
+                    <StarRating
+                      value={meal.stars}
+                      onChange={(stars) => {
+                        void onRate(meal.id, stars);
+                      }}
+                    />
+                  </div>
+                </article>
               ))}
             </div>
           </section>
@@ -194,6 +226,9 @@ export function MealsCatalog({
             openMeal,
             Boolean(currentPlanId && openMeal.planId === currentPlanId),
           )}
+          onRate={(stars) => {
+            void onRate(openMeal.id, stars);
+          }}
         />
       ) : null}
     </div>

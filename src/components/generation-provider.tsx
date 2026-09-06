@@ -45,6 +45,7 @@ type GenerationContextValue = {
     useIngredients?: UseIngredient[];
   }) => Promise<void>;
   startImport: (input: { url: string; slot: MealSlot }) => Promise<void>;
+  startLibrary: (input: Record<string, unknown>) => Promise<void>;
   cancel: () => void;
   dismiss: () => void;
 };
@@ -181,7 +182,6 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
           setState((current) => ({
             ...current,
             status: "error",
-            phase: "error",
             message: event.message,
             error: event.message,
           }));
@@ -279,7 +279,6 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
           setState((current) => ({
             ...current,
             status: "error",
-            phase: "error",
             message: event.message,
             error: event.message,
           }));
@@ -311,9 +310,106 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
     [router],
   );
 
+  const startLibrary = useCallback(
+    async (input: Record<string, unknown>) => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      setState({
+        status: "running",
+        kind: "library",
+        phase: "brief",
+        message: "Starting generate",
+        attempt: 1,
+        model: null,
+        startedAt: Date.now(),
+        error: null,
+      });
+
+      try {
+        const res = await fetch("/api/library/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+          signal: controller.signal,
+        });
+
+        if (!res.ok && !res.body) {
+          const data = (await res.json().catch(() => ({}))) as { message?: string };
+          setState((current) => ({
+            ...current,
+            status: "error",
+            message: data.message ?? "Couldn’t get usable recipes, try again.",
+            error: data.message ?? "Couldn’t get usable recipes, try again.",
+          }));
+          return;
+        }
+
+        let sawTerminal = false;
+        await readGenerateStream(res, (event) => {
+          if (controller.signal.aborted) return;
+          if (event.type === "progress") {
+            setState((current) => ({
+              ...current,
+              status: "running",
+              phase: event.phase,
+              message: event.message,
+              attempt: event.attempt ?? current.attempt,
+              model: event.model ?? current.model,
+            }));
+            return;
+          }
+          if (event.type === "done") {
+            sawTerminal = true;
+            setState((current) => ({
+              ...current,
+              status: "success",
+              phase: "done",
+              message: "Drafts are ready",
+              error: null,
+            }));
+            router.refresh();
+            return;
+          }
+          sawTerminal = true;
+          setState((current) => ({
+            ...current,
+            status: "error",
+            message: event.message,
+            error: event.message,
+          }));
+        });
+
+        if (!sawTerminal && !controller.signal.aborted) {
+          setState((current) => ({
+            ...current,
+            status: "error",
+            message: "Couldn’t get usable recipes, try again.",
+            error: "Couldn’t get usable recipes, try again.",
+          }));
+        }
+      } catch (error) {
+        if (isAbortError(error) || controller.signal.aborted) {
+          setState(idleState);
+          return;
+        }
+        setState((current) => ({
+          ...current,
+          status: "error",
+          message: "The model didn’t respond",
+          error: "The model didn’t respond",
+        }));
+      } finally {
+        if (abortRef.current === controller) abortRef.current = null;
+      }
+    },
+    [router],
+  );
+
   const value = useMemo(
-    () => ({ state, startGenerate, startImport, cancel, dismiss }),
-    [state, startGenerate, startImport, cancel, dismiss],
+    () => ({ state, startGenerate, startImport, startLibrary, cancel, dismiss }),
+    [state, startGenerate, startImport, startLibrary, cancel, dismiss],
   );
 
   return (

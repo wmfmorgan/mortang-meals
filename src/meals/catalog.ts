@@ -1,7 +1,29 @@
 import type { Meal, MealSlot } from "@/lib/types";
+import { normalizeTitle } from "./duplicates";
 
 export function mealDate(meal: Meal): string {
   return meal.createdAt.slice(0, 10);
+}
+
+export function uniqueCatalogMeals(meals: Meal[]): Meal[] {
+  const eligible = meals.filter(
+    (meal) => !meal.draft && !meal.takeout && !meal.leftover,
+  );
+  const ranked = [...eligible].sort((a, b) => {
+    if (b.stars !== a.stars) return b.stars - a.stars;
+    return b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id);
+  });
+  const seen = new Set<string>();
+  const unique: Meal[] = [];
+  for (const meal of ranked) {
+    const key = normalizeTitle(meal.title);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    unique.push(meal);
+  }
+  return unique.sort(
+    (a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id),
+  );
 }
 
 export function filterCatalogMeals(

@@ -43,9 +43,17 @@ export function buildHouseholdBrief(input: {
   prefs?: KitchenPrefs;
   useIngredients?: UseIngredient[];
   extraRules?: string[];
+  forLibrary?: boolean;
 }): string {
-  const { household, kitchen, slotMask, prefs, useIngredients, extraRules } =
-    input;
+  const {
+    household,
+    kitchen,
+    slotMask,
+    prefs,
+    useIngredients,
+    extraRules,
+    forLibrary,
+  } = input;
   const lines: string[] = [];
 
   const people = household.people.map(describePerson).join(" and ");
@@ -53,10 +61,14 @@ export function buildHouseholdBrief(input: {
     people.length > 0
       ? people.charAt(0).toUpperCase() + people.slice(1)
       : "";
-  const overallDiet =
-    prefs?.overallDiet.trim() || household.dietStyle.trim() || "household";
-  const diet = `Focusing on a ${overallDiet} diet.`;
-  lines.push(peopleSentence ? `${peopleSentence}. ${diet}` : diet);
+  if (forLibrary) {
+    if (peopleSentence) lines.push(`${peopleSentence}.`);
+  } else {
+    const overallDiet =
+      prefs?.overallDiet.trim() || household.dietStyle.trim() || "household";
+    const diet = `Focusing on a ${overallDiet} diet.`;
+    lines.push(peopleSentence ? `${peopleSentence}. ${diet}` : diet);
+  }
 
   if (household.notes.trim()) {
     lines.push(household.notes.trim());
@@ -68,9 +80,11 @@ export function buildHouseholdBrief(input: {
     }
   }
 
-  for (const person of household.people) {
-    for (const avoidance of person.avoidances) {
-      lines.push(`Prefer to avoid ${avoidance} (${person.name})`);
+  if (!forLibrary) {
+    for (const person of household.people) {
+      for (const avoidance of person.avoidances) {
+        lines.push(`Prefer to avoid ${avoidance} (${person.name})`);
+      }
     }
   }
 
@@ -83,26 +97,30 @@ export function buildHouseholdBrief(input: {
     lines.push(EXPERTISE_LINES[prefs.expertise]);
     lines.push(INVOLVED_LINES[prefs.involved]);
     lines.push(`Keep cookMinutes at or under ${prefs.maxCookMinutes}.`);
-    const usedSlots = SLOTS.filter((slot) =>
-      DAYS.some((day) => slotMask[day][slot]),
-    );
-    for (const slot of usedSlots) {
-      const dietForSlot = resolvedDiet(prefs, slot, household.dietStyle);
-      if (dietForSlot) {
-        lines.push(`${slot} diet: ${dietForSlot}.`);
+    if (!forLibrary) {
+      const usedSlots = SLOTS.filter((slot) =>
+        DAYS.some((day) => slotMask[day][slot]),
+      );
+      for (const slot of usedSlots) {
+        const dietForSlot = resolvedDiet(prefs, slot, household.dietStyle);
+        if (dietForSlot) {
+          lines.push(`${slot} diet: ${dietForSlot}.`);
+        }
       }
     }
   }
 
-  const slots: string[] = [];
-  for (const day of DAYS) {
-    for (const slot of SLOTS) {
-      if (slotMask[day][slot]) {
-        slots.push(`${day} ${slot}`);
+  if (!forLibrary) {
+    const slots: string[] = [];
+    for (const day of DAYS) {
+      for (const slot of SLOTS) {
+        if (slotMask[day][slot]) {
+          slots.push(`${day} ${slot}`);
+        }
       }
     }
+    lines.push(`Fill only these slots: ${slots.join(", ")}`);
   }
-  lines.push(`Fill only these slots: ${slots.join(", ")}`);
 
   if (useIngredients) {
     for (const item of useIngredients) {

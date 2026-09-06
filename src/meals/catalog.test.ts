@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { Meal } from "@/lib/types";
 import { EMPTY_EXTRAS } from "./extras";
-import { filterCatalogMeals, groupCatalogMeals } from "./catalog";
+import {
+  filterCatalogMeals,
+  groupCatalogMeals,
+  uniqueCatalogMeals,
+} from "./catalog";
 
 function meal(overrides: Partial<Meal> = {}): Meal {
   return {
@@ -20,6 +24,10 @@ function meal(overrides: Partial<Meal> = {}): Meal {
     createdAt: "2026-08-10T12:00:00.000Z",
     sourceUrl: null,
     extras: EMPTY_EXTRAS,
+    draft: false,
+    stars: 0,
+    takeout: false,
+    leftover: false,
     ...overrides,
   };
 }
@@ -78,3 +86,16 @@ describe("groupCatalogMeals", () => {
     expect(groups[0]?.meals.map((item) => item.id)).toEqual(["a", "b"]);
   });
 });
+
+describe("uniqueCatalogMeals", () => {
+  it("keeps one card per title, preferring stars then newest", () => {
+    const meals = [
+      meal({ id: "old", title: "Chili", stars: 1, createdAt: "2026-01-01T00:00:00.000Z" }),
+      meal({ id: "star", title: "Chili", stars: 5, createdAt: "2026-01-02T00:00:00.000Z" }),
+      meal({ id: "copy", title: "chili!", stars: 5, createdAt: "2026-01-03T00:00:00.000Z" }),
+      meal({ id: "left", title: "Chili", leftover: true, stars: 5 }),
+    ];
+    expect(uniqueCatalogMeals(meals).map((item) => item.id)).toEqual(["copy"]);
+  });
+});
+
