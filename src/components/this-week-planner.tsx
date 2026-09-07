@@ -17,6 +17,7 @@ import {
   maskMinusPinned,
   readSessionMask,
   readSlotPickerOpen,
+  remainingFillCount,
   writeSessionMask,
   writeSlotPickerOpen,
 } from "@/lib/slot-mask";
@@ -120,6 +121,7 @@ export function ThisWeekPlanner({
       : undefined;
   const allPinned =
     Boolean(plan && plan.meals.length > 0 && plan.meals.every((meal) => meal.pinned));
+  const fillRemaining = remainingFillCount(slotMask, plan?.meals ?? []);
 
   async function onPinAll() {
     if (!plan || pinPending) return;
@@ -208,15 +210,18 @@ export function ThisWeekPlanner({
         }}
       />
       {editable ? (
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="fill-toolbar">
           <button
             type="button"
             className="btn btn-primary"
-            disabled={fillPending}
+            disabled={fillPending || fillRemaining === 0}
             onClick={() => void onFill()}
           >
             {fillPending ? "Filling…" : "Fill empty slots"}
           </button>
+          {fillRemaining === 0 ? (
+            <p className="m-0 text-sm text-herb">All selected slots are filled.</p>
+          ) : null}
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -233,8 +238,8 @@ export function ThisWeekPlanner({
             />
             Leftover lunches
           </label>
-          <label className="field" style={{ width: "9rem" }}>
-            Max protein / meal
+          <label className="field fill-toolbar-protein">
+            Max times per protein
             <input
               className="input"
               type="number"
@@ -255,7 +260,7 @@ export function ThisWeekPlanner({
                 void onPinAll();
               }}
             >
-              {allPinned ? "Unlock all" : "Lock all"}
+              {allPinned ? "Unpin all" : "Pin all meals"}
             </button>
           ) : null}
         </div>
@@ -287,6 +292,7 @@ export function ThisWeekPlanner({
       ) : null}
       <WeekGrid
         plan={plan}
+        slotMask={slotMask}
         onSelectMeal={(meal) => setSelected({ type: "meal", mealId: meal.id })}
         onSelectExtra={(meal, extra) =>
           setSelected({ type: "extra", mealId: meal.id, kind: extra.kind })

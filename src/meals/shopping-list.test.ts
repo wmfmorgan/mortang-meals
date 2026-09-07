@@ -1,10 +1,55 @@
 import { describe, expect, it } from "vitest";
-import { mergeShoppingList, normalizeIngredientName } from "./shopping-list";
+import {
+  canonicalUnit,
+  mergeShoppingList,
+  normalizeIngredientName,
+} from "./shopping-list";
 
 describe("normalizeIngredientName", () => {
   it("lowercases and strips simple trailing s", () => {
     expect(normalizeIngredientName("Garlic Cloves")).toBe("garlic clove");
     expect(normalizeIngredientName("  Olive Oil  ")).toBe("olive oil");
+  });
+
+  it("strips prep words and parentheticals", () => {
+    expect(normalizeIngredientName("freshly squeezed lemon juice")).toBe(
+      "lemon juice",
+    );
+    expect(normalizeIngredientName("ripe avocado, roughly chopped")).toBe(
+      "avocado",
+    );
+    expect(
+      normalizeIngredientName("tuna (preferably packed in olive oil, drained)"),
+    ).toBe("tuna");
+  });
+
+  it("does not collapse garlic powder into garlic", () => {
+    expect(normalizeIngredientName("garlic powder")).toBe("garlic powder");
+    expect(normalizeIngredientName("garlic")).toBe("garlic");
+  });
+
+  it("keeps herb lists instead of cutting at the first comma", () => {
+    expect(
+      normalizeIngredientName(
+        "fresh chopped herbs such as parsley, thyme, basil, and/or chive",
+      ),
+    ).toContain("parsley");
+    expect(
+      normalizeIngredientName(
+        "fresh chopped herbs such as parsley, thyme, basil, and/or chive",
+      ),
+    ).toContain("thyme");
+    expect(normalizeIngredientName("fresh chopped parsley")).toBe("parsley");
+  });
+});
+
+describe("canonicalUnit", () => {
+  it("aliases tablespoon spellings and clove sizes", () => {
+    expect(canonicalUnit("tablespoon")).toBe("tbsp");
+    expect(canonicalUnit("Tablespoons")).toBe("tbsp");
+    expect(canonicalUnit("small clove")).toBe("clove");
+    expect(canonicalUnit("cloves")).toBe("clove");
+    expect(canonicalUnit("teaspoon")).toBe("tsp");
   });
 });
 
@@ -136,15 +181,141 @@ describe("mergeShoppingList", () => {
     expect(list.map((g) => g.aisle)).toEqual(["produce", "meat"]);
   });
 
-  it("does not merge the same name with different units", () => {
+  it("does not merge inconvertible units of the same name", () => {
     const list = mergeShoppingList([
       {
         ingredients: [
-          { name: "olive oil", quantity: "2", unit: "tbsp", aisle: "pantry" },
-          { name: "olive oil", quantity: "1", unit: "cup", aisle: "pantry" },
+          { name: "red onion", quantity: "1/4", unit: "cup", aisle: "produce" },
+          { name: "red onion", quantity: "1/2", unit: "medium", aisle: "produce" },
         ],
       },
     ]);
     expect(list[0].items).toHaveLength(2);
+  });
+
+  it("merges lemon juice across tsp and tbsp", () => {
+    const list = mergeShoppingList([
+      {
+        ingredients: [
+          { name: "lemon juice", quantity: "2", unit: "tsp", aisle: "produce" },
+          { name: "freshly squeezed lemon juice", quantity: "3", unit: "tbsp", aisle: "produce" },
+        ],
+      },
+    ]);
+    expect(list[0].items).toEqual([
+      { name: "lemon juice", quantity: "3 2/3", unit: "tbsp", aisle: "produce" },
+    ]);
+  });
+
+  it("merges parsley wordings into one line", () => {
+    const list = mergeShoppingList([
+      {
+        ingredients: [
+          { name: "fresh chopped parsley", quantity: "1", unit: "tbsp", aisle: "produce" },
+          {
+            name: "chopped fresh cilantro or parsley",
+            quantity: "2",
+            unit: "tablespoons",
+            aisle: "produce",
+          },
+          {
+            name: "fresh chopped herbs such as parsley, thyme, basil, and/or chive",
+            quantity: "1",
+            unit: "tbsp",
+            aisle: "produce",
+          },
+        ],
+      },
+    ]);
+    expect(list[0].items).toEqual([
+      { name: "parsley", quantity: "4", unit: "tbsp", aisle: "produce" },
+    ]);
+  });
+
+  it("does not merge lemon juice with lemon zest", () => {
+    const list = mergeShoppingList([
+      {
+        ingredients: [
+          { name: "lemon juice", quantity: "2", unit: "tsp", aisle: "produce" },
+          { name: "lemon zest", quantity: "1", unit: "tsp", aisle: "produce" },
+        ],
+      },
+    ]);
+    expect(list[0].items).toHaveLength(2);
+  });
+
+  it("merges extra virgin olive oil with olive oil", () => {
+    const list = mergeShoppingList([
+      {
+        ingredients: [
+          { name: "extra virgin olive oil", quantity: "3", unit: "tbsp", aisle: "pantry" },
+          { name: "olive oil", quantity: "1 1/2", unit: "tbsp", aisle: "pantry" },
+        ],
+      },
+    ]);
+    expect(list[0].items).toEqual([
+      { name: "olive oil", quantity: "4 1/2", unit: "tbsp", aisle: "pantry" },
+    ]);
+  });
+
+  it("merges garlic clove aliases into one line", () => {
+    const list = mergeShoppingList([
+      {
+        ingredients: [
+          { name: "garlic", quantity: "1", unit: "clove", aisle: "produce" },
+          { name: "garlic", quantity: "1", unit: "small clove", aisle: "produce" },
+          { name: "garlic", quantity: "2", unit: "cloves", aisle: "produce" },
+        ],
+      },
+    ]);
+    expect(list[0].items).toEqual([
+      { name: "garlic", quantity: "4", unit: "clove", aisle: "produce" },
+    ]);
+  });
+
+  it("merges tablespoon aliases for olive oil", () => {
+    const list = mergeShoppingList([
+      {
+        ingredients: [
+          {
+            name: "extra virgin olive oil",
+            quantity: "1",
+            unit: "tablespoon",
+            aisle: "pantry",
+          },
+          {
+            name: "extra virgin olive oil",
+            quantity: "3",
+            unit: "tbsp",
+            aisle: "pantry",
+          },
+        ],
+      },
+    ]);
+    expect(list[0].items).toEqual([
+      {
+        name: "extra virgin olive oil",
+        quantity: "4",
+        unit: "tbsp",
+        aisle: "pantry",
+      },
+    ]);
+  });
+
+  it("does not merge garlic with garlic powder", () => {
+    const list = mergeShoppingList([
+      {
+        ingredients: [
+          { name: "garlic", quantity: "2", unit: "clove", aisle: "produce" },
+          { name: "garlic powder", quantity: "1", unit: "tsp", aisle: "pantry" },
+        ],
+      },
+    ]);
+    expect(list.find((g) => g.aisle === "produce")?.items).toEqual([
+      { name: "garlic", quantity: "2", unit: "clove", aisle: "produce" },
+    ]);
+    expect(list.find((g) => g.aisle === "pantry")?.items).toEqual([
+      { name: "garlic powder", quantity: "1", unit: "tsp", aisle: "pantry" },
+    ]);
   });
 });

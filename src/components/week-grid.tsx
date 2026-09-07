@@ -7,7 +7,8 @@ import type {
   UseIngredient,
   WeekPlan,
 } from "@/lib/types";
-import { DAYS, SLOTS } from "@/lib/types";
+import { DAYS } from "@/lib/types";
+import { defaultSlotMask, visibleWeekSlots } from "@/lib/slot-mask";
 import { MealCard } from "./meal-card";
 
 const DAY_LABELS: Record<DayOfWeek, string> = {
@@ -46,6 +47,7 @@ function mealAt(
 
 export function WeekGrid({
   plan,
+  slotMask,
   onSelectMeal,
   onSelectExtra,
   onChooseExtra,
@@ -59,6 +61,7 @@ export function WeekGrid({
   useIngredients = [],
 }: {
   plan: WeekPlan | null;
+  slotMask?: WeekPlan["slotMask"];
   onSelectMeal?: (meal: Meal) => void;
   onSelectExtra?: (meal: Meal, extra: MealExtra) => void;
   onChooseExtra?: (meal: Meal, kind: ExtraKind) => void;
@@ -72,6 +75,10 @@ export function WeekGrid({
   useIngredients?: UseIngredient[];
 }) {
   const meals = plan?.meals ?? [];
+  const slots = visibleWeekSlots(
+    slotMask ?? plan?.slotMask ?? defaultSlotMask(),
+    meals,
+  );
 
   return (
     <div className="week-grid" role="grid" aria-label="Week plan">
@@ -88,7 +95,7 @@ export function WeekGrid({
           {DAY_LABELS[day]}
         </div>
       ))}
-      {SLOTS.map((slot, slotIndex) => (
+      {slots.map((slot, slotIndex) => (
         <div
           key={`slot-${slot}`}
           className="week-grid-desktop-label self-center"
@@ -103,7 +110,7 @@ export function WeekGrid({
           <h2 className="week-grid-day-heading">
             {DAY_HEADINGS[day]}
           </h2>
-          {SLOTS.map((slot, slotIndex) => {
+          {slots.map((slot, slotIndex) => {
             const meal = mealAt(meals, day, slot);
             const tags = useIngredients.filter(
               (item) => item.day === day && item.slot === slot,
@@ -178,7 +185,7 @@ export function WeekGrid({
                     {onTakeout ? (
                       <button
                         type="button"
-                        className="week-cell-add"
+                        className="week-cell-takeout"
                         aria-label={`Takeout ${day} ${slot}`}
                         onClick={() => onTakeout(day, slot)}
                       >

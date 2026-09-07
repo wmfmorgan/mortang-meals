@@ -60,11 +60,12 @@ function mondayDinnerPlan(): WeekPlan {
 }
 
 describe("WeekGrid", () => {
-  it("renders 21 cells with a filled monday dinner and an empty tuesday dinner", () => {
+  it("renders the dinner row only when the mask is dinners", () => {
     render(<WeekGrid plan={mondayDinnerPlan()} />);
 
-    expect(screen.getAllByRole("gridcell")).toHaveLength(21);
+    expect(screen.getAllByRole("gridcell")).toHaveLength(7);
     expect(screen.getByText("Lemon herb salmon")).toBeTruthy();
+    expect(screen.queryByRole("gridcell", { name: /breakfast/i })).toBeNull();
 
     const emptyTuesdayDinner = screen.getByRole("gridcell", {
       name: /empty tuesday dinner/i,
@@ -72,20 +73,47 @@ describe("WeekGrid", () => {
     expect(emptyTuesdayDinner.textContent).not.toMatch(/lemon herb salmon/i);
   });
 
+  it("keeps a lunch row when a leftover occupies lunch", () => {
+    const plan = mondayDinnerPlan();
+    plan.meals.push({
+      ...plan.meals[0]!,
+      id: "leftover-1",
+      day: "tuesday",
+      slot: "lunch",
+      leftover: true,
+      title: "Salmon leftovers",
+    });
+    render(<WeekGrid plan={plan} />);
+    expect(screen.getByRole("gridcell", { name: /tuesday lunch/i })).toBeTruthy();
+    expect(screen.queryByRole("gridcell", { name: /breakfast/i })).toBeNull();
+  });
+
+  it("shows a breakfast row when the live mask turns breakfast on", () => {
+    const plan = mondayDinnerPlan();
+    const slotMask = plan.slotMask;
+    slotMask.monday.breakfast = true;
+    render(<WeekGrid plan={plan} slotMask={slotMask} editable />);
+    expect(
+      screen.getByRole("gridcell", { name: /empty monday breakfast/i }),
+    ).toBeTruthy();
+  });
+
   it("lets an empty cell add a past meal when editable", () => {
     const onAdd = vi.fn();
     render(<WeekGrid plan={mondayDinnerPlan()} onAdd={onAdd} editable />);
-    fireEvent.click(screen.getByRole("button", { name: /add monday lunch/i }));
-    expect(onAdd).toHaveBeenCalledWith("monday", "lunch");
+    fireEvent.click(screen.getByRole("button", { name: /add tuesday dinner/i }));
+    expect(onAdd).toHaveBeenCalledWith("tuesday", "dinner");
   });
 
-  it("offers takeout on an empty cell", () => {
+  it("offers takeout on an empty cell as a quieter action", () => {
     const onTakeout = vi.fn();
     render(
       <WeekGrid plan={mondayDinnerPlan()} onTakeout={onTakeout} editable />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /takeout monday lunch/i }));
-    expect(onTakeout).toHaveBeenCalledWith("monday", "lunch");
+    const takeout = screen.getByRole("button", { name: /takeout tuesday dinner/i });
+    expect(takeout.className).toContain("week-cell-takeout");
+    fireEvent.click(takeout);
+    expect(onTakeout).toHaveBeenCalledWith("tuesday", "dinner");
   });
 
   it("shows a web-search star on meals generated with search", () => {

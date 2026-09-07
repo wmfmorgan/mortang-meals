@@ -22,10 +22,10 @@ Suggested build order by severity, then effort. Items 1–4 and 6 already shippe
 | 4 | AI source links | — | — | M | done |
 | 5 | Animated progress icon | — | — | S | cancelled |
 | 6 | Sides and desserts | — | — | L | done |
-| 7 | Merge shopping-list duplicates | F-01 | 3 | M | next |
-| 8 | Shopping-list check-off | F-02 | 3 | S | next |
-| 9 | Fill vs empty grid | F-03 | 3 | M | next |
-| 10 | Phone fill layout and targets | F-04 | 3 | M | next |
+| 7 | Merge shopping-list duplicates | F-01 | 3 | M | done |
+| 8 | Shopping-list check-off | F-02 | 3 | S | done |
+| 9 | Fill vs empty grid | F-03 | 3 | M | done |
+| 10 | Phone fill layout and targets | F-04 | 3 | M | done |
 | 11 | One week switcher | F-05 | 2 | S | later |
 | 12 | Meals page: one job at a time | F-06 | 2 | M | later |
 | 13 | Trash off week chips | F-07 | 2 | S | later |
@@ -221,7 +221,7 @@ Changing breakfast/lunch slot meaning, multi-household, or a separate dessert li
 
 ## 7. Merge shopping-list duplicates
 
-**Status:** next
+**Status:** done
 **Size:** M
 **Audit:** F-01 (sev 3)
 **Request:** One row per ingredient on the shopping list. Garlic and olive oil must not repeat.
@@ -253,10 +253,10 @@ Changing aisle taxonomy, storing the list, or check-off (item 8).
 
 ## 8. Shopping-list check-off
 
-**Status:** next
+**Status:** done
 **Size:** S
 **Audit:** F-02 (sev 3)
-**Request:** Check items off the shopping list and keep that state for the open week.
+**Request:** Check items off the shopping list and keep that state for the open week. Print and share the list as a PDF.
 
 ### Problem
 
@@ -284,7 +284,7 @@ Print/share, store layout beyond aisles, or merge (item 7).
 
 ## 9. Fill vs empty grid
 
-**Status:** next
+**Status:** done
 **Size:** M
 **Audit:** F-03 (sev 3)
 **Request:** Empty cells the fill mask will not fill should not dominate Plans. Fill must not look like a no-op when its slots are already placed.
@@ -316,7 +316,7 @@ Changing fill’s protein/repeat/leftover rules, or drag-and-drop.
 
 ## 10. Phone fill layout and targets
 
-**Status:** next
+**Status:** done
 **Size:** M
 **Audit:** F-04 (sev 3)
 **Request:** On a phone, fill options stack in a readable order and pin/trash meet a 44pt target.

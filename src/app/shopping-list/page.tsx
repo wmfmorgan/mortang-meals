@@ -1,16 +1,9 @@
 import { PageHeader } from "@/components/page-header";
 import { PlanPicker } from "@/components/plan-picker";
+import { ShoppingListView } from "@/components/shopping-list-view";
 import { weekRangeLabel } from "@/lib/week";
 import { listPlans, resolveOpenPlan } from "@/meals/repo";
 import { mergeShoppingList } from "@/meals/shopping-list";
-
-const AISLE_LABELS = {
-  produce: "Produce",
-  meat: "Meat & fish",
-  dairy: "Dairy",
-  pantry: "Pantry",
-  other: "Other",
-} as const;
 
 export default async function ShoppingListPage({
   searchParams,
@@ -21,48 +14,30 @@ export default async function ShoppingListPage({
   const plans = listPlans();
   const plan = resolveOpenPlan(planId);
   const groups = mergeShoppingList(plan.meals);
+  const weekLabel = weekRangeLabel(plan.weekStart);
 
   return (
     <div>
       <PageHeader
-        eyebrow={weekRangeLabel(plan.weekStart)}
+        eyebrow={weekLabel}
         title="Shopping list"
-        lede="Merged from the open week. Quantities are combined when the name and unit match."
+        lede="Merged from the open week. Same ingredient is one line."
       />
 
-      <PlanPicker
-        plans={plans}
-        selectedId={plan.id}
-        hrefPrefix="/shopping-list?plan="
-        homeHref="/shopping-list"
-      />
+      <div className="no-print">
+        <PlanPicker
+          plans={plans}
+          selectedId={plan.id}
+          hrefPrefix="/shopping-list?plan="
+          homeHref="/shopping-list"
+        />
+      </div>
 
-      {groups.length === 0 ? (
-        <p className="page-lede">Fill the plan to build a shopping list.</p>
-      ) : (
-        <div className="grid gap-5 md:grid-cols-2">
-          {groups.map((group) => (
-            <section key={group.aisle} className="surface p-5">
-              <h2 className="page-eyebrow">
-                {AISLE_LABELS[group.aisle] ?? group.aisle}
-              </h2>
-              <ul className="mt-3">
-                {group.items.map((item) => (
-                  <li
-                    key={`${item.name}-${item.unit}`}
-                    className="flex items-baseline justify-between gap-4 border-b border-wheat/80 py-2.5 last:border-b-0"
-                  >
-                    <span>{item.name}</span>
-                    <span className="shrink-0 font-mono text-[0.78rem] text-herb">
-                      {item.quantity} {item.unit}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
-        </div>
-      )}
+      <ShoppingListView
+        planId={plan.id}
+        weekLabel={weekLabel}
+        groups={groups}
+      />
     </div>
   );
 }

@@ -6,10 +6,12 @@ import {
   hasAnySlot,
   maskMinusPinned,
   readSlotPickerOpen,
+  remainingFillCount,
   summarizeSlotMask,
   toggleDay,
   toggleMealRow,
   toggleSlot,
+  visibleWeekSlots,
   writeSlotPickerOpen,
 } from "./slot-mask";
 
@@ -20,6 +22,32 @@ describe("slot mask helpers", () => {
     expect(mask.monday.breakfast).toBe(false);
     expect(hasAnySlot(mask)).toBe(true);
     expect(hasAnySlot(emptySlotMask())).toBe(false);
+  });
+
+  it("hides breakfast when the mask is dinners only", () => {
+    expect(visibleWeekSlots(defaultSlotMask(), [])).toEqual(["dinner"]);
+  });
+
+  it("keeps a lunch row when a leftover occupies lunch", () => {
+    expect(
+      visibleWeekSlots(defaultSlotMask(), [
+        { day: "tuesday", slot: "lunch" },
+      ]),
+    ).toEqual(["lunch", "dinner"]);
+  });
+
+  it("counts remaining fill cells as mask minus occupied", () => {
+    expect(remainingFillCount(defaultSlotMask(), [])).toBe(7);
+    expect(
+      remainingFillCount(defaultSlotMask(), [
+        { day: "monday", slot: "dinner" },
+      ]),
+    ).toBe(6);
+    expect(
+      remainingFillCount(defaultSlotMask(), [
+        { day: "monday", slot: "lunch" },
+      ]),
+    ).toBe(7);
   });
 
   it("toggles one cell", () => {

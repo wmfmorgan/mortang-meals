@@ -162,6 +162,13 @@ body {
   outline-offset: 1px;
 }
 
+.shop-check {
+  flex-shrink: 0;
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: var(--color-olive);
+}
+
 textarea.input {
   min-height: 6rem;
   resize: vertical;
@@ -383,6 +390,52 @@ a.badge-link:hover {
   color: var(--color-olive);
 }
 
+.week-cell-takeout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0.2rem 0.75rem 0.55rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-herb);
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.week-cell-takeout:hover {
+  color: var(--color-olive);
+  opacity: 1;
+}
+
+.fill-toolbar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+}
+
+.fill-toolbar-protein {
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .fill-toolbar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+
+  .fill-toolbar-protein {
+    width: 11rem;
+  }
+}
+
 .week-cell-slot-label {
   display: none;
 }
@@ -478,8 +531,8 @@ a.badge-link:hover {
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 2.75rem;
+  height: 2.75rem;
   padding: 0;
   border: 0;
   border-radius: 999px;

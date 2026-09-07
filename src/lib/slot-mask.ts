@@ -41,6 +41,32 @@ export function hasAnySlot(mask: SlotMask): boolean {
   return DAYS.some((day) => SLOTS.some((slot) => Boolean(mask[day]?.[slot])));
 }
 
+export function visibleWeekSlots(
+  mask: SlotMask,
+  meals: Array<Pick<Meal, "day" | "slot">>,
+): WeekSlot[] {
+  return SLOTS.filter(
+    (slot) =>
+      DAYS.some((day) => Boolean(mask[day]?.[slot])) ||
+      meals.some((meal) => meal.slot === slot),
+  );
+}
+
+export function remainingFillCount(
+  mask: SlotMask,
+  meals: Array<Pick<Meal, "day" | "slot">>,
+): number {
+  let count = 0;
+  for (const day of DAYS) {
+    for (const slot of SLOTS) {
+      if (!mask[day]?.[slot]) continue;
+      if (meals.some((meal) => meal.day === day && meal.slot === slot)) continue;
+      count += 1;
+    }
+  }
+  return count;
+}
+
 export function slotKey(day: DayOfWeek, slot: WeekSlot): string {
   return `${day}:${slot}`;
 }
