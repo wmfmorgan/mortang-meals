@@ -9,7 +9,7 @@ type NavProps = {
 };
 
 const LINKS = [
-  { href: "/", label: "This Week" },
+  { href: "/", label: "Plans" },
   { href: "/meals", label: "Meals" },
   { href: "/shopping-list", label: "Shopping list" },
   { href: "/household", label: "Household" },

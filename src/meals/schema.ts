@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Aisle, DayOfWeek, GeneratedMeal, MealSlot } from "@/lib/types";
-import { AISLES, DAYS, SLOTS } from "@/lib/types";
+import { AISLES, DAYS, RECIPE_SLOTS, SLOTS } from "@/lib/types";
+import { parseJsonValue } from "@/lib/json";
 
 const dayEnum = z.enum(DAYS as [DayOfWeek, ...DayOfWeek[]]);
 const slotEnum = z.enum(SLOTS as [MealSlot, ...MealSlot[]]);
@@ -25,6 +26,14 @@ export const mealEditSchema = z.object({
 export const mealSchema = mealEditSchema.extend({
   day: dayEnum,
   slot: slotEnum,
+  sourceUrl: z.union([z.string(), z.null()]).optional(),
+});
+
+const recipeSlotEnum = z.enum(RECIPE_SLOTS as [MealSlot, ...MealSlot[]]);
+
+export const libraryMealSchema = mealEditSchema.extend({
+  day: dayEnum,
+  slot: recipeSlotEnum,
   sourceUrl: z.union([z.string(), z.null()]).optional(),
 });
 
@@ -70,13 +79,26 @@ type ParseFail = { ok: false; reason: "invalid-json" | "schema" };
 export function parseMealsResponse(
   text: string,
 ): { ok: true; meals: GeneratedMeal[] } | ParseFail {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text);
-  } catch {
-    return { ok: false, reason: "invalid-json" };
-  }
-  const parsed = mealsResponseSchema.safeParse(raw);
+  return parseMealList(text, mealsResponseSchema);
+}
+
+const libraryMealsResponseSchema = z.object({
+  meals: z.array(libraryMealSchema),
+});
+
+export function parseLibraryMealsResponse(
+  text: string,
+): { ok: true; meals: GeneratedMeal[] } | ParseFail {
+  return parseMealList(text, libraryMealsResponseSchema);
+}
+
+function parseMealList(
+  text: string,
+  schema: typeof mealsResponseSchema | typeof libraryMealsResponseSchema,
+): { ok: true; meals: GeneratedMeal[] } | ParseFail {
+  const raw = parseJsonValue(text);
+  if (!raw.ok) return { ok: false, reason: "invalid-json" };
+  const parsed = schema.safeParse(raw.value);
   if (!parsed.success) {
     return { ok: false, reason: "schema" };
   }
@@ -86,13 +108,9 @@ export function parseMealsResponse(
 export function parseSingleMealResponse(
   text: string,
 ): { ok: true; meal: GeneratedMeal } | ParseFail {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text);
-  } catch {
-    return { ok: false, reason: "invalid-json" };
-  }
-  const parsed = singleMealResponseSchema.safeParse(raw);
+  const raw = parseJsonValue(text);
+  if (!raw.ok) return { ok: false, reason: "invalid-json" };
+  const parsed = singleMealResponseSchema.safeParse(raw.value);
   if (!parsed.success) {
     return { ok: false, reason: "schema" };
   }
@@ -110,13 +128,9 @@ export const extraRecipeSchema = mealEditSchema.extend({
 export function parseExtraSuggestionResponse(
   text: string,
 ): { ok: true; title: string } | ParseFail {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text);
-  } catch {
-    return { ok: false, reason: "invalid-json" };
-  }
-  const parsed = extraSuggestionResponseSchema.safeParse(raw);
+  const raw = parseJsonValue(text);
+  if (!raw.ok) return { ok: false, reason: "invalid-json" };
+  const parsed = extraSuggestionResponseSchema.safeParse(raw.value);
   if (!parsed.success) {
     return { ok: false, reason: "schema" };
   }
@@ -126,13 +140,9 @@ export function parseExtraSuggestionResponse(
 export function parseExtraRecipeResponse(
   text: string,
 ): { ok: true; extra: z.infer<typeof extraRecipeSchema> } | ParseFail {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text);
-  } catch {
-    return { ok: false, reason: "invalid-json" };
-  }
-  const parsed = extraRecipeSchema.safeParse(raw);
+  const raw = parseJsonValue(text);
+  if (!raw.ok) return { ok: false, reason: "invalid-json" };
+  const parsed = extraRecipeSchema.safeParse(raw.value);
   if (!parsed.success) {
     return { ok: false, reason: "schema" };
   }
@@ -155,7 +165,7 @@ const mealJsonSchema = {
   ],
   properties: {
     day: { type: "string", enum: [...DAYS] },
-    slot: { type: "string", enum: [...SLOTS] },
+    slot: { type: "string", enum: [...SLOTS] as string[] },
     title: { type: "string", minLength: 1 },
     whyItFits: { type: "string", minLength: 1 },
     cookMinutes: { type: "integer", exclusiveMinimum: 0 },
@@ -197,6 +207,26 @@ export const mealsJsonSchema = {
     meals: {
       type: "array",
       items: mealJsonSchema,
+    },
+  },
+} as const;
+
+const libraryMealJsonSchema = {
+  ...mealJsonSchema,
+  properties: {
+    ...mealJsonSchema.properties,
+    slot: { type: "string", enum: [...RECIPE_SLOTS] as string[] },
+  },
+} as const;
+
+export const libraryMealsJsonSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["meals"],
+  properties: {
+    meals: {
+      type: "array",
+      items: libraryMealJsonSchema,
     },
   },
 } as const;

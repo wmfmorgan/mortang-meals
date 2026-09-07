@@ -269,7 +269,7 @@ export function ThisWeekPlanner({
             className="btn btn-secondary"
             onClick={() => void onEditThisWeek()}
           >
-            Edit this week
+            Edit this plan
           </button>
         </div>
       )}

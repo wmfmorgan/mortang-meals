@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { generateLibraryMeals, parseAvoidanceList } from "./generate-library";
+import {
+  generateLibraryMeals,
+  parseAvoidanceList,
+  reservedTitlesForSlots,
+} from "./generate-library";
 import type {
   AdapterRequest,
   AdapterResult,
@@ -58,6 +62,36 @@ function dinner(title: string, protein = "chicken"): GeneratedMeal {
     steps: ["Cook"],
   };
 }
+
+function extraRecipe(
+  slot: "side" | "dessert",
+  title: string,
+  ingredient = "zucchini",
+): GeneratedMeal {
+  return {
+    ...dinner(title, ingredient),
+    slot,
+    ingredients: [
+      { name: ingredient, quantity: "1", unit: "cup", aisle: "produce" },
+    ],
+  };
+}
+
+describe("reservedTitlesForSlots", () => {
+  it("only lists titles for the slots being generated", () => {
+    expect(
+      reservedTitlesForSlots(
+        [
+          { slot: "dinner", title: "Crispy BBQ Baked Chicken Thighs" },
+          { slot: "lunch", title: "Grandma chili" },
+          { slot: "dessert", title: "Peanut butter cookies" },
+          { slot: "dessert", title: "Easy Dairy-Free Custard" },
+        ],
+        ["dessert"],
+      ),
+    ).toEqual(["Peanut butter cookies", "Easy Dairy-Free Custard"]);
+  });
+});
 
 describe("parseAvoidanceList", () => {
   it("splits commas and lines", () => {
@@ -164,6 +198,132 @@ describe("generateLibraryMeals", () => {
     expect(system).not.toContain("kitchen diet");
     expect(system).not.toContain("Prefer to avoid cilantro");
     expect(system).not.toContain("Fill only these slots");
+  });
+
+  it("generates dessert recipes and applies dessert criteria as hard excludes", async () => {
+    const dessert = extraRecipe("dessert", "Coconut berry cups", "coconut");
+    const adapter = fakeAdapter([
+      { ok: true, text: JSON.stringify({ meals: [dessert] }) },
+    ]);
+    const result = await generateLibraryMeals({
+      household,
+      kitchen,
+      groups: [
+        {
+          slot: "dessert",
+          count: 1,
+          diet: "low-sugar, gluten-free, dairy-free",
+          avoidances: "",
+        },
+      ],
+      reservedTitles: [],
+      adapter,
+      logTrace: () => {},
+      settings,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.meals[0]?.slot).toBe("dessert");
+    const system = adapter.requests[0]!.messages[0]!.content;
+    expect(system).toMatch(/sugar/i);
+    expect(system).toMatch(/gluten/i);
+    expect(system).toMatch(/dairy/i);
+    expect(system).toContain("Never use sugar");
+    expect(system).toContain("Never use butter");
+  });
+
+  it("accepts peanut butter in a dairy-free dessert", async () => {
+    const cookies = extraRecipe(
+      "dessert",
+      "3-Ingredient Peanut Butter Cookies",
+      "smooth peanut butter",
+    );
+    const adapter = fakeAdapter([
+      { ok: true, text: JSON.stringify({ meals: [cookies] }) },
+    ]);
+    const result = await generateLibraryMeals({
+      household,
+      kitchen,
+      groups: [
+        { slot: "dessert", count: 1, diet: "dairy-free", avoidances: "" },
+      ],
+      reservedTitles: [],
+      adapter,
+      logTrace: () => {},
+      settings,
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it("retries then fails a dairy-free dessert that uses butter", async () => {
+    const butter = extraRecipe("dessert", "Butter tart", "butter");
+    const adapter = fakeAdapter([
+      { ok: true, text: JSON.stringify({ meals: [butter] }) },
+      { ok: true, text: JSON.stringify({ meals: [butter] }) },
+    ]);
+    const result = await generateLibraryMeals({
+      household,
+      kitchen,
+      groups: [
+        {
+          slot: "dessert",
+          count: 1,
+          diet: "dairy-free",
+          avoidances: "",
+        },
+      ],
+      reservedTitles: [],
+      adapter,
+      logTrace: () => {},
+      settings,
+    });
+    expect(result).toEqual({
+      ok: false,
+      message: "Couldn’t get usable recipes, try again.",
+    });
+  });
+
+  it("generates side recipes", async () => {
+    const side = extraRecipe("side", "Garlic green beans", "green beans");
+    const adapter = fakeAdapter([
+      { ok: true, text: JSON.stringify({ meals: [side] }) },
+    ]);
+    const result = await generateLibraryMeals({
+      household,
+      kitchen,
+      groups: [{ slot: "side", count: 1, diet: "keto", avoidances: "" }],
+      reservedTitles: [],
+      adapter,
+      logTrace: () => {},
+      settings,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.meals[0]?.slot).toBe("side");
+  });
+
+  it("keeps desserts from concatenated web-search JSON", async () => {
+    const dessert = extraRecipe("dessert", "Easy Dairy-Free Custard", "coconut");
+    const glued =
+      '{"meals": []}{"meals": []}' +
+      JSON.stringify({ meals: [dessert] });
+    const adapter = fakeAdapter([{ ok: true, text: glued }]);
+    const result = await generateLibraryMeals({
+      household,
+      kitchen,
+      groups: [
+        {
+          slot: "dessert",
+          count: 1,
+          diet: "dairy-free",
+          avoidances: "",
+        },
+      ],
+      reservedTitles: [],
+      adapter,
+      logTrace: () => {},
+      settings,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.meals[0]?.title).toBe("Easy Dairy-Free Custard");
   });
 
   it("retries then fails when a reserved title is repeated", async () => {

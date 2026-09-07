@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { weekRangeLabel } from "@/lib/week";
 import { TrashIcon } from "./meal-card";
 
 type PlanOption = {
@@ -61,13 +62,13 @@ export function PlanPicker({
               href={`${hrefPrefix}${item.id}`}
               aria-current={selected ? "page" : undefined}
             >
-              {item.weekStart}
+              {weekRangeLabel(item.weekStart)}
             </Link>
             {item.isCurrent ? (
               <Link
                 href={`${hrefPrefix}${newestId}`}
                 className="badge badge-link"
-                title="Open the newest plan for this week"
+                title="Open this plan"
               >
                 current
               </Link>
@@ -75,8 +76,8 @@ export function PlanPicker({
             <button
               type="button"
               className="icon-button icon-button-danger plan-delete"
-              aria-label={`Delete plan ${item.weekStart}`}
-              title="Delete this week (keep the recipes)"
+              aria-label={`Delete plan ${weekRangeLabel(item.weekStart)}`}
+              title="Delete this plan (keep the recipes)"
               disabled={pendingId === item.id}
               onClick={() => {
                 void onDelete(item.id);

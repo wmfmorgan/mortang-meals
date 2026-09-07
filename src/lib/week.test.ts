@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mondayOf, shiftMonday } from "./week";
+import { mondayOf, shiftMonday, weekRangeLabel } from "./week";
 
 // 2026-01-05 Monday, 2026-01-07 Wednesday, 2026-01-11 Sunday (local dates)
 describe("mondayOf", () => {
@@ -13,6 +13,17 @@ describe("mondayOf", () => {
 
   it("walks back from Sunday to the previous Monday", () => {
     expect(mondayOf(new Date(2026, 0, 11))).toBe("2026-01-05");
+  });
+
+  it("uses this week's Monday for 2026-09-06 (Sunday)", () => {
+    expect(mondayOf(new Date(2026, 8, 6))).toBe("2026-08-31");
+  });
+});
+
+describe("weekRangeLabel", () => {
+  it("names a plan by Monday through Sunday", () => {
+    expect(weekRangeLabel("2026-08-24")).toBe("Aug 24–30, 2026");
+    expect(weekRangeLabel("2026-08-31")).toBe("Aug 31–Sep 6, 2026");
   });
 });
 

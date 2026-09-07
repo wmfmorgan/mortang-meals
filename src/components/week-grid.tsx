@@ -74,7 +74,7 @@ export function WeekGrid({
   const meals = plan?.meals ?? [];
 
   return (
-    <div className="week-grid" role="grid" aria-label="This week">
+    <div className="week-grid" role="grid" aria-label="Week plan">
       <div
         className="week-grid-desktop-label"
         style={{ gridColumn: 1, gridRow: 1 }}

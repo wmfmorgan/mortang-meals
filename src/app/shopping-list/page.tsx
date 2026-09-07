@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/page-header";
 import { PlanPicker } from "@/components/plan-picker";
-import { getCurrentPlan, getPlan, listPlans } from "@/meals/repo";
+import { weekRangeLabel } from "@/lib/week";
+import { listPlans, resolveOpenPlan } from "@/meals/repo";
 import { mergeShoppingList } from "@/meals/shopping-list";
 
 const AISLE_LABELS = {
@@ -18,27 +19,26 @@ export default async function ShoppingListPage({
 }) {
   const { plan: planId } = await searchParams;
   const plans = listPlans();
-  const requested = planId ? getPlan(planId) : null;
-  const plan = requested ?? getCurrentPlan();
-  const groups = plan ? mergeShoppingList(plan.meals) : [];
+  const plan = resolveOpenPlan(planId);
+  const groups = mergeShoppingList(plan.meals);
 
   return (
     <div>
       <PageHeader
-        eyebrow={plan?.weekStart ?? "Market list"}
+        eyebrow={weekRangeLabel(plan.weekStart)}
         title="Shopping list"
         lede="Merged from the open week. Quantities are combined when the name and unit match."
       />
 
       <PlanPicker
         plans={plans}
-        selectedId={plan?.id}
+        selectedId={plan.id}
         hrefPrefix="/shopping-list?plan="
         homeHref="/shopping-list"
       />
 
       {groups.length === 0 ? (
-        <p className="page-lede">Fill this week to build a shopping list.</p>
+        <p className="page-lede">Fill the plan to build a shopping list.</p>
       ) : (
         <div className="grid gap-5 md:grid-cols-2">
           {groups.map((group) => (

@@ -4,6 +4,7 @@ import {
   normalizeSourceUrl,
   parseExtraRecipeResponse,
   parseExtraSuggestionResponse,
+  parseLibraryMealsResponse,
   parseMealsResponse,
   parseSingleMealResponse,
   singleMealJsonSchema,
@@ -33,6 +34,17 @@ describe("parseMealsResponse", () => {
       ok: false,
       reason: "invalid-json",
     });
+  });
+
+  it("keeps the last recipe list when web search concatenates JSON objects", () => {
+    const glued = `{"meals": []}{"meals": []}{"meals": [${JSON.stringify(validMeal)}]}`;
+    const result = parseMealsResponse(glued);
+    expect(result).toEqual({ ok: true, meals: [validMeal] });
+  });
+
+  it("keeps recipes when an empty meals object is glued on the end", () => {
+    const glued = `{"meals": [${JSON.stringify(validMeal)}]}{"meals": []}`;
+    expect(parseMealsResponse(glued)).toEqual({ ok: true, meals: [validMeal] });
   });
 
   it("returns schema for invalid day enum", () => {
@@ -71,6 +83,20 @@ describe("parseMealsResponse", () => {
     if (result.ok) {
       expect(Object.keys(result)).toEqual(["ok", "meals"]);
     }
+  });
+});
+
+describe("parseLibraryMealsResponse", () => {
+  it("accepts a dessert recipe that week generate would reject", () => {
+    const dessert = { ...validMeal, slot: "dessert" };
+    expect(parseMealsResponse(JSON.stringify({ meals: [dessert] }))).toEqual({
+      ok: false,
+      reason: "schema",
+    });
+    expect(parseLibraryMealsResponse(JSON.stringify({ meals: [dessert] }))).toEqual({
+      ok: true,
+      meals: [dessert],
+    });
   });
 });
 

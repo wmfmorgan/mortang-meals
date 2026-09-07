@@ -13,6 +13,42 @@ export function shiftMonday(weekStart: string, weeks: number): string {
   return formatDay(date);
 }
 
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+] as const;
+
+function parseMonday(weekStart: string): Date {
+  const [year, month, day] = weekStart.split("-").map(Number);
+  return new Date(year!, month! - 1, day!);
+}
+
+function formatMonthDay(date: Date): string {
+  return `${MONTHS[date.getMonth()]} ${date.getDate()}`;
+}
+
+/** Monday–Sunday label, e.g. "Aug 24–30, 2026" or "Aug 31–Sep 6, 2026". */
+export function weekRangeLabel(weekStart: string): string {
+  const start = parseMonday(weekStart);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  const endLabel =
+    start.getMonth() === end.getMonth()
+      ? String(end.getDate())
+      : formatMonthDay(end);
+  return `${formatMonthDay(start)}–${endLabel}, ${end.getFullYear()}`;
+}
+
 function formatDay(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");

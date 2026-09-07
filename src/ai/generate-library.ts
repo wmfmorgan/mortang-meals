@@ -1,10 +1,12 @@
 import { buildHouseholdBrief } from "@/household/brief";
-import { findAllergen } from "@/meals/allergen";
+import { findAllergen, findDietExclude } from "@/meals/allergen";
 import { isDuplicateTitle } from "@/meals/duplicates";
+import { dessertCriteriaFromDiet } from "@/meals/dessert-criteria";
+import { normalizeTitle } from "@/meals/duplicates";
 import {
   applySourceUrl,
-  mealsJsonSchema,
-  parseMealsResponse,
+  libraryMealsJsonSchema,
+  parseLibraryMealsResponse,
 } from "@/meals/schema";
 import type {
   AdapterRequest,
@@ -15,24 +17,24 @@ import type {
   Household,
   KitchenItem,
   KitchenPrefs,
+  MealSlot,
   SlotMask,
   TraceKind,
   ValidationResult,
-  WeekSlot,
 } from "@/lib/types";
 import { emptySlotMask } from "@/lib/slot-mask";
 import { grokWebSearchEnabled } from "./adapter";
 import { collectAllergies, type PlanFailure } from "./generate-plan";
 
 export type LibraryGroup = {
-  slot: WeekSlot;
+  slot: MealSlot;
   count: number;
   diet: string;
   avoidances: string;
 };
 
 export type LibraryRequest = {
-  slot: WeekSlot;
+  slot: MealSlot;
   text: string;
 };
 
@@ -60,6 +62,23 @@ const WEB_SEARCH_RULES = [
   "Set sourceUrl to the cited page URL, or null if you cannot cite a real page.",
 ].join("\n");
 
+export function reservedTitlesForSlots(
+  meals: { slot: MealSlot; title: string }[],
+  slots: MealSlot[],
+): string[] {
+  const wanted = new Set(slots);
+  const seen = new Set<string>();
+  const titles: string[] = [];
+  for (const meal of meals) {
+    if (!wanted.has(meal.slot)) continue;
+    const key = normalizeTitle(meal.title);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    titles.push(meal.title);
+  }
+  return titles;
+}
+
 export function parseAvoidanceList(raw: string): string[] {
   return raw
     .split(/[,;\n]/)
@@ -67,25 +86,24 @@ export function parseAvoidanceList(raw: string): string[] {
     .filter(Boolean);
 }
 
-function dummyMask(slots: WeekSlot[]): SlotMask {
+function dummyMask(slots: MealSlot[]): SlotMask {
   const mask = emptySlotMask();
   for (const slot of slots) {
-    mask.monday[slot] = true;
+    if (slot === "breakfast" || slot === "lunch" || slot === "dinner") {
+      mask.monday[slot] = true;
+    }
   }
   return mask;
 }
 
 function countsMatch(meals: GeneratedMeal[], groups: LibraryGroup[]): boolean {
-  if (meals.some((meal) => meal.slot !== "breakfast" && meal.slot !== "lunch" && meal.slot !== "dinner")) {
-    return false;
-  }
   for (const group of groups) {
     if (meals.filter((meal) => meal.slot === group.slot).length !== group.count) {
       return false;
     }
   }
   const allowed = new Set(groups.map((group) => group.slot));
-  return meals.every((meal) => allowed.has(meal.slot as WeekSlot));
+  return meals.every((meal) => allowed.has(meal.slot));
 }
 
 export async function generateLibraryMeals(input: {
@@ -119,14 +137,29 @@ export async function generateLibraryMeals(input: {
   });
 
   const extraRules: string[] = [];
-  const hardNames = [...collectAllergies(input.household)];
+  const allergies = collectAllergies(input.household);
+  const dietExcludes: string[] = [];
   for (const group of input.groups) {
     extraRules.push(
       `${group.slot}: ${group.count} recipe${group.count === 1 ? "" : "s"}. Diet: ${group.diet}.`,
     );
+    if (group.slot === "side") {
+      extraRules.push(
+        "Side recipes are vegetable or starch sides that complement a meal, not mains.",
+      );
+    }
+    if (group.slot === "dessert") {
+      extraRules.push("Dessert recipes, not mains.");
+      const dessert = dessertCriteriaFromDiet(group.diet);
+      extraRules.push(...dessert.rules);
+      for (const item of dessert.excludes) {
+        extraRules.push(`Never use ${item} (${group.slot})`);
+        dietExcludes.push(item);
+      }
+    }
     for (const item of parseAvoidanceList(group.avoidances)) {
       extraRules.push(`Never use ${item} (${group.slot})`);
-      hardNames.push(item);
+      dietExcludes.push(item);
     }
   }
   if (input.request?.text.trim()) {
@@ -199,8 +232,8 @@ export async function generateLibraryMeals(input: {
     };
     const result = await input.adapter.complete({
       messages,
-      jsonSchema: mealsJsonSchema as unknown as Record<string, unknown>,
-      schemaName: "week_plan",
+      jsonSchema: libraryMealsJsonSchema as unknown as Record<string, unknown>,
+      schemaName: "library_recipes",
       signal: input.signal,
     });
     if (!result.ok) {
@@ -216,7 +249,7 @@ export async function generateLibraryMeals(input: {
       message: "Checking the recipes",
       attempt: attempt + 1,
     });
-    const parsed = parseMealsResponse(result.text);
+    const parsed = parseLibraryMealsResponse(result.text);
     if (!parsed.ok) {
       log(parsed.reason, result.text);
       if (attempt === 0) {
@@ -251,7 +284,11 @@ export async function generateLibraryMeals(input: {
       return { ok: false, message: UNUSABLE };
     }
     const allergen = parsed.meals
-      .map((meal) => findAllergen(meal.ingredients, hardNames))
+      .map(
+        (meal) =>
+          findAllergen(meal.ingredients, allergies) ??
+          findDietExclude(meal.ingredients, dietExcludes),
+      )
       .find(Boolean);
     if (allergen) {
       log("allergen", result.text);

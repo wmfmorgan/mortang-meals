@@ -17,7 +17,7 @@ import {
   getCurrentPlan,
   getMeal,
   getPlan,
-  listCatalogMeals,
+  listAllMeals,
   listDraftMeals,
   mergeGeneratedPlan,
   replaceMeal,
@@ -32,6 +32,7 @@ import { getSettings, saveSettings } from "./settings-repo";
 import { generateExtra } from "./generate-extra";
 import {
   generateLibraryMeals,
+  reservedTitlesForSlots,
   type LibraryGroup,
 } from "./generate-library";
 import { swapMeal } from "./swap-meal";
@@ -109,7 +110,7 @@ const libraryGenerateBodySchema = z
     personIds: z.array(z.string().min(1)).min(1),
     request: z
       .object({
-        slot: z.enum(["breakfast", "lunch", "dinner"]),
+        slot: z.enum(["breakfast", "lunch", "dinner", "side", "dessert"]),
         text: z.string().trim().min(1),
         diet: z.string().trim().min(1),
         avoidances: z.string().optional().default(""),
@@ -118,11 +119,19 @@ const libraryGenerateBodySchema = z
     breakfast: librarySlotGroupSchema.optional(),
     lunch: librarySlotGroupSchema.optional(),
     dinner: librarySlotGroupSchema.optional(),
+    side: librarySlotGroupSchema.optional(),
+    dessert: librarySlotGroupSchema.optional(),
   })
   .refine(
     (value) =>
       Boolean(value.request) !==
-      Boolean(value.breakfast || value.lunch || value.dinner),
+      Boolean(
+        value.breakfast ||
+          value.lunch ||
+          value.dinner ||
+          value.side ||
+          value.dessert,
+      ),
     { message: "Use batch groups or a one-recipe request, not both." },
   );
 
@@ -143,6 +152,8 @@ function libraryGroupsFromBody(
   if (data.breakfast) groups.push({ slot: "breakfast", ...data.breakfast });
   if (data.lunch) groups.push({ slot: "lunch", ...data.lunch });
   if (data.dinner) groups.push({ slot: "dinner", ...data.dinner });
+  if (data.side) groups.push({ slot: "side", ...data.side });
+  if (data.dessert) groups.push({ slot: "dessert", ...data.dessert });
   return groups;
 }
 
@@ -481,8 +492,11 @@ export async function handleGenerateLibrary(
   }
 
   seedKitchenIfEmpty();
-  const reservedTitles = [...listCatalogMeals(), ...listDraftMeals()].map(
-    (meal) => meal.title,
+  const reservedTitles = reservedTitlesForSlots(
+    [...listAllMeals(), ...listDraftMeals()].filter(
+      (meal) => !meal.takeout && !meal.leftover,
+    ),
+    groups.map((group) => group.slot),
   );
   const result = await generateLibraryMeals({
     household: { ...household, people: selected },

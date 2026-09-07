@@ -155,6 +155,16 @@ describe("createAdapter", () => {
     expect(result).toEqual({ ok: true, text: '{"title":"Searched soup"}' });
   });
 
+  it("uses the last complete JSON object from concatenated web-search output", async () => {
+    process.env.XAI_API_KEY = "xai-secret";
+    responsesCreateMock.mockResolvedValue({
+      output_text: '{"meals": []}{"meals": []}{"title":"Custard"}',
+    });
+    const adapter = createAdapter({ ...grokSettings, webSearch: true });
+    const result = await adapter.complete(request);
+    expect(result).toEqual({ ok: true, text: '{"title":"Custard"}' });
+  });
+
   it("does not enable web_search for custom mode even if the toggle is on", async () => {
     createMock.mockResolvedValue({
       choices: [{ message: { content: '{"title":"Local soup"}' } }],

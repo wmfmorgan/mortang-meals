@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { ExtraKind, ExtraMode, Meal, MealExtra } from "@/lib/types";
+import type { ExtraKind, Meal, MealExtra } from "@/lib/types";
 import { EMPTY_EXTRAS } from "@/meals/extras";
 
 const KIND_LABEL: Record<ExtraKind, string> = {
@@ -15,91 +15,22 @@ function extraLine(kind: ExtraKind, title: string): string {
 }
 
 function ExtraAdd({
-  mealId,
   kind,
   onChoosePast,
 }: {
-  mealId: string;
   kind: ExtraKind;
   onChoosePast?: (kind: ExtraKind) => void;
 }) {
-  const router = useRouter();
-  const [mode, setMode] = useState<ExtraMode>("suggestion");
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function onAdd() {
-    setPending(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/extra", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mealId, kind, mode }),
-      });
-      const data = (await res.json()) as { message?: string };
-      if (!res.ok) {
-        setError(data.message ?? "Couldn’t add that extra, try again.");
-        return;
-      }
-      router.refresh();
-    } catch {
-      setError("The model didn’t respond");
-    } finally {
-      setPending(false);
-    }
-  }
-
-  const addLabel = kind === "side" ? "Add side" : "Add dessert";
-  const pendingLabel = mode === "suggestion" ? "Suggesting…" : "Generating…";
-
+  if (!onChoosePast) return null;
   return (
     <div className="meal-extra-add" role="group" aria-label={`Add a ${kind}`}>
-      <div className="meal-extra-toggle">
-        <button
-          type="button"
-          className="meal-extra-mode"
-          aria-pressed={mode === "suggestion"}
-          disabled={pending}
-          onClick={() => setMode("suggestion")}
-        >
-          Suggestion
-        </button>
-        <button
-          type="button"
-          className="meal-extra-mode"
-          aria-pressed={mode === "recipe"}
-          disabled={pending}
-          onClick={() => setMode("recipe")}
-        >
-          Recipe
-        </button>
-      </div>
       <button
         type="button"
-        className="meal-extra-add-btn"
-        disabled={pending}
-        onClick={() => {
-          void onAdd();
-        }}
+        className="meal-extra-open"
+        onClick={() => onChoosePast(kind)}
       >
-        {pending ? pendingLabel : addLabel}
+        {kind === "side" ? "Add side" : "Add dessert"}
       </button>
-      {onChoosePast ? (
-        <button
-          type="button"
-          className="meal-extra-add-btn"
-          disabled={pending}
-          onClick={() => onChoosePast(kind)}
-        >
-          {kind === "side" ? "Choose a past side" : "Choose a past dessert"}
-        </button>
-      ) : null}
-      {error ? (
-        <p role="alert" className="alert">
-          {error}
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -116,39 +47,12 @@ function ExtraRow({
   onOpenExtra?: (extra: MealExtra) => void;
 }) {
   const router = useRouter();
-  const [pending, setPending] = useState<"recipe" | "delete" | null>(null);
+  const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const label = extraLine(extra.kind, extra.title);
 
-  async function postExtra(mode: ExtraMode) {
-    const res = await fetch("/api/extra", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mealId, kind: extra.kind, mode }),
-    });
-    const data = (await res.json()) as { message?: string };
-    if (!res.ok) {
-      throw new Error(data.message ?? "Couldn’t add that extra, try again.");
-    }
-  }
-
-  async function onGetRecipe() {
-    setPending("recipe");
-    setError(null);
-    try {
-      await postExtra("recipe");
-      router.refresh();
-    } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : "The model didn’t respond",
-      );
-    } finally {
-      setPending(null);
-    }
-  }
-
   async function onRemove() {
-    setPending("delete");
+    setPending(true);
     setError(null);
     try {
       const res = await fetch("/api/extra", {
@@ -159,7 +63,7 @@ function ExtraRow({
       if (!res.ok) return;
       router.refresh();
     } finally {
-      setPending(null);
+      setPending(false);
     }
   }
 
@@ -181,24 +85,12 @@ function ExtraRow({
       )}
       {editable ? (
         <div className="meal-extra-tools">
-          {extra.mode === "suggestion" ? (
-            <button
-              type="button"
-              className="meal-extra-text-btn"
-              disabled={pending !== null}
-              onClick={() => {
-                void onGetRecipe();
-              }}
-            >
-              {pending === "recipe" ? "Generating…" : "Get recipe"}
-            </button>
-          ) : null}
           <button
             type="button"
             className="icon-button icon-button-danger"
             aria-label={`Remove ${extra.kind}`}
             title={`Remove ${extra.kind}`}
-            disabled={pending !== null}
+            disabled={pending}
             onClick={() => {
               void onRemove();
             }}
@@ -241,7 +133,7 @@ export function MealExtras({
           onOpenExtra={onOpenExtra}
         />
       ) : editable ? (
-        <ExtraAdd mealId={meal.id} kind="side" onChoosePast={onChoosePast} />
+        <ExtraAdd kind="side" onChoosePast={onChoosePast} />
       ) : null}
       {extras.dessert ? (
         <ExtraRow
@@ -251,7 +143,7 @@ export function MealExtras({
           onOpenExtra={onOpenExtra}
         />
       ) : editable ? (
-        <ExtraAdd mealId={meal.id} kind="dessert" onChoosePast={onChoosePast} />
+        <ExtraAdd kind="dessert" onChoosePast={onChoosePast} />
       ) : null}
     </div>
   );

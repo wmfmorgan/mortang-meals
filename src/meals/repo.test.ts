@@ -29,6 +29,7 @@ import {
   rejectDraft,
   setMealStars,
   openPlan,
+  resolveOpenPlan,
   saveTakeoutMeal,
   saveLeftoverMeal,
   fillEmptySlots,
@@ -612,6 +613,21 @@ describe("meals repo", () => {
     const back = openPlan("2026-06-01");
     expect(back.id).toBe(first.id);
     expect(back.meals.some((item) => item.title === "June chili")).toBe(true);
+  });
+
+  it("opens this calendar week when the current plan is in the past", () => {
+    const past = openPlan("2026-08-24");
+    const opened = resolveOpenPlan(undefined, new Date(2026, 8, 6));
+    expect(opened.weekStart).toBe("2026-08-31");
+    expect(opened.isCurrent).toBe(true);
+    expect(getPlan(past.id)?.isCurrent).toBe(false);
+  });
+
+  it("keeps a future current plan instead of snapping back", () => {
+    const next = openPlan("2026-09-07");
+    const opened = resolveOpenPlan(undefined, new Date(2026, 8, 6));
+    expect(opened.id).toBe(next.id);
+    expect(opened.weekStart).toBe("2026-09-07");
   });
 
   it("saves takeout without ingredients", () => {

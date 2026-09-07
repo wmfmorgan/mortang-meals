@@ -19,6 +19,9 @@ describe("Nav", () => {
   it("hides Developer when developerTools is false", () => {
     render(<Nav developerTools={false} />);
     expect(screen.queryByRole("link", { name: "Developer" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Plans" }).getAttribute("href")).toBe(
+      "/",
+    );
     expect(screen.getByRole("link", { name: "Meals" }).getAttribute("href")).toBe(
       "/meals",
     );

@@ -27,7 +27,7 @@ describe("PlanPicker", () => {
     const current = screen.getByRole("link", { name: /current/i });
     expect(current.getAttribute("href")).toBe("/?plan=newest");
     expect(
-      screen.getAllByRole("button", { name: /delete plan 2026-08-10/i }),
+      screen.getAllByRole("button", { name: /delete plan Aug 10–16, 2026/i }),
     ).toHaveLength(2);
   });
 });

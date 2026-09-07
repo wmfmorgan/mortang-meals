@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Meal } from "@/lib/types";
 import { EMPTY_EXTRAS, suggestionExtra } from "@/meals/extras";
@@ -46,24 +46,24 @@ function meal(overrides: Partial<Meal> = {}): Meal {
 
 describe("MealCard extras", () => {
   it("lets an editable lunch add a side or dessert", () => {
+    const onChooseExtra = vi.fn();
     render(
       <MealCard
         meal={meal({ slot: "lunch" })}
         editable
-        onChooseExtra={() => {}}
+        onChooseExtra={onChooseExtra}
       />,
     );
-    const side = screen.getByRole("group", { name: "Add a side" });
-    expect(within(side).getByRole("button", { name: "Add side" })).toBeTruthy();
-    expect(within(side).getByRole("button", { name: "Suggestion" })).toBeTruthy();
-    expect(within(side).getByRole("button", { name: "Recipe" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Add side" }));
+    expect(onChooseExtra).toHaveBeenCalledWith("side");
+    fireEvent.click(screen.getByRole("button", { name: "Add dessert" }));
+    expect(onChooseExtra).toHaveBeenCalledWith("dessert");
+    expect(screen.queryByRole("button", { name: "Suggestion" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Recipe" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Choose a past side" })).toBeNull();
     expect(
-      within(side).getByRole("button", { name: "Choose a past side" }),
-    ).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Add dessert" })).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Choose a past dessert" }),
-    ).toBeTruthy();
+      screen.queryByRole("button", { name: "Choose a past dessert" }),
+    ).toBeNull();
   });
 
   it("does not show extras on breakfast", () => {
@@ -90,7 +90,7 @@ describe("MealCard extras", () => {
     );
     expect(screen.getByText("Side · Baked potato")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /baked potato/i })).toBeNull();
-    expect(screen.getByRole("button", { name: "Get recipe" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Get recipe" })).toBeNull();
     expect(screen.queryByRole("button", { name: /^remove$/i })).toBeNull();
     const clear = screen.getByRole("button", { name: "Remove side" });
     expect(clear.textContent).toBe("×");

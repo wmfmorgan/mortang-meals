@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import type { AdapterRequest, AdapterResult, AiSettings } from "@/lib/types";
+import { extractLastJsonText } from "@/lib/json";
 
 export function resolveApiKey(settings: AiSettings): string | undefined {
   if (settings.mode === "grok") return process.env.XAI_API_KEY || undefined;
@@ -19,7 +20,7 @@ function extractResponseText(response: unknown): string {
     output?: unknown;
   };
   if (typeof record.output_text === "string" && record.output_text.length > 0) {
-    return record.output_text;
+    return extractLastJsonText(record.output_text) ?? record.output_text;
   }
   if (!Array.isArray(record.output)) return "";
   const parts: string[] = [];
@@ -35,7 +36,8 @@ function extractResponseText(response: unknown): string {
       }
     }
   }
-  return parts.join("");
+  const joined = parts.join("");
+  return extractLastJsonText(joined) ?? joined;
 }
 
 export function createAdapter(settings: AiSettings) {

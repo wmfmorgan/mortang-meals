@@ -512,6 +512,21 @@ export function ensureCurrentPlan(weekStart: string): WeekPlan {
   return openPlan(weekStart);
 }
 
+/** Open a specific plan, or this calendar week if current is in the past. */
+export function resolveOpenPlan(
+  planId?: string,
+  today: Date = new Date(),
+): WeekPlan {
+  if (planId) {
+    const requested = getPlan(planId);
+    if (requested) return requested;
+  }
+  const thisMonday = mondayOf(today);
+  const current = getCurrentPlan();
+  if (current && current.weekStart >= thisMonday) return current;
+  return openPlan(thisMonday);
+}
+
 export function openPlan(weekStart: string): WeekPlan {
   const db = getDb();
   const rows = db

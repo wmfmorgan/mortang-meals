@@ -61,6 +61,30 @@ describe("LibraryGenerateForm", () => {
     });
   });
 
+  it("can batch sides and desserts with dessert criteria", async () => {
+    render(<LibraryGenerateForm people={[alex]} />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "dinner" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "side" }));
+    fireEvent.click(screen.getByRole("button", { name: "keto" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "dessert" }));
+    fireEvent.submit(screen.getByRole("button", { name: "Generate drafts" }).closest("form")!);
+    expect(startLibrary).toHaveBeenCalledWith({
+      personIds: ["p1"],
+      side: { count: 4, diet: "keto", avoidances: "" },
+      dessert: {
+        count: 4,
+        diet: "low-sugar, gluten-free, dairy-free",
+        avoidances: "",
+      },
+    });
+    expect(
+      screen.getByRole("button", { name: "low-sugar" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(
+      screen.getByRole("button", { name: "nut-free" }).getAttribute("aria-pressed"),
+    ).toBe("false");
+  });
+
   it("sends a one-recipe request", async () => {
     render(<LibraryGenerateForm people={[alex]} />);
     fireEvent.click(screen.getByRole("button", { name: "One recipe" }));

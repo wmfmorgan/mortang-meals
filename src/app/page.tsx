@@ -4,8 +4,8 @@ import { PlanPicker } from "@/components/plan-picker";
 import { ThisWeekPlanner } from "@/components/this-week-planner";
 import { WeekSwitcher } from "@/components/week-switcher";
 import { getHousehold } from "@/household/repo";
-import { mondayOf } from "@/lib/week";
-import { getCurrentPlan, getPlan, listPlans } from "@/meals/repo";
+import { weekRangeLabel } from "@/lib/week";
+import { listPlans, resolveOpenPlan } from "@/meals/repo";
 
 export default async function HomePage({
   searchParams,
@@ -19,15 +19,14 @@ export default async function HomePage({
 
   const { plan: planId } = await searchParams;
   const plans = listPlans();
-  const requested = planId ? getPlan(planId) : null;
-  const plan = requested ?? getCurrentPlan();
-  const weekStart = plan?.weekStart ?? mondayOf(new Date());
+  const plan = resolveOpenPlan(planId);
+  const weekStart = plan.weekStart;
 
   return (
     <div>
       <PageHeader
-        eyebrow={weekStart}
-        title="This week"
+        eyebrow={weekRangeLabel(weekStart)}
+        title="Plans"
         lede="Build the week from your library. Mark takeout, copy leftovers, or fill empty slots."
       />
 
@@ -35,7 +34,7 @@ export default async function HomePage({
 
       <PlanPicker
         plans={plans}
-        selectedId={plan?.id}
+        selectedId={plan.id}
         hrefPrefix="/?plan="
       />
 

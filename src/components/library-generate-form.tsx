@@ -1,8 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Person, WeekSlot } from "@/lib/types";
-import { SLOTS } from "@/lib/types";
+import type { MealSlot, Person } from "@/lib/types";
+import { RECIPE_SLOTS } from "@/lib/types";
+import {
+  DEFAULT_DESSERT_DIET,
+  DESSERT_CRITERIA,
+  parseDessertCriteria,
+  toggleDessertCriterion,
+} from "@/meals/dessert-criteria";
 import { useGeneration } from "./generation-provider";
 
 type SlotFields = {
@@ -16,10 +22,12 @@ type FormState = {
   mode: "batch" | "one";
   personIds: string[];
   requestText: string;
-  requestSlot: WeekSlot;
+  requestSlot: MealSlot;
   breakfast: SlotFields;
   lunch: SlotFields;
   dinner: SlotFields;
+  side: SlotFields;
+  dessert: SlotFields;
 };
 
 const DIET_CHOICES = [
@@ -47,23 +55,32 @@ function DietField({
   value,
   onChange,
 }: {
-  slot: WeekSlot;
+  slot: MealSlot;
   value: string;
   onChange: (diet: string) => void;
 }) {
   const inputId = `${slot}-diet`;
   const listId = `${slot}-diet-choices`;
+  const dessert = slot === "dessert";
+  const choices = dessert ? DESSERT_CRITERIA : DIET_CHOICES;
+  const selected = dessert ? parseDessertCriteria(value) : [];
   return (
     <div className="field min-w-[10rem] flex-1">
-      <label htmlFor={inputId}>Diet</label>
-      <div className="diet-choices" role="group" aria-label={`${slot} diet choices`}>
-        {DIET_CHOICES.map((choice) => (
+      <label htmlFor={inputId}>{dessert ? "Criteria" : "Diet"}</label>
+      <div
+        className="diet-choices"
+        role="group"
+        aria-label={`${slot} ${dessert ? "criteria" : "diet choices"}`}
+      >
+        {choices.map((choice) => (
           <button
             key={choice}
             type="button"
             className="diet-choice"
-            aria-pressed={value === choice}
-            onClick={() => onChange(choice)}
+            aria-pressed={dessert ? selected.includes(choice) : value === choice}
+            onClick={() =>
+              onChange(dessert ? toggleDessertCriterion(value, choice) : choice)
+            }
           >
             {choice}
           </button>
@@ -76,10 +93,10 @@ function DietField({
         required
         list={listId}
         onChange={(event) => onChange(event.target.value)}
-        placeholder="or type your own"
+        placeholder={dessert ? "low-sugar, gluten-free, dairy-free" : "or type your own"}
       />
       <datalist id={listId}>
-        {DIET_CHOICES.map((choice) => (
+        {choices.map((choice) => (
           <option key={choice} value={choice} />
         ))}
       </datalist>
@@ -96,6 +113,8 @@ function defaultForm(people: Person[]): FormState {
     breakfast: emptySlot(),
     lunch: emptySlot(),
     dinner: { ...emptySlot(), on: true },
+    side: emptySlot(),
+    dessert: { ...emptySlot(), diet: DEFAULT_DESSERT_DIET },
   };
 }
 
@@ -119,6 +138,16 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
             ...current,
             ...prefs,
             personIds: personIds.length > 0 ? personIds : current.personIds,
+            breakfast: { ...emptySlot(), ...current.breakfast, ...prefs.breakfast },
+            lunch: { ...emptySlot(), ...current.lunch, ...prefs.lunch },
+            dinner: { ...emptySlot(), on: true, ...current.dinner, ...prefs.dinner },
+            side: { ...emptySlot(), ...current.side, ...prefs.side },
+            dessert: {
+              ...emptySlot(),
+              diet: DEFAULT_DESSERT_DIET,
+              ...current.dessert,
+              ...prefs.dessert,
+            },
           };
         });
       })
@@ -137,11 +166,11 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
     });
   }
 
-  function slotFields(slot: WeekSlot): SlotFields {
+  function slotFields(slot: MealSlot): SlotFields {
     return form[slot];
   }
 
-  function setSlot(slot: WeekSlot, patch: Partial<SlotFields>) {
+  function setSlot(slot: MealSlot, patch: Partial<SlotFields>) {
     persist({ ...form, [slot]: { ...form[slot], ...patch } });
   }
 
@@ -157,7 +186,7 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
         avoidances: fields.avoidances,
       };
     } else {
-      for (const slot of SLOTS) {
+      for (const slot of RECIPE_SLOTS) {
         const fields = slotFields(slot);
         if (!fields.on) continue;
         body[slot] = {
@@ -240,18 +269,18 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
             />
           </label>
           <label className="field">
-            Meal
+            Type
             <select
               className="input"
               value={form.requestSlot}
               onChange={(event) =>
                 persist({
                   ...form,
-                  requestSlot: event.target.value as WeekSlot,
+                  requestSlot: event.target.value as MealSlot,
                 })
               }
             >
-              {SLOTS.map((slot) => (
+              {RECIPE_SLOTS.map((slot) => (
                 <option key={slot} value={slot}>
                   {slot}
                 </option>
@@ -261,7 +290,7 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
         </div>
       ) : null}
 
-      {(form.mode === "batch" ? SLOTS : [form.requestSlot]).map((slot) => {
+      {(form.mode === "batch" ? RECIPE_SLOTS : [form.requestSlot]).map((slot) => {
         const fields = slotFields(slot);
         return (
           <fieldset key={slot} className="space-y-2 rounded-xl border border-wheat p-3">
@@ -329,7 +358,7 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
           form.personIds.length === 0 ||
           (form.mode === "one"
             ? !form.requestText.trim()
-            : !SLOTS.some((slot) => form[slot].on))
+            : !RECIPE_SLOTS.some((slot) => form[slot].on))
         }
       >
         {pending && state.kind === "library" ? "Generating…" : "Generate drafts"}
