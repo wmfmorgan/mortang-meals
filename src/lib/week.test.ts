@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { mondayOf, shiftMonday, weekRangeLabel } from "./week";
+import {
+  mondayOf,
+  planDisplayName,
+  shiftMonday,
+  weekMonthLabel,
+  weekRangeLabel,
+} from "./week";
 
 // 2026-01-05 Monday, 2026-01-07 Wednesday, 2026-01-11 Sunday (local dates)
 describe("mondayOf", () => {
@@ -24,6 +30,26 @@ describe("weekRangeLabel", () => {
   it("names a plan by Monday through Sunday", () => {
     expect(weekRangeLabel("2026-08-24")).toBe("Aug 24–30, 2026");
     expect(weekRangeLabel("2026-08-31")).toBe("Aug 31–Sep 6, 2026");
+  });
+});
+
+describe("planDisplayName", () => {
+  it("uses a custom name when set", () => {
+    expect(
+      planDisplayName({ name: " Thanksgiving week ", weekStart: "2026-08-31" }),
+    ).toBe("Thanksgiving week");
+  });
+
+  it("falls back to the week range", () => {
+    expect(planDisplayName({ name: "", weekStart: "2026-08-31" })).toBe(
+      "Aug 31–Sep 6, 2026",
+    );
+  });
+});
+
+describe("weekMonthLabel", () => {
+  it("names the month of that Monday", () => {
+    expect(weekMonthLabel("2026-08-31")).toBe("August 2026");
   });
 });
 

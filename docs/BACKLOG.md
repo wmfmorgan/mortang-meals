@@ -26,12 +26,12 @@ Suggested build order by severity, then effort. Items 1–4 and 6 already shippe
 | 8 | Shopping-list check-off | F-02 | 3 | S | done |
 | 9 | Fill vs empty grid | F-03 | 3 | M | done |
 | 10 | Phone fill layout and targets | F-04 | 3 | M | done |
-| 11 | One week switcher | F-05 | 2 | S | later |
-| 12 | Meals page: one job at a time | F-06 | 2 | M | later |
-| 13 | Trash off week chips | F-07 | 2 | S | later |
-| 14 | Two-line meal titles | F-08 | 2 | S | later |
-| 15 | Household/Kitchen copy matches fill | F-09 | 2 | S | later |
-| 16 | Close control on recipe flyout | F-11 | 2 | S | later |
+| 11 | One week switcher | F-05 | 2 | S | done |
+| 12 | Meals page: one job at a time | F-06 | 2 | M | done |
+| 13 | Trash off week chips | F-07 | 2 | S | done |
+| 14 | Two-line meal titles | F-08 | 2 | S | done |
+| 15 | Household/Kitchen copy matches fill | F-09 | 2 | S | done |
+| 16 | Close control on recipe flyout | F-11 | 2 | S | done |
 | 17 | Developer out of cook nav | F-10 | 1 | S | later |
 
 ---
@@ -346,7 +346,7 @@ A separate native app, or changing fill algorithm.
 
 ## 11. One week switcher
 
-**Status:** later
+**Status:** done
 **Size:** S
 **Audit:** F-05 (sev 2)
 **Request:** One control for which week is open. Do not put the open week’s date between the words Previous week and Next week.
@@ -371,7 +371,7 @@ How current vs calendar week is chosen (already: jump to this Monday if current 
 
 ## 12. Meals page: one job at a time
 
-**Status:** later
+**Status:** done
 **Size:** M
 **Audit:** F-06 (sev 2)
 **Request:** Meals should not dump generate, drafts, import, search, and the catalog on one scroll.
@@ -396,7 +396,7 @@ Changing generate/approve/reject behavior.
 
 ## 13. Trash off week chips
 
-**Status:** later
+**Status:** done
 **Size:** S
 **Audit:** F-07 (sev 2)
 **Request:** Deleting a week is not a chip affordance, and never sits on the shopping-list switcher.
@@ -421,7 +421,7 @@ Changing what delete keeps (meals stay).
 
 ## 14. Two-line meal titles
 
-**Status:** later
+**Status:** done
 **Size:** S
 **Audit:** F-08 (sev 2)
 **Request:** Week-grid cards must show the dish name, not `Baked Salmon With…`.
@@ -446,7 +446,7 @@ Redesigning the card, or changing flyout titles.
 
 ## 15. Household/Kitchen copy matches fill
 
-**Status:** later
+**Status:** done
 **Size:** S
 **Audit:** F-09 (sev 2)
 **Request:** Stop telling the cook the planner “writes a week” or to set a diet “before generating.”
@@ -471,7 +471,7 @@ Removing `/api/generate`, or merging Household and Kitchen into one screen.
 
 ## 16. Close control on recipe flyout
 
-**Status:** later
+**Status:** done
 **Size:** S
 **Audit:** F-11 (sev 2)
 **Request:** Recipe and side/dessert panels have a visible Close.

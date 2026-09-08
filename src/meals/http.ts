@@ -12,6 +12,7 @@ import {
   clearMealExtra,
   deleteMeal,
   deletePlan,
+  updatePlan,
   fillEmptySlots,
   getCurrentPlan,
   getMeal,
@@ -66,6 +67,12 @@ const placeExtraBodySchema = z.object({
 
 const deletePlanBodySchema = z.object({
   planId: z.string().min(1),
+});
+
+const updatePlanBodySchema = z.object({
+  planId: z.string().min(1),
+  name: z.string().max(60).optional(),
+  favorited: z.boolean().optional(),
 });
 
 const pinBodySchema = z
@@ -299,6 +306,24 @@ export function handleDeleteMeal(body: unknown): HttpResult {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Couldn’t delete meal.";
     if (message === "Meal not found") return jsonError(404, message);
+    return jsonError(400, message);
+  }
+}
+
+export function handleUpdatePlan(body: unknown): HttpResult {
+  const parsed = updatePlanBodySchema.safeParse(body);
+  if (!parsed.success) {
+    return jsonError(400, "planId is required.");
+  }
+  if (parsed.data.name === undefined && parsed.data.favorited === undefined) {
+    return jsonError(400, "name or favorited is required.");
+  }
+  try {
+    const plan = updatePlan(parsed.data);
+    return { status: 200, body: { plan } };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Couldn’t update plan.";
+    if (message === "Plan not found") return jsonError(404, message);
     return jsonError(400, message);
   }
 }

@@ -166,6 +166,8 @@ export type WeekPlan = {
   isCurrent: boolean;
   slotMask: SlotMask;
   meals: Meal[];
+  name: string;
+  favorited: boolean;
 };
 
 export type ShoppingItem = {

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
-import { PlanPicker } from "@/components/plan-picker";
+import { PlanSwitcher } from "@/components/plan-switcher";
 import { ThisWeekPlanner } from "@/components/this-week-planner";
 import { WeekSwitcher } from "@/components/week-switcher";
 import { getHousehold } from "@/household/repo";
@@ -26,16 +26,17 @@ export default async function HomePage({
     <div>
       <PageHeader
         eyebrow={weekRangeLabel(weekStart)}
-        title="Plans"
+        title={plan.name.trim() || "Plans"}
         lede="Build the week from your library. Mark takeout, copy leftovers, or fill empty slots."
       />
 
       <WeekSwitcher weekStart={weekStart} />
 
-      <PlanPicker
+      <PlanSwitcher
         plans={plans}
         selectedId={plan.id}
         hrefPrefix="/?plan="
+        allowDelete
       />
 
       <ThisWeekPlanner

@@ -10,8 +10,6 @@ import {
   toggleMealRow,
   toggleSlot,
 } from "@/lib/slot-mask";
-import { PinIcon } from "./meal-card";
-
 const DAY_LABELS: Record<DayOfWeek, string> = {
   monday: "Mon",
   tuesday: "Tue",
@@ -122,15 +120,14 @@ export function SlotPicker({
                     return (
                       <td key={day} className="p-2 text-center">
                         {pinned ? (
-                          <span
-                            className="slot-pinned"
-                            title="Pinned — Generate will skip this slot"
-                          >
-                            <PinIcon filled />
-                            <span className="sr-only">
-                              {day} {slot} pinned
-                            </span>
-                          </span>
+                          <input
+                            className="h-5 w-5 accent-[var(--color-olive)]"
+                            type="checkbox"
+                            checked
+                            disabled
+                            aria-label={`${day} ${slot} locked`}
+                            title="This slot is locked"
+                          />
                         ) : (
                           <input
                             className="h-5 w-5 accent-[var(--color-olive)]"

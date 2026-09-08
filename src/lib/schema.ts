@@ -42,6 +42,8 @@ export const weekPlans = sqliteTable("week_plans", {
   weekStart: text("week_start").notNull(),
   isCurrent: integer("is_current").notNull(),
   slotMaskJson: text("slot_mask_json").notNull(),
+  name: text("name").notNull().default(""),
+  favorited: integer("favorited").notNull().default(0),
 });
 
 export const meals = sqliteTable("meals", {

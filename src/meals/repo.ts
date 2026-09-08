@@ -71,6 +71,8 @@ function mapPlan(row: PlanRow, planMeals: Meal[]): WeekPlan {
     isCurrent: row.isCurrent === 1,
     slotMask: JSON.parse(row.slotMaskJson) as SlotMask,
     meals: planMeals,
+    name: row.name ?? "",
+    favorited: row.favorited === 1,
   };
 }
 
@@ -115,7 +117,10 @@ function mealInsertValues(
   };
 }
 
-export function listPlans(): Pick<WeekPlan, "id" | "weekStart" | "isCurrent">[] {
+export function listPlans(): Pick<
+  WeekPlan,
+  "id" | "weekStart" | "isCurrent" | "name" | "favorited"
+>[] {
   const db = getDb();
   return db
     .select()
@@ -125,6 +130,8 @@ export function listPlans(): Pick<WeekPlan, "id" | "weekStart" | "isCurrent">[] 
       id: row.id,
       weekStart: row.weekStart,
       isCurrent: row.isCurrent === 1,
+      name: row.name ?? "",
+      favorited: row.favorited === 1,
     }))
     .sort((a, b) => {
       const weekDelta = b.weekStart.localeCompare(a.weekStart);
@@ -385,6 +392,8 @@ export function saveGeneratedPlan(input: {
         weekStart: input.weekStart,
         isCurrent: 1,
         slotMaskJson: JSON.stringify(input.slotMask),
+        name: "",
+        favorited: 0,
       })
       .run();
     if (mealRows.length > 0) {
@@ -398,6 +407,8 @@ export function saveGeneratedPlan(input: {
     isCurrent: true,
     slotMask: input.slotMask,
     meals: sortMeals(mealRows.map(mapMeal)),
+    name: "",
+    favorited: false,
   };
 }
 
@@ -752,6 +763,30 @@ export function fillEmptySlots(input: {
     });
   }
   return getPlan(plan.id) ?? plan;
+}
+
+export function updatePlan(input: {
+  planId: string;
+  name?: string;
+  favorited?: boolean;
+}): WeekPlan {
+  const existing = getPlan(input.planId);
+  if (!existing) throw new Error("Plan not found");
+  const patch: { name?: string; favorited?: number } = {};
+  if (input.name !== undefined) {
+    patch.name = input.name.trim().slice(0, 60);
+  }
+  if (input.favorited !== undefined) {
+    patch.favorited = input.favorited ? 1 : 0;
+  }
+  if (Object.keys(patch).length > 0) {
+    getDb()
+      .update(weekPlans)
+      .set(patch)
+      .where(eq(weekPlans.id, input.planId))
+      .run();
+  }
+  return getPlan(input.planId)!;
 }
 
 export function deletePlan(planId: string): void {

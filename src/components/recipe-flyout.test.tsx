@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Meal } from "@/lib/types";
 import { EMPTY_EXTRAS } from "@/meals/extras";
@@ -36,6 +36,13 @@ const meal: Meal = {
 };
 
 describe("RecipeFlyout", () => {
+  it("has a Close control in the panel header", () => {
+    const onClose = vi.fn();
+    render(<RecipeFlyout meal={meal} servings={2} onClose={onClose} />);
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it("links details through to the full recipe page", () => {
     render(<RecipeFlyout meal={meal} servings={2} onClose={() => {}} />);
     const link = screen.getByRole("link", { name: /open full recipe/i });

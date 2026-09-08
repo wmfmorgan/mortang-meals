@@ -189,50 +189,7 @@ export function DeleteButton({ meal }: { meal: Meal }) {
         void onDelete();
       }}
     >
-      <TrashIcon />
-    </button>
-  );
-}
-
-export function PinButton({
-  meal,
-  onChange,
-}: {
-  meal: Meal;
-  onChange?: (pinned: boolean) => void;
-}) {
-  const router = useRouter();
-  const [pending, setPending] = useState(false);
-
-  async function onToggle() {
-    setPending(true);
-    try {
-      const res = await fetch("/api/pin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mealId: meal.id, pinned: !meal.pinned }),
-      });
-      if (!res.ok) return;
-      onChange?.(!meal.pinned);
-      router.refresh();
-    } finally {
-      setPending(false);
-    }
-  }
-
-  return (
-    <button
-      type="button"
-      className="pin-button"
-      aria-pressed={meal.pinned}
-      aria-label={meal.pinned ? "Unpin meal" : "Pin meal"}
-      title={meal.pinned ? "Unpin meal" : "Pin meal"}
-      disabled={pending}
-      onClick={() => {
-        void onToggle();
-      }}
-    >
-      <PinIcon filled={meal.pinned} />
+      <CloseIcon />
     </button>
   );
 }
@@ -294,18 +251,20 @@ export function RecipeBoxIcon() {
   );
 }
 
-export function PinIcon({ filled }: { filled: boolean }) {
+export function CloseIcon() {
   return (
     <svg
       aria-hidden="true"
       viewBox="0 0 20 20"
-      width="22"
-      height="22"
-      fill={filled ? "currentColor" : "none"}
+      width="16"
+      height="16"
+      fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
+      strokeLinecap="round"
     >
-      <path d="M8.2 2.8h3.6l.6 4.2 2.4 2.2v1.4H5.2v-1.4l2.4-2.2.6-4.2zM10 10.6V17" />
+      <path d="M5 5 15 15" />
+      <path d="M15 5 5 15" />
     </svg>
   );
 }
@@ -352,7 +311,6 @@ export function MealCard({
         </button>
         {editable ? (
           <div className="meal-card-tools">
-            <PinButton meal={meal} />
             <DeleteButton meal={meal} />
           </div>
         ) : null}

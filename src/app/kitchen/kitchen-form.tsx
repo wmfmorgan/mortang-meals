@@ -64,7 +64,7 @@ export function KitchenForm({
             How we cook
           </h2>
           <p className="mt-1 mb-0 text-sm text-herb">
-            These go into every generate and swap. Leave a meal-type diet blank
+            These shape library generate and swap. Leave a meal-type diet blank
             to use the overall diet.
           </p>
         </div>

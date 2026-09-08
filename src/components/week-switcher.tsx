@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { shiftMonday, weekRangeLabel } from "@/lib/week";
+import { shiftMonday } from "@/lib/week";
 
 export function WeekSwitcher({ weekStart }: { weekStart: string }) {
   const router = useRouter();
@@ -34,12 +34,6 @@ export function WeekSwitcher({ weekStart }: { weekStart: string }) {
       >
         Previous week
       </button>
-      <p
-        className="m-0 font-mono text-[0.78rem] uppercase tracking-[0.12em] text-herb"
-        title={weekStart}
-      >
-        {weekRangeLabel(weekStart)}
-      </p>
       <button
         type="button"
         className="btn btn-ghost"

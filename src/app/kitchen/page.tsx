@@ -18,7 +18,7 @@ export default function KitchenPage() {
       <PageHeader
         eyebrow="Methods"
         title="Kitchen"
-        lede="How you cook, then which appliances and methods the planner may use."
+        lede="How you cook, then which appliances and methods library generate may use."
       />
       <KitchenForm items={items} prefs={seeded} />
     </div>

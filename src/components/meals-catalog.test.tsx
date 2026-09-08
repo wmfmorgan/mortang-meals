@@ -55,10 +55,17 @@ const meal: Meal = {
 };
 
 describe("MealsCatalog", () => {
-  it("links to the add-recipe page", () => {
+  it("shows the catalog first and parks generate behind Add to library", () => {
     render(
       <MealsCatalog meals={[meal]} servings={2} currentPlanId={null} />,
     );
+    expect(screen.getByRole("button", { name: /lemon herb salmon/i })).toBeTruthy();
+    expect(screen.getByLabelText("Search")).toBeTruthy();
+    expect(
+      screen.queryByRole("heading", { name: "Generate library" }),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Add to library" }));
+    expect(screen.getByRole("heading", { name: "Generate library" })).toBeTruthy();
     expect(
       screen.getByRole("link", { name: "Add recipe" }).getAttribute("href"),
     ).toBe("/meals/new");
@@ -87,7 +94,7 @@ describe("MealsCatalog", () => {
     expect(screen.getByRole("option", { name: "none" })).toBeTruthy();
   });
 
-  it("puts generate, drafts, then the saved catalog on the meals page", () => {
+  it("shows drafts above the catalog when they exist", () => {
     const draft: Meal = {
       ...meal,
       id: "draft-chili",
@@ -113,7 +120,6 @@ describe("MealsCatalog", () => {
         currentPlanId={null}
       />,
     );
-    expect(screen.getByRole("heading", { name: "Generate library" })).toBeTruthy();
     expect(screen.getByText("Review before they join the library")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Approve" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Reject" })).toBeTruthy();

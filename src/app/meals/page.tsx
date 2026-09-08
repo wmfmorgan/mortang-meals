@@ -13,7 +13,7 @@ export default function MealsPage() {
       <PageHeader
         eyebrow="Library"
         title="Meals"
-        lede="Generate drafts, approve keepers, then search the saved library."
+        lede="Search the saved library. Approve drafts, then add more from generate or import."
       />
       <MealsCatalog
         meals={meals}

@@ -205,34 +205,103 @@ a.badge-link:hover {
   filter: brightness(1.08);
 }
 
-.plan-picker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 0.75rem;
+.plan-switcher {
+  position: relative;
   margin: 0 0 1.5rem;
+  max-width: 36rem;
+}
+
+.plan-switcher-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.plan-switcher-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.plan-switcher-name {
+  display: block;
+  width: 100%;
   padding: 0;
-  list-style: none;
-}
-
-.plan-picker a {
-  color: var(--color-herb);
-  text-decoration: none;
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-}
-
-.plan-picker a.badge-link {
-  color: var(--color-paper);
-}
-
-.plan-picker .plan-delete {
-  width: 1.6rem;
-  height: 1.6rem;
-}
-
-.plan-picker a[aria-current="page"] {
+  border: 0;
+  background: transparent;
   color: var(--color-ink);
-  box-shadow: inset 0 -1px 0 var(--color-olive);
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  text-align: left;
+  cursor: text;
+}
+
+.plan-switcher-name-input {
+  margin-top: 0;
+  min-height: 2.4rem;
+}
+
+.plan-switcher-meta {
+  margin: 0.15rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-herb);
+}
+
+.plan-switcher-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  right: 0;
+  max-height: 22rem;
+  overflow: auto;
+  padding: 0.75rem 0.85rem 0.9rem;
+  border: 1px solid var(--color-wheat);
+  border-radius: 1rem;
+  background: var(--color-paper);
+  box-shadow: 0 16px 40px -24px rgba(44, 36, 22, 0.5);
+}
+
+.plan-switcher-menu section + section {
+  margin-top: 0.65rem;
+}
+
+.plan-switcher-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.4rem 0.35rem;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 0.5rem;
+}
+
+.plan-switcher-option:hover,
+.plan-switcher-option[aria-selected="true"] {
+  background: var(--color-wheat);
+}
+
+.plan-switcher-option-name {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.plan-switcher-option-meta {
+  display: block;
+  margin-top: 0.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-herb);
+}
+
+.plan-switcher .icon-button[aria-pressed="true"] {
+  color: var(--color-olive);
 }
 
 .surface {
@@ -639,15 +708,16 @@ a.badge-link:hover {
 }
 
 .meal-card h3 {
-  display: flex;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
   gap: 0.35rem;
   margin: 0;
   min-width: 0;
   font-size: 0.98rem;
   font-weight: 500;
   letter-spacing: -0.03em;
-  line-height: 1.2;
+  line-height: 1.25;
 }
 
 .meal-card-title {
@@ -655,7 +725,7 @@ a.badge-link:hover {
   overflow: hidden;
   min-width: 0;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
 }
 
 .web-search-star,

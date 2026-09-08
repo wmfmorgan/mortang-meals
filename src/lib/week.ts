@@ -37,6 +37,31 @@ function formatMonthDay(date: Date): string {
   return `${MONTHS[date.getMonth()]} ${date.getDate()}`;
 }
 
+/** "August 2026" from a Monday YYYY-MM-DD. */
+export function weekMonthLabel(weekStart: string): string {
+  const start = parseMonday(weekStart);
+  const names = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ] as const;
+  return `${names[start.getMonth()]} ${start.getFullYear()}`;
+}
+
+export function planDisplayName(plan: { name: string; weekStart: string }): string {
+  const custom = plan.name.trim();
+  return custom || weekRangeLabel(plan.weekStart);
+}
+
 /** Monday–Sunday label, e.g. "Aug 24–30, 2026" or "Aug 31–Sep 6, 2026". */
 export function weekRangeLabel(weekStart: string): string {
   const start = parseMonday(weekStart);

@@ -37,6 +37,7 @@ import {
   setPinned,
   setPlanPinned,
   updateMeal,
+  updatePlan,
 } from "./repo";
 import { EMPTY_EXTRAS, suggestionExtra } from "./extras";
 
@@ -596,6 +597,21 @@ describe("meals repo", () => {
       draft: true,
     });
     expect(() => setMealStars(draft.id, 5)).toThrow(/draft/i);
+  });
+
+  it("renames and favorites a plan", () => {
+    const plan = saveGeneratedPlan({
+      weekStart: "2026-05-25",
+      slotMask: emptyMask(),
+      meals: [meal({ title: "May chili" })],
+    });
+    const named = updatePlan({ planId: plan.id, name: "  Beach week  " });
+    expect(named.name).toBe("Beach week");
+    const starred = updatePlan({ planId: plan.id, favorited: true });
+    expect(starred.favorited).toBe(true);
+    expect(listPlans().find((item) => item.id === plan.id)?.name).toBe(
+      "Beach week",
+    );
   });
 
   it("opens another week without deleting this week", () => {

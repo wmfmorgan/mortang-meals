@@ -30,6 +30,8 @@ function mondayDinnerPlan(): WeekPlan {
     id: "plan-1",
     weekStart: "2026-01-05",
     isCurrent: true,
+    name: "",
+    favorited: false,
     slotMask,
     meals: [
       {
@@ -65,6 +67,9 @@ describe("WeekGrid", () => {
 
     expect(screen.getAllByRole("gridcell")).toHaveLength(7);
     expect(screen.getByText("Lemon herb salmon")).toBeTruthy();
+    expect(screen.getByText("Lemon herb salmon").className).toContain(
+      "meal-card-title",
+    );
     expect(screen.queryByRole("gridcell", { name: /breakfast/i })).toBeNull();
 
     const emptyTuesdayDinner = screen.getByRole("gridcell", {

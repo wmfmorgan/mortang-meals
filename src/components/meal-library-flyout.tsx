@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { DayOfWeek, ExtraKind, LibraryMeal, MealSlot } from "@/lib/types";
+import { CloseButton } from "./recipe-flyout";
 
 const SLOT_WORDS: Record<MealSlot, string> = {
   breakfast: "breakfasts",
@@ -109,9 +110,7 @@ export function MealLibraryFlyout({
           <p className="page-eyebrow" style={{ margin: 0 }}>
             Past {SLOT_WORDS[slot]}
           </p>
-          <button type="button" className="btn btn-ghost" onClick={onClose}>
-            Close
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
         <h2
           id="meal-library-title"

@@ -58,7 +58,9 @@ function ensureSchema(sqlite: Database.Database): void {
       id TEXT PRIMARY KEY,
       week_start TEXT NOT NULL,
       is_current INTEGER NOT NULL,
-      slot_mask_json TEXT NOT NULL
+      slot_mask_json TEXT NOT NULL,
+      name TEXT NOT NULL DEFAULT '',
+      favorited INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS meals (
@@ -111,6 +113,8 @@ function ensureSchema(sqlite: Database.Database): void {
   ensureColumn(sqlite, "meals", "stars", "INTEGER NOT NULL DEFAULT 0");
   ensureColumn(sqlite, "meals", "takeout", "INTEGER NOT NULL DEFAULT 0");
   ensureColumn(sqlite, "meals", "leftover", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(sqlite, "week_plans", "name", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(sqlite, "week_plans", "favorited", "INTEGER NOT NULL DEFAULT 0");
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS library_generate_prefs (
       id TEXT PRIMARY KEY,

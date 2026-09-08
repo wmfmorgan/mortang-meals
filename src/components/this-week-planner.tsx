@@ -73,7 +73,6 @@ export function ThisWeekPlanner({
     | { type: "extra"; mealId: string; kind: ExtraKind }
     | null
   >(null);
-  const [pinPending, setPinPending] = useState(false);
   const [fillPending, setFillPending] = useState(false);
   const [allowRepeats, setAllowRepeats] = useState(false);
   const [leftoverLunches, setLeftoverLunches] = useState(false);
@@ -119,24 +118,7 @@ export function ThisWeekPlanner({
     selected?.type === "extra" && selectedMeal && selectedExtra
       ? extraRecipeEyebrow(selectedMeal, selectedExtra.kind)
       : undefined;
-  const allPinned =
-    Boolean(plan && plan.meals.length > 0 && plan.meals.every((meal) => meal.pinned));
   const fillRemaining = remainingFillCount(slotMask, plan?.meals ?? []);
-
-  async function onPinAll() {
-    if (!plan || pinPending) return;
-    setPinPending(true);
-    try {
-      await fetch("/api/pin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId: plan.id, pinned: !allPinned }),
-      });
-      router.refresh();
-    } finally {
-      setPinPending(false);
-    }
-  }
 
   async function onFill() {
     setFillPending(true);
@@ -239,7 +221,7 @@ export function ThisWeekPlanner({
             Leftover lunches
           </label>
           <label className="field fill-toolbar-protein">
-            Max times per protein
+            Repeat a Protein
             <input
               className="input"
               type="number"
@@ -251,18 +233,6 @@ export function ThisWeekPlanner({
               }
             />
           </label>
-          {plan && plan.meals.length > 0 ? (
-            <button
-              type="button"
-              className="btn btn-ghost"
-              disabled={pinPending}
-              onClick={() => {
-                void onPinAll();
-              }}
-            >
-              {allPinned ? "Unpin all" : "Pin all meals"}
-            </button>
-          ) : null}
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2">

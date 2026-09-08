@@ -1,5 +1,5 @@
 import { PageHeader } from "@/components/page-header";
-import { PlanPicker } from "@/components/plan-picker";
+import { PlanSwitcher } from "@/components/plan-switcher";
 import { ShoppingListView } from "@/components/shopping-list-view";
 import { weekRangeLabel } from "@/lib/week";
 import { listPlans, resolveOpenPlan } from "@/meals/repo";
@@ -25,7 +25,7 @@ export default async function ShoppingListPage({
       />
 
       <div className="no-print">
-        <PlanPicker
+        <PlanSwitcher
           plans={plans}
           selectedId={plan.id}
           hrefPrefix="/shopping-list?plan="

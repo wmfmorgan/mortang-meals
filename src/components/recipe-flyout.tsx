@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import type { Meal } from "@/lib/types";
-import { MealBadges, SwapButton } from "./meal-card";
+import { CloseIcon, MealBadges, SwapButton } from "./meal-card";
 import { StarRating } from "./star-rating";
 
 const DAY_LABELS = {
@@ -15,6 +15,20 @@ const DAY_LABELS = {
   saturday: "Saturday",
   sunday: "Sunday",
 } as const;
+
+export function CloseButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className="icon-button"
+      aria-label="Close"
+      title="Close"
+      onClick={onClick}
+    >
+      <CloseIcon />
+    </button>
+  );
+}
 
 export function SourceLink({ href }: { href: string }) {
   return (
@@ -84,9 +98,7 @@ export function RecipeFlyout({
           <p className="page-eyebrow" style={{ margin: 0 }}>
             {eyebrow ?? recipeEyebrow(meal)}
           </p>
-          <button type="button" className="btn btn-ghost" onClick={onClose}>
-            Close
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
         <h2
           id="recipe-flyout-title"
