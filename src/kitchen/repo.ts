@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { kitchenItems } from "@/lib/schema";
 import type { KitchenItem } from "@/lib/types";
@@ -11,53 +11,73 @@ function mapKitchenItem(row: KitchenRow): KitchenItem {
     id: row.id,
     name: row.name,
     kind: row.kind as KitchenItem["kind"],
-    enabled: row.enabled === 1,
-    builtIn: row.builtIn === 1,
+    enabled: row.enabled,
+    builtIn: row.builtIn,
   };
 }
 
-export function listKitchen(): KitchenItem[] {
+export async function listKitchen(
+  householdId: string,
+): Promise<KitchenItem[]> {
   const db = getDb();
-  return db.select().from(kitchenItems).all().map(mapKitchenItem);
+  const rows = await db
+    .select()
+    .from(kitchenItems)
+    .where(eq(kitchenItems.householdId, householdId));
+  return rows.map(mapKitchenItem);
 }
 
-export function seedKitchenIfEmpty(): void {
+export async function seedKitchenIfEmpty(householdId: string): Promise<void> {
   const db = getDb();
-  const existing = db.select({ id: kitchenItems.id }).from(kitchenItems).get();
+  const [existing] = await db
+    .select({ id: kitchenItems.id })
+    .from(kitchenItems)
+    .where(eq(kitchenItems.householdId, householdId))
+    .limit(1);
   if (existing) return;
-  db.insert(kitchenItems)
-    .values(
-      BUILTIN_KITCHEN_ITEMS.map((item) => ({
-        id: crypto.randomUUID(),
-        name: item.name,
-        kind: item.kind,
-        enabled: item.enabled ? 1 : 0,
-        builtIn: item.builtIn ? 1 : 0,
-      })),
-    )
-    .run();
+  await db.insert(kitchenItems).values(
+    BUILTIN_KITCHEN_ITEMS.map((item) => ({
+      householdId,
+      name: item.name,
+      kind: item.kind,
+      enabled: item.enabled,
+      builtIn: item.builtIn,
+    })),
+  );
 }
 
-export function setKitchenEnabled(id: string, enabled: boolean): void {
+export async function setKitchenEnabled(
+  householdId: string,
+  id: string,
+  enabled: boolean,
+): Promise<void> {
   const db = getDb();
-  db.update(kitchenItems)
-    .set({ enabled: enabled ? 1 : 0 })
-    .where(eq(kitchenItems.id, id))
-    .run();
+  await db
+    .update(kitchenItems)
+    .set({ enabled })
+    .where(
+      and(eq(kitchenItems.householdId, householdId), eq(kitchenItems.id, id)),
+    );
 }
 
-export function addCustomKitchenItem(
+export async function addCustomKitchenItem(
+  householdId: string,
   name: string,
-  kind: "appliance" | "method",
-): KitchenItem {
+  kind: KitchenItem["kind"],
+): Promise<KitchenItem> {
   const db = getDb();
-  const row = {
-    id: crypto.randomUUID(),
-    name,
-    kind,
-    enabled: 1,
-    builtIn: 0,
-  };
-  db.insert(kitchenItems).values(row).run();
+  const [row] = await db
+    .insert(kitchenItems)
+    .values({
+      householdId,
+      name,
+      kind,
+      enabled: true,
+      builtIn: false,
+    })
+    .returning();
+  if (!row) {
+    throw new Error("Kitchen item insert failed");
+  }
   return mapKitchenItem(row);
 }

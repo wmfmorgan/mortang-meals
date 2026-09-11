@@ -8,8 +8,6 @@ import type {
   MealSlot,
 } from "@/lib/types";
 
-const PREFS_ID = "default";
-
 export const DEFAULT_KITCHEN_PREFS: KitchenPrefs = {
   expertise: "intermediate",
   overallDiet: "",
@@ -66,31 +64,46 @@ function prefsValues(prefs: KitchenPrefs) {
   };
 }
 
-export function getKitchenPrefs(): KitchenPrefs {
+export async function getKitchenPrefs(
+  householdId: string,
+): Promise<KitchenPrefs> {
   const db = getDb();
-  const row = db.select().from(kitchenPrefs).get();
+  const [row] = await db
+    .select()
+    .from(kitchenPrefs)
+    .where(eq(kitchenPrefs.householdId, householdId))
+    .limit(1);
   if (row) return mapPrefs(row);
-  db.insert(kitchenPrefs)
-    .values({ id: PREFS_ID, ...prefsValues(DEFAULT_KITCHEN_PREFS) })
-    .run();
+  await db.insert(kitchenPrefs).values({
+    householdId,
+    ...prefsValues(DEFAULT_KITCHEN_PREFS),
+  });
   return { ...DEFAULT_KITCHEN_PREFS };
 }
 
-export function saveKitchenPrefs(patch: Partial<KitchenPrefs>): KitchenPrefs {
-  const next = { ...getKitchenPrefs(), ...patch };
+export async function saveKitchenPrefs(
+  householdId: string,
+  patch: Partial<KitchenPrefs>,
+): Promise<KitchenPrefs> {
+  const next = { ...(await getKitchenPrefs(householdId)), ...patch };
   if (next.maxCookMinutes < 5) next.maxCookMinutes = 5;
   const db = getDb();
-  const row = db.select().from(kitchenPrefs).get();
+  const [row] = await db
+    .select()
+    .from(kitchenPrefs)
+    .where(eq(kitchenPrefs.householdId, householdId))
+    .limit(1);
   if (!row) {
-    db.insert(kitchenPrefs)
-      .values({ id: PREFS_ID, ...prefsValues(next) })
-      .run();
+    await db.insert(kitchenPrefs).values({
+      householdId,
+      ...prefsValues(next),
+    });
     return next;
   }
-  db.update(kitchenPrefs)
+  await db
+    .update(kitchenPrefs)
     .set(prefsValues(next))
-    .where(eq(kitchenPrefs.id, row.id))
-    .run();
+    .where(eq(kitchenPrefs.householdId, householdId));
   return next;
 }
 

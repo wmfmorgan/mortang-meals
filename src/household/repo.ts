@@ -12,19 +12,18 @@ function mapPerson(row: PersonRow): Person {
     name: row.name,
     age: row.age,
     sex: (row.sex as Person["sex"]) ?? null,
-    allergies: JSON.parse(row.allergiesJson) as string[],
-    avoidances: JSON.parse(row.avoidancesJson) as string[],
+    allergies: row.allergies,
+    avoidances: row.avoidances,
   };
 }
 
-function loadPeople(householdId: string): Person[] {
+async function loadPeople(householdId: string): Promise<Person[]> {
   const db = getDb();
-  return db
+  const rows = await db
     .select()
     .from(people)
-    .where(eq(people.householdId, householdId))
-    .all()
-    .map(mapPerson);
+    .where(eq(people.householdId, householdId));
+  return rows.map(mapPerson);
 }
 
 function mapHousehold(row: HouseholdRow, members: Person[]): Household {
@@ -38,21 +37,32 @@ function mapHousehold(row: HouseholdRow, members: Person[]): Household {
   };
 }
 
-export function getHousehold(): Household | null {
+/** First-row helper until Task 6 wires pages to `getHouseholdForUser`. */
+export async function getHousehold(): Promise<Household | null> {
   const db = getDb();
-  const row = db.select().from(households).get();
+  const [row] = await db.select().from(households).limit(1);
   if (!row) return null;
-  return mapHousehold(row, loadPeople(row.id));
+  return mapHousehold(row, await loadPeople(row.id));
 }
 
-export function upsertHousehold(
-  input: Omit<Household, "id" | "people"> & { id?: string },
-): Household {
+export async function getHouseholdForUser(
+  userId: string,
+): Promise<Household | null> {
   const db = getDb();
-  const existing = input.id
-    ? db.select().from(households).where(eq(households.id, input.id)).get()
-    : db.select().from(households).get();
-  const id = input.id ?? existing?.id ?? crypto.randomUUID();
+  const [row] = await db
+    .select()
+    .from(households)
+    .where(eq(households.ownerId, userId))
+    .limit(1);
+  if (!row) return null;
+  return mapHousehold(row, await loadPeople(row.id));
+}
+
+export async function upsertHousehold(
+  input: Omit<Household, "id" | "people"> & { id?: string; ownerId: string },
+): Promise<Household> {
+  const db = getDb();
+  const id = input.id ?? crypto.randomUUID();
   const values = {
     name: input.name,
     dietStyle: input.dietStyle,
@@ -60,39 +70,42 @@ export function upsertHousehold(
     servings: input.servings,
   };
 
-  if (existing) {
-    db.update(households).set(values).where(eq(households.id, existing.id)).run();
-    return mapHousehold({ ...existing, ...values }, loadPeople(existing.id));
-  }
+  const [row] = await db
+    .insert(households)
+    .values({ id, ownerId: input.ownerId, ...values })
+    .onConflictDoUpdate({
+      target: households.ownerId,
+      set: values,
+    })
+    .returning();
 
-  db.insert(households).values({ id, ...values }).run();
-
-  const row = db.select().from(households).where(eq(households.id, id)).get();
   if (!row) {
     throw new Error("Household upsert failed");
   }
-  return mapHousehold(row, loadPeople(row.id));
+  return mapHousehold(row, await loadPeople(row.id));
 }
 
-export function replacePeople(
+export async function replacePeople(
   householdId: string,
   nextPeople: Omit<Person, "id">[],
-): Person[] {
+): Promise<Person[]> {
   const db = getDb();
-  const rows = nextPeople.map((person) => ({
-    id: crypto.randomUUID(),
-    householdId,
-    name: person.name,
-    age: person.age,
-    sex: person.sex,
-    allergiesJson: JSON.stringify(person.allergies),
-    avoidancesJson: JSON.stringify(person.avoidances),
-  }));
-  db.transaction((tx) => {
-    tx.delete(people).where(eq(people.householdId, householdId)).run();
-    if (rows.length > 0) {
-      tx.insert(people).values(rows).run();
-    }
+  return db.transaction(async (tx) => {
+    await tx.delete(people).where(eq(people.householdId, householdId));
+    if (nextPeople.length === 0) return [];
+    const inserted = await tx
+      .insert(people)
+      .values(
+        nextPeople.map((person) => ({
+          householdId,
+          name: person.name,
+          age: person.age,
+          sex: person.sex,
+          allergies: person.allergies,
+          avoidances: person.avoidances,
+        })),
+      )
+      .returning();
+    return inserted.map(mapPerson);
   });
-  return rows.map(mapPerson);
 }
