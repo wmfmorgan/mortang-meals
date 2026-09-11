@@ -1,6 +1,8 @@
 import { handleGenerate, type GenerateStreamEvent, type GenerateUiEvent } from "@/ai/http";
 import { requireHousehold } from "@/lib/request-auth";
 
+export const maxDuration = 300;
+
 export async function POST(req: Request) {
   let body: unknown;
   try {

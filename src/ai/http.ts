@@ -41,6 +41,7 @@ import {
 } from "./generate-library";
 import { swapMeal } from "./swap-meal";
 import { clearTraces, listTraces, recordTrace } from "./traces";
+import { consumeAiQuota } from "./usage";
 
 const GROK_KEY_MESSAGE =
   "Add XAI_API_KEY in .env.local or switch to a local model in Settings.";
@@ -250,7 +251,7 @@ export async function handleGenerate(
 
   const ready = await loadReadyHousehold(deps);
   if (!ready.ok) return ready.result;
-  const { householdId, household } = ready;
+  const { userId, householdId, household } = ready;
 
   if (!hasAnySlot(parsed.data.slotMask)) {
     return jsonError(400, "Turn on at least one meal slot.");
@@ -267,6 +268,9 @@ export async function handleGenerate(
   if (grokKeyMissing(settings)) {
     return jsonError(400, GROK_KEY_MESSAGE);
   }
+
+  const quota = await consumeAiQuota({ userId, settings });
+  if (!quota.ok) return quota.result;
 
   await seedKitchenIfEmpty(householdId);
   const result = await generateWeekPlan({
@@ -315,7 +319,7 @@ export async function handleSwap(
 
   const ready = await loadReadyHousehold(deps);
   if (!ready.ok) return ready.result;
-  const { householdId, household } = ready;
+  const { userId, householdId, household } = ready;
 
   const plan = await getPlan(householdId, parsed.data.planId);
   if (!plan) return jsonError(404, "Plan not found.");
@@ -326,6 +330,9 @@ export async function handleSwap(
   if (grokKeyMissing(settings)) {
     return jsonError(400, GROK_KEY_MESSAGE);
   }
+
+  const quota = await consumeAiQuota({ userId, settings });
+  if (!quota.ok) return quota.result;
 
   await seedKitchenIfEmpty(householdId);
   const result = await swapMeal({
@@ -374,7 +381,7 @@ export async function handleGenerateExtra(
 
   const ready = await loadReadyHousehold(deps);
   if (!ready.ok) return ready.result;
-  const { householdId, household } = ready;
+  const { userId, householdId, household } = ready;
 
   const meal = await getMeal(householdId, parsed.data.mealId);
   if (!meal) return jsonError(404, "Meal not found.");
@@ -398,6 +405,9 @@ export async function handleGenerateExtra(
   if (grokKeyMissing(settings)) {
     return jsonError(400, GROK_KEY_MESSAGE);
   }
+
+  const quota = await consumeAiQuota({ userId, settings });
+  if (!quota.ok) return quota.result;
 
   await seedKitchenIfEmpty(householdId);
   const reservedTitles = extraReservedTitles(
@@ -491,7 +501,7 @@ export async function handleGenerateLibrary(
 
   const authed = await resolveHandlerAuth(deps?.auth);
   if (!authed.ok) return authed.result;
-  const { householdId, household } = authed;
+  const { userId, householdId, household } = authed;
 
   const selected = household.people.filter((person) =>
     parsed.data.personIds.includes(person.id),
@@ -511,6 +521,9 @@ export async function handleGenerateLibrary(
   if (total > 24) {
     return jsonError(400, "Ask for at most 24 recipes at once.");
   }
+
+  const quota = await consumeAiQuota({ userId, settings });
+  if (!quota.ok) return quota.result;
 
   await seedKitchenIfEmpty(householdId);
   const reservedTitles = reservedTitlesForSlots(

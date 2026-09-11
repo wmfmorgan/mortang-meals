@@ -1,5 +1,7 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { sql } from "drizzle-orm";
 import { saveSettings } from "@/ai/settings-repo";
+import { AI_DAILY_CAP } from "@/ai/usage";
 import {
   handleGenerate,
   handleGenerateExtra,
@@ -22,7 +24,7 @@ import {
   upsertHousehold,
 } from "@/household/repo";
 import { seedKitchenIfEmpty } from "@/kitchen/repo";
-import { resetDbForTests } from "@/lib/db";
+import { getDb, resetDbForTests } from "@/lib/db";
 import { createTestIdentity, deleteTestUser } from "@/lib/test-identity";
 import type {
   AdapterRequest,
@@ -100,6 +102,10 @@ afterAll(async () => {
   await Promise.all(extraUsers.splice(0).map(deleteTestUser));
   if (previousXaiKey === undefined) delete process.env.XAI_API_KEY;
   else process.env.XAI_API_KEY = previousXaiKey;
+});
+
+beforeEach(async () => {
+  await getDb().execute(sql`truncate table public.ai_usage`);
 });
 
 function emptyMask(): SlotMask {
@@ -747,5 +753,36 @@ describe("API smoke path", () => {
     );
     expect(result.status).toBe(422);
     expect(await listDraftMeals(ident.householdId)).toHaveLength(before);
+  });
+
+  it("caps shared-key generate at AI_DAILY_CAP then 429s without changing the plan", async () => {
+    const { complete, requests } = fakeComplete(
+      Array.from({ length: AI_DAILY_CAP + 1 }, () => ({
+        ok: true as const,
+        text: JSON.stringify({ meals: WEEK_DINNERS }),
+      })),
+    );
+
+    let last: Awaited<ReturnType<typeof handleGenerate>> | undefined;
+    for (let i = 0; i < AI_DAILY_CAP; i++) {
+      last = await handleGenerate(
+        { weekStart: "2026-08-10", slotMask: weekdayDinnerMask() },
+        deps({ complete }),
+      );
+      expect(last.status).toBe(200);
+    }
+    const afterTenth = await getCurrentPlan(ident.householdId);
+    expect(afterTenth).toEqual((last!.body as { plan: WeekPlan }).plan);
+
+    const eleventh = await handleGenerate(
+      { weekStart: "2026-08-10", slotMask: weekdayDinnerMask() },
+      deps({ complete }),
+    );
+    expect(eleventh.status).toBe(429);
+    expect((eleventh.body as { message: string }).message).toBe(
+      "Daily generate limit reached. Try again tomorrow.",
+    );
+    expect(await getCurrentPlan(ident.householdId)).toEqual(afterTenth);
+    expect(requests).toHaveLength(AI_DAILY_CAP);
   });
 });

@@ -1,6 +1,8 @@
 import { handleImportRecipe } from "@/meals/http";
 import { requireHousehold } from "@/lib/request-auth";
 
+export const maxDuration = 300;
+
 export type ImportStreamEvent =
   | { type: "progress"; phase: string; message: string }
   | { type: "done"; mealId: string }

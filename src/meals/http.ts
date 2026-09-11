@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createAdapter } from "@/ai/adapter";
 import { getSettings } from "@/ai/settings-repo";
+import { consumeAiQuota } from "@/ai/usage";
 import { collectAllergies } from "@/ai/generate-plan";
 import { getKitchenPrefs } from "@/kitchen/prefs-repo";
 import { resolveHandlerAuth, type Authed } from "@/lib/request-auth";
@@ -487,6 +488,12 @@ export async function handleImportRecipe(
       "Add XAI_API_KEY in .env.local to import a recipe from a URL.",
     );
   }
+
+  const quota = await consumeAiQuota({
+    userId: session.userId,
+    settings,
+  });
+  if (!quota.ok) return quota.result;
 
   const messages = [
     {
