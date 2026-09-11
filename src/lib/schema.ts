@@ -1,25 +1,39 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import {
+  boolean,
+  date,
+  integer,
+  jsonb,
+  pgTable,
+  primaryKey,
+  smallint,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
+import type { Ingredient, MealExtras, SlotMask } from "./types";
 
-export const households = sqliteTable("households", {
-  id: text("id").primaryKey(),
+export const households = pgTable("households", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ownerId: uuid("owner_id").notNull().unique(),
   name: text("name").notNull(),
   dietStyle: text("diet_style").notNull(),
   notes: text("notes").notNull(),
   servings: integer("servings").notNull(),
 });
 
-export const people = sqliteTable("people", {
-  id: text("id").primaryKey(),
-  householdId: text("household_id").notNull(),
+export const people = pgTable("people", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  householdId: uuid("household_id").notNull(),
   name: text("name").notNull(),
   age: integer("age").notNull(),
   sex: text("sex"),
-  allergiesJson: text("allergies_json").notNull(),
-  avoidancesJson: text("avoidances_json").notNull(),
+  allergies: jsonb("allergies").$type<string[]>().notNull(),
+  avoidances: jsonb("avoidances").$type<string[]>().notNull(),
 });
 
-export const kitchenPrefs = sqliteTable("kitchen_prefs", {
-  id: text("id").primaryKey(),
+export const kitchenPrefs = pgTable("kitchen_prefs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  householdId: uuid("household_id").notNull().unique(),
   expertise: text("expertise").notNull(),
   overallDiet: text("overall_diet").notNull(),
   breakfastDiet: text("breakfast_diet").notNull(),
@@ -29,64 +43,72 @@ export const kitchenPrefs = sqliteTable("kitchen_prefs", {
   involved: text("involved").notNull(),
 });
 
-export const kitchenItems = sqliteTable("kitchen_items", {
-  id: text("id").primaryKey(),
+export const kitchenItems = pgTable("kitchen_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  householdId: uuid("household_id").notNull(),
   name: text("name").notNull(),
   kind: text("kind").notNull(),
-  enabled: integer("enabled").notNull(),
-  builtIn: integer("built_in").notNull(),
+  enabled: boolean("enabled").notNull(),
+  builtIn: boolean("built_in").notNull(),
 });
 
-export const weekPlans = sqliteTable("week_plans", {
-  id: text("id").primaryKey(),
+export const weekPlans = pgTable("week_plans", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  householdId: uuid("household_id").notNull(),
   weekStart: text("week_start").notNull(),
-  isCurrent: integer("is_current").notNull(),
-  slotMaskJson: text("slot_mask_json").notNull(),
+  isCurrent: boolean("is_current").notNull(),
+  slotMask: jsonb("slot_mask").$type<SlotMask>().notNull(),
   name: text("name").notNull().default(""),
-  favorited: integer("favorited").notNull().default(0),
+  favorited: boolean("favorited").notNull().default(false),
 });
 
-export const meals = sqliteTable("meals", {
-  id: text("id").primaryKey(),
-  planId: text("plan_id").notNull(),
+export const meals = pgTable("meals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  householdId: uuid("household_id").notNull(),
+  planId: uuid("plan_id"),
   day: text("day").notNull(),
   slot: text("slot").notNull(),
   title: text("title").notNull(),
   whyItFits: text("why_it_fits").notNull(),
   cookMinutes: integer("cook_minutes").notNull(),
   method: text("method").notNull(),
-  ingredientsJson: text("ingredients_json").notNull(),
-  stepsJson: text("steps_json").notNull(),
-  usedWebSearch: integer("used_web_search").notNull(),
-  pinned: integer("pinned").notNull(),
-  weekStart: text("week_start").notNull(),
-  createdAt: text("created_at").notNull(),
+  ingredients: jsonb("ingredients").$type<Ingredient[]>().notNull(),
+  steps: jsonb("steps").$type<string[]>().notNull(),
+  usedWebSearch: boolean("used_web_search").notNull().default(false),
+  pinned: boolean("pinned").notNull().default(false),
+  weekStart: text("week_start").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+    .notNull()
+    .defaultNow(),
   sourceUrl: text("source_url"),
-  extrasJson: text("extras_json").notNull().default("{}"),
-  draft: integer("draft").notNull().default(0),
-  stars: integer("stars").notNull().default(0),
-  takeout: integer("takeout").notNull().default(0),
-  leftover: integer("leftover").notNull().default(0),
+  extras: jsonb("extras").$type<MealExtras>().notNull(),
+  draft: boolean("draft").notNull().default(false),
+  stars: smallint("stars").notNull().default(0),
+  takeout: boolean("takeout").notNull().default(false),
+  leftover: boolean("leftover").notNull().default(false),
 });
 
-export const libraryGeneratePrefs = sqliteTable("library_generate_prefs", {
-  id: text("id").primaryKey(),
-  json: text("json").notNull(),
+export const libraryGeneratePrefs = pgTable("library_generate_prefs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  householdId: uuid("household_id").notNull().unique(),
+  json: jsonb("json").notNull(),
 });
 
-export const aiSettings = sqliteTable("ai_settings", {
-  id: text("id").primaryKey(),
+export const aiSettings = pgTable("ai_settings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  householdId: uuid("household_id").notNull().unique(),
   mode: text("mode").notNull(),
   baseUrl: text("base_url").notNull(),
   model: text("model").notNull(),
   customApiKey: text("custom_api_key"),
-  developerTools: integer("developer_tools").notNull(),
-  webSearch: integer("web_search").notNull(),
+  developerTools: boolean("developer_tools").notNull(),
+  webSearch: boolean("web_search").notNull(),
 });
 
-export const aiTraces = sqliteTable("ai_traces", {
-  id: text("id").primaryKey(),
-  createdAt: text("created_at").notNull(),
+export const aiTraces = pgTable("ai_traces", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  householdId: uuid("household_id").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
   kind: text("kind").notNull(),
   mode: text("mode").notNull(),
   baseUrl: text("base_url").notNull(),
@@ -95,3 +117,13 @@ export const aiTraces = sqliteTable("ai_traces", {
   responseText: text("response_text").notNull(),
   validation: text("validation").notNull(),
 });
+
+export const aiUsage = pgTable(
+  "ai_usage",
+  {
+    userId: uuid("user_id").notNull(),
+    day: date("day").notNull(),
+    generateCount: integer("generate_count").notNull().default(0),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.day] })],
+);

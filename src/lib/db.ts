@@ -1,235 +1,36 @@
-import Database from "better-sqlite3";
-import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import fs from "node:fs";
-import path from "node:path";
+import { drizzle } from "drizzle-orm/postgres-js";
+import { sql } from "drizzle-orm";
+import postgres from "postgres";
 import * as schema from "./schema";
 
-export type AppDb = BetterSQLite3Database<typeof schema>;
+export type AppDb = ReturnType<typeof drizzle<typeof schema>>;
 
-let cached: { path: string; sqlite: Database.Database; db: AppDb } | null = null;
+let client: ReturnType<typeof postgres> | null = null;
+let db: AppDb | null = null;
 
-function resolveDbPath(): string {
-  if (process.env.MORTANG_DB_PATH) {
-    return process.env.MORTANG_DB_PATH;
-  }
-  return path.join(process.cwd(), "data", "mortang.db");
-}
-
-function ensureSchema(sqlite: Database.Database): void {
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS households (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      diet_style TEXT NOT NULL,
-      notes TEXT NOT NULL,
-      servings INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS people (
-      id TEXT PRIMARY KEY,
-      household_id TEXT NOT NULL,
-      name TEXT NOT NULL,
-      age INTEGER NOT NULL,
-      sex TEXT,
-      allergies_json TEXT NOT NULL,
-      avoidances_json TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS kitchen_prefs (
-      id TEXT PRIMARY KEY,
-      expertise TEXT NOT NULL,
-      overall_diet TEXT NOT NULL,
-      breakfast_diet TEXT NOT NULL,
-      lunch_diet TEXT NOT NULL,
-      dinner_diet TEXT NOT NULL,
-      max_cook_minutes INTEGER NOT NULL,
-      involved TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS kitchen_items (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      kind TEXT NOT NULL,
-      enabled INTEGER NOT NULL,
-      built_in INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS week_plans (
-      id TEXT PRIMARY KEY,
-      week_start TEXT NOT NULL,
-      is_current INTEGER NOT NULL,
-      slot_mask_json TEXT NOT NULL,
-      name TEXT NOT NULL DEFAULT '',
-      favorited INTEGER NOT NULL DEFAULT 0
-    );
-
-    CREATE TABLE IF NOT EXISTS meals (
-      id TEXT PRIMARY KEY,
-      plan_id TEXT NOT NULL,
-      day TEXT NOT NULL,
-      slot TEXT NOT NULL,
-      title TEXT NOT NULL,
-      why_it_fits TEXT NOT NULL,
-      cook_minutes INTEGER NOT NULL,
-      method TEXT NOT NULL,
-      ingredients_json TEXT NOT NULL,
-      steps_json TEXT NOT NULL,
-      used_web_search INTEGER NOT NULL DEFAULT 0,
-      pinned INTEGER NOT NULL DEFAULT 0,
-      week_start TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL DEFAULT '',
-      source_url TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS ai_settings (
-      id TEXT PRIMARY KEY,
-      mode TEXT NOT NULL,
-      base_url TEXT NOT NULL,
-      model TEXT NOT NULL,
-      custom_api_key TEXT,
-      developer_tools INTEGER NOT NULL,
-      web_search INTEGER NOT NULL DEFAULT 0
-    );
-
-    CREATE TABLE IF NOT EXISTS ai_traces (
-      id TEXT PRIMARY KEY,
-      created_at TEXT NOT NULL,
-      kind TEXT NOT NULL,
-      mode TEXT NOT NULL,
-      base_url TEXT NOT NULL,
-      model TEXT NOT NULL,
-      request_text TEXT NOT NULL,
-      response_text TEXT NOT NULL,
-      validation TEXT NOT NULL
-    );
-  `);
-  ensureColumn(sqlite, "meals", "used_web_search", "INTEGER NOT NULL DEFAULT 0");
-  ensureColumn(sqlite, "meals", "pinned", "INTEGER NOT NULL DEFAULT 0");
-  ensureColumn(sqlite, "meals", "week_start", "TEXT NOT NULL DEFAULT ''");
-  ensureColumn(sqlite, "meals", "created_at", "TEXT NOT NULL DEFAULT ''");
-  ensureColumn(sqlite, "meals", "source_url", "TEXT");
-  ensureColumn(sqlite, "meals", "extras_json", "TEXT NOT NULL DEFAULT '{}'");
-  ensureColumn(sqlite, "meals", "draft", "INTEGER NOT NULL DEFAULT 0");
-  ensureColumn(sqlite, "meals", "stars", "INTEGER NOT NULL DEFAULT 0");
-  ensureColumn(sqlite, "meals", "takeout", "INTEGER NOT NULL DEFAULT 0");
-  ensureColumn(sqlite, "meals", "leftover", "INTEGER NOT NULL DEFAULT 0");
-  ensureColumn(sqlite, "week_plans", "name", "TEXT NOT NULL DEFAULT ''");
-  ensureColumn(sqlite, "week_plans", "favorited", "INTEGER NOT NULL DEFAULT 0");
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS library_generate_prefs (
-      id TEXT PRIMARY KEY,
-      json TEXT NOT NULL
-    );
-  `);
-  sqlite.exec(`
-    UPDATE meals
-    SET week_start = COALESCE(
-      (SELECT week_start FROM week_plans WHERE week_plans.id = meals.plan_id),
-      week_start
-    )
-    WHERE week_start = ''
-  `);
-  sqlite.exec(`
-    UPDATE meals
-    SET created_at = CASE
-      WHEN week_start != '' THEN week_start || 'T12:00:00.000Z'
-      ELSE datetime('now')
-    END
-    WHERE created_at = ''
-  `);
-  ensureColumn(sqlite, "ai_settings", "web_search", "INTEGER NOT NULL DEFAULT 0");
-}
-
-function tableColumns(sqlite: Database.Database, table: string): Set<string> {
-  const rows = sqlite.pragma(`table_info(${table})`) as { name: string }[];
-  return new Set(rows.map((row) => row.name));
-}
-
-function ensureColumn(
-  sqlite: Database.Database,
-  table: string,
-  column: string,
-  definition: string,
-): void {
-  if (tableColumns(sqlite, table).has(column)) return;
-  sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-}
-
-function normalizeTitleKey(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function dedupeStandaloneMeals(sqlite: Database.Database): void {
-  if (!tableColumns(sqlite, "meals").has("takeout")) return;
-  const rows = sqlite
-    .prepare(
-      `SELECT id, title, plan_id, leftover, stars, created_at
-       FROM meals WHERE draft = 0 AND takeout = 0`,
-    )
-    .all() as {
-    id: string;
-    title: string;
-    plan_id: string;
-    leftover: number;
-    stars: number;
-    created_at: string;
-  }[];
-  const buckets = new Map<string, typeof rows>();
-  for (const row of rows) {
-    const key = normalizeTitleKey(row.title);
-    if (!key) continue;
-    const list = buckets.get(key) ?? [];
-    list.push(row);
-    buckets.set(key, list);
-  }
-  const remove = sqlite.prepare(`DELETE FROM meals WHERE id = ? AND plan_id = ''`);
-  for (const group of buckets.values()) {
-    if (group.length < 2) continue;
-    const ranked = [...group].sort((a, b) => {
-      const aLib = a.plan_id === "" ? 0 : 1;
-      const bLib = b.plan_id === "" ? 0 : 1;
-      if (aLib !== bLib) return aLib - bLib;
-      if (a.leftover !== b.leftover) return a.leftover - b.leftover;
-      if (b.stars !== a.stars) return b.stars - a.stars;
-      return b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id);
-    });
-    for (const row of ranked.slice(1)) {
-      if (row.plan_id !== "") continue;
-      remove.run(row.id);
-    }
-  }
-}
-
-export function openDb(dbPath: string): AppDb {
-  if (cached?.path === dbPath) {
-    return cached.db;
-  }
-  if (cached) {
-    cached.sqlite.close();
-    cached = null;
-  }
-  const dir = path.dirname(dbPath);
-  fs.mkdirSync(dir, { recursive: true });
-  const sqlite = new Database(dbPath);
-  sqlite.pragma("journal_mode = WAL");
-  ensureSchema(sqlite);
-  const db = drizzle(sqlite, { schema });
-  cached = { path: dbPath, sqlite, db };
-  dedupeStandaloneMeals(sqlite);
+export function getDb(): AppDb {
+  if (db) return db;
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("DATABASE_URL is not set");
+  client = postgres(url, { prepare: false, max: 5 });
+  db = drizzle(client, { schema });
   return db;
 }
 
-export function getDb(): AppDb {
-  return openDb(resolveDbPath());
-}
-
-export function resetDbForTests(): void {
-  if (cached) {
-    cached.sqlite.close();
-    cached = null;
-  }
+export async function resetDbForTests(): Promise<void> {
+  const database = getDb();
+  await database.execute(sql`
+    truncate table
+      public.ai_usage,
+      public.ai_traces,
+      public.ai_settings,
+      public.library_generate_prefs,
+      public.meals,
+      public.week_plans,
+      public.kitchen_items,
+      public.kitchen_prefs,
+      public.people,
+      public.households
+    restart identity cascade
+  `);
 }
