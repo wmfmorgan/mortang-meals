@@ -491,7 +491,7 @@ export async function handleImportRecipe(
 
   const quota = await consumeAiQuota({
     userId: session.userId,
-    settings,
+    settings: { ...settings, mode: "grok", customApiKey: null },
   });
   if (!quota.ok) return quota.result;
 

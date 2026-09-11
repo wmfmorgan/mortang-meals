@@ -1,4 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { saveSettings } from "@/ai/settings-repo";
+import { AI_DAILY_CAP } from "@/ai/usage";
 import { resetDbForTests } from "@/lib/db";
 import { createTestIdentity, deleteTestUser } from "@/lib/test-identity";
 import type { AdapterRequest, AdapterResult } from "@/lib/types";
@@ -88,6 +90,57 @@ describe("handleImportRecipe", () => {
       }),
     );
     expect(phases).toEqual(["opening", "writing", "saving"]);
+  });
+
+  it("counts import against the shared-key cap even with a custom provider key", async () => {
+    const other = await createTestIdentity();
+    await saveSettings(other.householdId, {
+      mode: "custom",
+      customApiKey: "sk-test",
+    });
+    const auth = { userId: other.userId, householdId: other.householdId };
+    let calls = 0;
+    const complete = async (): Promise<AdapterResult> => {
+      calls += 1;
+      return {
+        ok: true,
+        text: JSON.stringify({
+          meal: {
+            day: "monday",
+            slot: "dinner",
+            title: `Imported cap ${calls}`,
+            whyItFits: "From the page",
+            cookMinutes: 25,
+            method: "sheet pan",
+            ingredients: [
+              { name: "salmon", quantity: "1", unit: "lb", aisle: "meat" },
+            ],
+            steps: ["Roast"],
+          },
+        }),
+      };
+    };
+
+    try {
+      for (let i = 0; i < AI_DAILY_CAP; i++) {
+        const result = await handleImportRecipe(
+          { url: `https://example.com/cap-${i}`, slot: "dinner" },
+          { auth, complete },
+        );
+        expect(result.status).toBe(200);
+      }
+      const eleventh = await handleImportRecipe(
+        { url: "https://example.com/cap-over", slot: "dinner" },
+        { auth, complete },
+      );
+      expect(eleventh.status).toBe(429);
+      expect((eleventh.body as { message: string }).message).toBe(
+        "Daily generate limit reached. Try again tomorrow.",
+      );
+      expect(calls).toBe(AI_DAILY_CAP);
+    } finally {
+      await deleteTestUser(other.userId);
+    }
   });
 });
 
