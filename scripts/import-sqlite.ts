@@ -76,8 +76,8 @@ export async function importSqlite(input: {
   try {
     const snapshot = readSqlite(sqlite);
     return await db.transaction(async (tx) => {
-      await wipeHousehold(tx, household.id);
       if (input.force) {
+        await wipeHousehold(tx, household.id);
         await tx.delete(aiUsage).where(eq(aiUsage.userId, userId));
       }
 
@@ -113,9 +113,7 @@ export async function importSqlite(input: {
 
       const kitchenPref = snapshot.kitchen_prefs[0];
       if (kitchenPref) {
-        await tx.insert(kitchenPrefs).values({
-          id: asUuid(kitchenPref.id),
-          householdId,
+        const values = {
           expertise: asString(kitchenPref.expertise, "intermediate"),
           overallDiet: asString(kitchenPref.overall_diet),
           breakfastDiet: asString(kitchenPref.breakfast_diet),
@@ -123,7 +121,14 @@ export async function importSqlite(input: {
           dinnerDiet: asString(kitchenPref.dinner_diet),
           maxCookMinutes: asInt(kitchenPref.max_cook_minutes, 45),
           involved: asString(kitchenPref.involved, "medium"),
-        });
+        };
+        await tx
+          .insert(kitchenPrefs)
+          .values({ id: asUuid(kitchenPref.id), householdId, ...values })
+          .onConflictDoUpdate({
+            target: kitchenPrefs.householdId,
+            set: values,
+          });
       }
 
       if (snapshot.kitchen_items.length > 0) {
@@ -190,25 +195,33 @@ export async function importSqlite(input: {
 
       const libraryPrefs = snapshot.library_generate_prefs[0];
       if (libraryPrefs) {
-        await tx.insert(libraryGeneratePrefs).values({
-          id: asUuid(libraryPrefs.id),
-          householdId,
-          json: asJson(libraryPrefs.json, {}),
-        });
+        const json = asJson(libraryPrefs.json, {});
+        await tx
+          .insert(libraryGeneratePrefs)
+          .values({ id: asUuid(libraryPrefs.id), householdId, json })
+          .onConflictDoUpdate({
+            target: libraryGeneratePrefs.householdId,
+            set: { json },
+          });
       }
 
       const settings = snapshot.ai_settings[0];
       if (settings) {
-        await tx.insert(aiSettings).values({
-          id: asUuid(settings.id),
-          householdId,
+        const values = {
           mode: asString(settings.mode, "grok"),
           baseUrl: asString(settings.base_url, "https://api.x.ai/v1"),
           model: asString(settings.model, "grok-4.6"),
           customApiKey: asNullableString(settings.custom_api_key),
           developerTools: asBool(settings.developer_tools),
           webSearch: asBool(settings.web_search),
-        });
+        };
+        await tx
+          .insert(aiSettings)
+          .values({ id: asUuid(settings.id), householdId, ...values })
+          .onConflictDoUpdate({
+            target: aiSettings.householdId,
+            set: values,
+          });
       }
 
       if (snapshot.ai_traces.length > 0) {

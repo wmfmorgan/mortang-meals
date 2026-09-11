@@ -4,9 +4,10 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
 import { getDb, resetDbForTests } from "@/lib/db";
-import { meals } from "@/lib/schema";
+import { kitchenItems, meals, people } from "@/lib/schema";
 import { createTestIdentity, deleteTestUser } from "@/lib/test-identity";
-import { upsertHousehold } from "@/household/repo";
+import { replacePeople, upsertHousehold } from "@/household/repo";
+import { seedKitchenIfEmpty } from "@/kitchen/repo";
 import { importSqlite } from "./import-sqlite";
 
 function writeFixture(file: string) {
@@ -101,5 +102,44 @@ describe("importSqlite", () => {
     expect(rows[0]?.usedWebSearch).toBe(false);
     fs.rmSync(file, { force: true });
     await deleteTestUser(ident.userId);
+  });
+
+  it("keeps setup people and kitchen on first import", async () => {
+    const ident = await createTestIdentity();
+    const file = path.join(os.tmpdir(), `import-${crypto.randomUUID()}.db`);
+    try {
+      await upsertHousehold({
+        ownerId: ident.userId,
+        id: ident.householdId,
+        name: "x",
+        dietStyle: "x",
+        notes: "",
+        servings: 1,
+      });
+      await replacePeople(ident.householdId, [
+        {
+          name: "Pat",
+          age: 40,
+          sex: null,
+          allergies: [],
+          avoidances: [],
+        },
+      ]);
+      await seedKitchenIfEmpty(ident.householdId);
+      writeFixture(file);
+      const result = await importSqlite({ dbPath: file, email: ident.email });
+      expect(result.meals).toBe(1);
+      const db = getDb();
+      const members = await db.select().from(people);
+      expect(members.map((row) => row.name)).toEqual(["Pat"]);
+      const items = await db.select().from(kitchenItems);
+      expect(items.length).toBeGreaterThan(0);
+      const rows = await db.select().from(meals);
+      expect(rows[0]?.title).toBe("Imported stew");
+      expect(rows[0]?.householdId).toBe(ident.householdId);
+    } finally {
+      fs.rmSync(file, { force: true });
+      await deleteTestUser(ident.userId);
+    }
   });
 });
