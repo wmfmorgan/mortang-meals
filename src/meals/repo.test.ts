@@ -1,9 +1,7 @@
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { getDb, resetDbForTests } from "@/lib/db";
-import { meals as mealsTable } from "@/lib/schema";
+import { households, meals as mealsTable } from "@/lib/schema";
+import { createTestIdentity, deleteTestUser } from "@/lib/test-identity";
 import type { GeneratedMeal, SlotMask } from "@/lib/types";
 import { DAYS, SLOTS } from "@/lib/types";
 import {
@@ -41,18 +39,32 @@ import {
 } from "./repo";
 import { EMPTY_EXTRAS, suggestionExtra } from "./extras";
 
-const dbPath = path.join(os.tmpdir(), `mortang-meals-${crypto.randomUUID()}.db`);
+let ident: Awaited<ReturnType<typeof createTestIdentity>>;
+const extraUsers: string[] = [];
 
-beforeAll(() => {
-  process.env.MORTANG_DB_PATH = dbPath;
-  resetDbForTests();
+beforeAll(async () => {
+  ident = await createTestIdentity();
 });
 
-afterAll(() => {
-  resetDbForTests();
-  for (const suffix of ["", "-wal", "-shm"]) {
-    fs.rmSync(`${dbPath}${suffix}`, { force: true });
-  }
+afterEach(async () => {
+  await Promise.all(extraUsers.splice(0).map(deleteTestUser));
+  await resetDbForTests();
+  const [row] = await getDb()
+    .insert(households)
+    .values({
+      ownerId: ident.userId,
+      name: "",
+      dietStyle: "",
+      notes: "",
+      servings: 1,
+    })
+    .returning();
+  ident.householdId = row!.id;
+});
+
+afterAll(async () => {
+  await resetDbForTests();
+  await deleteTestUser(ident.userId);
 });
 
 function emptyMask(): SlotMask {
@@ -76,41 +88,63 @@ function meal(overrides: Partial<GeneratedMeal> = {}): GeneratedMeal {
 }
 
 describe("meals repo", () => {
-  it("saveGeneratedPlan twice for the same weekStart keeps both, newest current", () => {
-    const weekStart = "2026-01-05";
+  it("listLibraryMeals does not return another household's dinner", async () => {
+    const other = await createTestIdentity();
+    extraUsers.push(other.userId);
+    await saveStandaloneMeal(ident.householdId, {
+      meal: meal({ title: "Mine", slot: "dinner" }),
+      slot: "dinner",
+    });
+    await saveStandaloneMeal(other.householdId, {
+      meal: meal({ title: "Theirs", slot: "dinner" }),
+      slot: "dinner",
+    });
+    const mine = await listLibraryMeals(ident.householdId, "dinner");
+    expect(mine.map((m) => m.title)).toEqual(["Mine"]);
+  });
+
+  it("saveStandaloneMeal stores plan_id null", async () => {
+    const saved = await saveStandaloneMeal(ident.householdId, {
+      meal: meal({ title: "Typed chili" }),
+      slot: "dinner",
+    });
+    expect(saved.planId).toBeNull();
+  });
+
+  it("saveGeneratedPlan twice keeps both, newest current", async () => {
     const slotMask = emptyMask();
     slotMask.monday.dinner = true;
 
-    const first = saveGeneratedPlan({
-      weekStart,
+    const first = await saveGeneratedPlan(ident.householdId, {
+      weekStart: "2026-01-05",
       slotMask,
       meals: [meal({ title: "First salmon" })],
     });
-    const second = saveGeneratedPlan({
-      weekStart,
+    const second = await saveGeneratedPlan(ident.householdId, {
+      weekStart: "2026-01-12",
       slotMask,
       meals: [meal({ title: "Second salmon" })],
     });
 
     expect(second.isCurrent).toBe(true);
 
-    const plans = listPlans();
+    const plans = await listPlans(ident.householdId);
     expect(plans).toHaveLength(2);
     const byId = Object.fromEntries(plans.map((plan) => [plan.id, plan]));
     expect(byId[first.id]?.isCurrent).toBe(false);
     expect(byId[second.id]?.isCurrent).toBe(true);
 
-    const current = getCurrentPlan();
+    const current = await getCurrentPlan(ident.householdId);
     expect(current?.id).toBe(second.id);
     expect(current?.meals.map((item) => item.title)).toEqual(["Second salmon"]);
   });
 
-  it("replaceMeal changes only that meal's title", () => {
+  it("replaceMeal changes only that meal's title", async () => {
     const slotMask = emptyMask();
     slotMask.monday.dinner = true;
     slotMask.tuesday.dinner = true;
 
-    const plan = saveGeneratedPlan({
+    const plan = await saveGeneratedPlan(ident.householdId, {
       weekStart: "2026-01-12",
       slotMask,
       meals: [
@@ -124,14 +158,14 @@ describe("meals repo", () => {
     expect(monday).toBeDefined();
     expect(tuesday).toBeDefined();
 
-    const updated = replaceMeal(plan.id, monday!.id, {
+    const updated = await replaceMeal(ident.householdId, plan.id, monday!.id, {
       ...monday!,
       title: "Monday tofu",
     });
 
     expect(updated.title).toBe("Monday tofu");
 
-    const reloaded = getCurrentPlan();
+    const reloaded = await getCurrentPlan(ident.householdId);
     expect(reloaded?.meals.find((item) => item.id === monday!.id)?.title).toBe(
       "Monday tofu",
     );
@@ -140,11 +174,11 @@ describe("meals repo", () => {
     );
   });
 
-  it("persists usedWebSearch on generate and swap", () => {
+  it("persists usedWebSearch on generate and swap", async () => {
     const slotMask = emptyMask();
     slotMask.monday.dinner = true;
 
-    const plan = saveGeneratedPlan({
+    const plan = await saveGeneratedPlan(ident.householdId, {
       weekStart: "2026-01-19",
       slotMask,
       meals: [meal({ title: "Searched salmon" })],
@@ -152,18 +186,23 @@ describe("meals repo", () => {
     });
 
     expect(plan.meals[0]?.usedWebSearch).toBe(true);
-    expect(getCurrentPlan()?.meals[0]?.usedWebSearch).toBe(true);
+    expect((await getCurrentPlan(ident.householdId))?.meals[0]?.usedWebSearch).toBe(true);
 
-    const swapped = replaceMeal(plan.id, plan.meals[0]!.id, meal({ title: "Invented tofu" }));
+    const swapped = await replaceMeal(
+      ident.householdId,
+      plan.id,
+      plan.meals[0]!.id,
+      meal({ title: "Invented tofu" }),
+    );
     expect(swapped.usedWebSearch).toBe(false);
-    expect(getCurrentPlan()?.meals[0]?.usedWebSearch).toBe(false);
+    expect((await getCurrentPlan(ident.householdId))?.meals[0]?.usedWebSearch).toBe(false);
   });
 
-  it("stores a generate sourceUrl and lets swap replace it", () => {
+  it("stores a generate sourceUrl and lets swap replace it", async () => {
     const slotMask = emptyMask();
     slotMask.monday.dinner = true;
 
-    const plan = saveGeneratedPlan({
+    const plan = await saveGeneratedPlan(ident.householdId, {
       weekStart: "2026-01-26",
       slotMask,
       meals: [
@@ -176,7 +215,8 @@ describe("meals repo", () => {
     });
     expect(plan.meals[0]?.sourceUrl).toBe("https://example.com/salmon");
 
-    const swapped = replaceMeal(
+    const swapped = await replaceMeal(
+      ident.householdId,
       plan.id,
       plan.meals[0]!.id,
       meal({
@@ -185,17 +225,17 @@ describe("meals repo", () => {
       }),
     );
     expect(swapped.sourceUrl).toBe("https://example.com/trout");
-    expect(getCurrentPlan()?.meals[0]?.sourceUrl).toBe(
+    expect((await getCurrentPlan(ident.householdId))?.meals[0]?.sourceUrl).toBe(
       "https://example.com/trout",
     );
   });
 
-  it("lists unique library meals for a slot, newest week first", () => {
+  it("lists unique library meals for a slot, newest week first", async () => {
     const slotMask = emptyMask();
     slotMask.monday.dinner = true;
     slotMask.monday.lunch = true;
 
-    saveGeneratedPlan({
+    await saveGeneratedPlan(ident.householdId, {
       weekStart: "2026-01-05",
       slotMask,
       meals: [
@@ -203,13 +243,13 @@ describe("meals repo", () => {
         meal({ day: "monday", slot: "lunch", title: "Library orzo bowl" }),
       ],
     });
-    saveGeneratedPlan({
+    await saveGeneratedPlan(ident.householdId, {
       weekStart: "2026-01-19",
       slotMask,
       meals: [meal({ title: "Library Roast Chicken" })],
     });
 
-    const dinners = listLibraryMeals("dinner");
+    const dinners = await listLibraryMeals(ident.householdId, "dinner");
     const roast = dinners.filter((item) =>
       /library roast chicken/i.test(item.title),
     );
@@ -217,27 +257,29 @@ describe("meals repo", () => {
     expect(roast[0]?.title).toBe("Library Roast Chicken");
     expect(roast[0]?.weekStart).toBe("2026-01-19");
     expect(
-      listLibraryMeals("lunch").some((item) => item.title === "Library orzo bowl"),
+      (await listLibraryMeals(ident.householdId, "lunch")).some(
+        (item) => item.title === "Library orzo bowl",
+      ),
     ).toBe(true);
   });
 
-  it("places a library meal onto an empty current square without pinning it", () => {
+  it("places a library meal onto an empty current square without pinning it", async () => {
     const slotMask = emptyMask();
     slotMask.monday.dinner = true;
-    const sourcePlan = saveGeneratedPlan({
+    const sourcePlan = await saveGeneratedPlan(ident.householdId, {
       weekStart: "2026-02-02",
       slotMask,
       meals: [meal({ title: "Crockpot chicken" })],
     });
     const source = sourcePlan.meals[0]!;
 
-    saveGeneratedPlan({
+    await saveGeneratedPlan(ident.householdId, {
       weekStart: "2026-02-09",
       slotMask,
       meals: [],
     });
 
-    const placed = placeMeal({
+    const placed = await placeMeal(ident.householdId, {
       sourceMealId: source.id,
       day: "wednesday",
       slot: "dinner",
@@ -247,26 +289,26 @@ describe("meals repo", () => {
     expect(placed.title).toBe("Crockpot chicken");
     expect(placed.day).toBe("wednesday");
     expect(placed.pinned).toBe(false);
-    expect(getMealOnCurrent("wednesday", "dinner")?.id).toBe(placed.id);
+    expect((await getMealOnCurrent("wednesday", "dinner"))?.id).toBe(placed.id);
     expect(sourcePlan.meals[0]?.title).toBe("Crockpot chicken");
   });
 
-  it("replaces a filled square and keeps the previous pin state", () => {
+  it("replaces a filled square and keeps the previous pin state", async () => {
     const slotMask = emptyMask();
     slotMask.monday.dinner = true;
-    const older = saveGeneratedPlan({
+    const older = await saveGeneratedPlan(ident.householdId, {
       weekStart: "2026-02-16",
       slotMask,
       meals: [meal({ title: "Sheet-pan trout" })],
     });
-    const current = saveGeneratedPlan({
+    const current = await saveGeneratedPlan(ident.householdId, {
       weekStart: "2026-02-23",
       slotMask,
       meals: [meal({ title: "Monday salmon" })],
     });
-    setPinned(current.meals[0]!.id, true);
+    await setPinned(ident.householdId, current.meals[0]!.id, true);
 
-    const replaced = placeMeal({
+    const replaced = await placeMeal(ident.householdId, {
       sourceMealId: older.meals[0]!.id,
       day: "monday",
       slot: "dinner",
@@ -276,35 +318,37 @@ describe("meals repo", () => {
     expect(replaced.id).toBe(current.meals[0]!.id);
     expect(replaced.title).toBe("Sheet-pan trout");
     expect(replaced.pinned).toBe(true);
-    expect(getCurrentPlan()?.meals).toHaveLength(1);
+    expect((await getCurrentPlan(ident.householdId))?.meals).toHaveLength(1);
   });
 
-  it("deletePlan removes the week but keeps meals in the library", () => {
+  it("deletePlan removes the week but keeps meals in the library", async () => {
     const slotMask = emptyMask();
     slotMask.monday.dinner = true;
-    const plan = saveGeneratedPlan({
+    const plan = await saveGeneratedPlan(ident.householdId, {
       weekStart: "2026-04-06",
       slotMask,
       meals: [meal({ title: "Archive roast" })],
     });
 
-    deletePlan(plan.id);
+    await deletePlan(ident.householdId, plan.id);
 
-    expect(listPlans().some((item) => item.id === plan.id)).toBe(false);
-    expect(getCurrentPlan()?.id === plan.id).toBe(false);
+    expect((await listPlans(ident.householdId)).some((item) => item.id === plan.id)).toBe(false);
+    expect((await getCurrentPlan(ident.householdId))?.id === plan.id).toBe(false);
     expect(
-      listLibraryMeals("dinner").some((item) => item.title === "Archive roast"),
+      (await listLibraryMeals(ident.householdId, "dinner")).some(
+        (item) => item.title === "Archive roast",
+      ),
     ).toBe(true);
     expect(
-      listAllMeals().some((item) => item.title === "Archive roast"),
+      (await listAllMeals(ident.householdId)).some((item) => item.title === "Archive roast"),
     ).toBe(true);
   });
 
-  it("deleteMeal removes only that meal from the plan", () => {
+  it("deleteMeal removes only that meal from the plan", async () => {
     const slotMask = emptyMask();
     slotMask.monday.dinner = true;
     slotMask.tuesday.dinner = true;
-    const plan = saveGeneratedPlan({
+    const plan = await saveGeneratedPlan(ident.householdId, {
       weekStart: "2026-03-16",
       slotMask,
       meals: [
@@ -313,35 +357,35 @@ describe("meals repo", () => {
       ],
     });
     const doomed = plan.meals.find((item) => item.day === "monday")!;
-    deleteMeal(doomed.id);
+    await deleteMeal(ident.householdId, doomed.id);
 
-    const reloaded = getCurrentPlan();
+    const reloaded = await getCurrentPlan(ident.householdId);
     expect(reloaded?.meals.map((item) => item.title)).toEqual(["Keep me"]);
     expect(reloaded?.meals.find((item) => item.id === doomed.id)).toBeUndefined();
   });
 
-  it("saveStandaloneMeal stores a library meal without a source URL", () => {
-    const saved = saveStandaloneMeal({
+  it("saveStandaloneMeal stores a library meal without a source URL", async () => {
+    const saved = await saveStandaloneMeal(ident.householdId, {
       meal: meal({ title: "Grandma chili", slot: "lunch" }),
       slot: "lunch",
     });
-    expect(saved.planId).toBe("");
+    expect(saved.planId).toBeNull();
     expect(saved.slot).toBe("lunch");
     expect(saved.title).toBe("Grandma chili");
     expect(saved.sourceUrl).toBeNull();
     expect(saved.usedWebSearch).toBe(false);
     expect(saved.pinned).toBe(false);
-    expect(listAllMeals().some((item) => item.id === saved.id)).toBe(true);
+    expect((await listAllMeals(ident.householdId)).some((item) => item.id === saved.id)).toBe(true);
   });
 
-  it("updateMeal changes recipe fields and leaves source and pin alone", () => {
-    const saved = saveImportedMeal({
+  it("updateMeal changes recipe fields and leaves source and pin alone", async () => {
+    const saved = await saveImportedMeal(ident.householdId, {
       meal: meal({ title: "Imported stew" }),
       slot: "dinner",
       sourceUrl: "https://example.com/stew",
     });
-    const pinned = setPinned(saved.id, true);
-    const updated = updateMeal(pinned.id, {
+    const pinned = await setPinned(ident.householdId, saved.id, true);
+    const updated = await updateMeal(ident.householdId, pinned.id, {
       title: "Edited stew",
       whyItFits: "Still works",
       cookMinutes: 40,
@@ -359,11 +403,11 @@ describe("meals repo", () => {
     expect(updated.pinned).toBe(true);
   });
 
-  it("pin-all and unpin-all flip every meal on the plan", () => {
+  it("pin-all and unpin-all flip every meal on the plan", async () => {
     const slotMask = emptyMask();
     slotMask.monday.dinner = true;
     slotMask.tuesday.dinner = true;
-    const plan = saveGeneratedPlan({
+    const plan = await saveGeneratedPlan(ident.householdId, {
       weekStart: "2026-03-02",
       slotMask,
       meals: [
@@ -372,17 +416,17 @@ describe("meals repo", () => {
       ],
     });
 
-    const pinned = setPlanPinned(plan.id, true);
+    const pinned = await setPlanPinned(ident.householdId, plan.id, true);
     expect(pinned.meals.every((item) => item.pinned)).toBe(true);
-    const unpinned = setPlanPinned(plan.id, false);
+    const unpinned = await setPlanPinned(ident.householdId, plan.id, false);
     expect(unpinned.meals.every((item) => item.pinned)).toBe(false);
   });
 
-  it("mergeGeneratedPlan keeps pinned meals and replaces the rest", () => {
+  it("mergeGeneratedPlan keeps pinned meals and replaces the rest", async () => {
     const slotMask = emptyMask();
     slotMask.monday.dinner = true;
     slotMask.tuesday.dinner = true;
-    const plan = saveGeneratedPlan({
+    const plan = await saveGeneratedPlan(ident.householdId, {
       weekStart: "2026-03-09",
       slotMask,
       meals: [
@@ -390,9 +434,13 @@ describe("meals repo", () => {
         meal({ day: "tuesday", title: "Replace chicken" }),
       ],
     });
-    setPinned(plan.meals.find((item) => item.day === "monday")!.id, true);
+    await setPinned(
+      ident.householdId,
+      plan.meals.find((item) => item.day === "monday")!.id,
+      true,
+    );
 
-    const merged = mergeGeneratedPlan({
+    const merged = await mergeGeneratedPlan(ident.householdId, {
       weekStart: "2026-03-09",
       slotMask,
       meals: [
@@ -413,10 +461,10 @@ describe("meals repo", () => {
     );
   });
 
-  it("new meals start with empty extras", () => {
+  it("new meals start with empty extras", async () => {
     const slotMask = emptyMask();
     slotMask.monday.dinner = true;
-    const plan = saveGeneratedPlan({
+    const plan = await saveGeneratedPlan(ident.householdId, {
       weekStart: "2026-04-06",
       slotMask,
       meals: [meal({ title: "Salmon" })],
@@ -424,10 +472,10 @@ describe("meals repo", () => {
     expect(plan.meals[0]?.extras).toEqual(EMPTY_EXTRAS);
   });
 
-  it("setMealExtra stores a side and clearMealExtra removes it", () => {
+  it("setMealExtra stores a side and clearMealExtra removes it", async () => {
     const slotMask = emptyMask();
     slotMask.monday.dinner = true;
-    const plan = saveGeneratedPlan({
+    const plan = await saveGeneratedPlan(ident.householdId, {
       weekStart: "2026-04-13",
       slotMask,
       meals: [meal({ title: "Salmon" })],
@@ -437,19 +485,19 @@ describe("meals repo", () => {
       kind: "side",
       title: "Baked potato",
     });
-    const withSide = setMealExtra(plan.meals[0]!.id, extra);
+    const withSide = await setMealExtra(ident.householdId, plan.meals[0]!.id, extra);
     expect(withSide.extras.side).toEqual(extra);
-    expect(getCurrentPlan()?.meals[0]?.extras.side?.title).toBe("Baked potato");
+    expect((await getCurrentPlan(ident.householdId))?.meals[0]?.extras.side?.title).toBe("Baked potato");
 
-    const cleared = clearMealExtra(plan.meals[0]!.id, "side");
+    const cleared = await clearMealExtra(ident.householdId, plan.meals[0]!.id, "side");
     expect(cleared.extras.side).toBeNull();
-    expect(getCurrentPlan()?.meals[0]?.extras).toEqual(EMPTY_EXTRAS);
+    expect((await getCurrentPlan(ident.householdId))?.meals[0]?.extras).toEqual(EMPTY_EXTRAS);
   });
 
-  it("replaceMeal keeps extras on the same row", () => {
+  it("replaceMeal keeps extras on the same row", async () => {
     const slotMask = emptyMask();
     slotMask.monday.dinner = true;
-    const plan = saveGeneratedPlan({
+    const plan = await saveGeneratedPlan(ident.householdId, {
       weekStart: "2026-04-20",
       slotMask,
       meals: [meal({ title: "Salmon" })],
@@ -459,25 +507,26 @@ describe("meals repo", () => {
       kind: "dessert",
       title: "Key lime pie",
     });
-    setMealExtra(plan.meals[0]!.id, extra);
+    await setMealExtra(ident.householdId, plan.meals[0]!.id, extra);
 
-    const swapped = replaceMeal(
+    const swapped = await replaceMeal(
+      ident.householdId,
       plan.id,
       plan.meals[0]!.id,
       meal({ title: "Trout" }),
     );
     expect(swapped.title).toBe("Trout");
     expect(swapped.extras.dessert?.title).toBe("Key lime pie");
-    expect(getCurrentPlan()?.meals[0]?.extras.dessert?.title).toBe(
+    expect((await getCurrentPlan(ident.householdId))?.meals[0]?.extras.dessert?.title).toBe(
       "Key lime pie",
     );
   });
 
-  it("mergeGeneratedPlan drops extras on an unpinned occupant and keeps them on a pinned one", () => {
+  it("mergeGeneratedPlan drops extras on an unpinned occupant and keeps them on a pinned one", async () => {
     const slotMask = emptyMask();
     slotMask.monday.dinner = true;
     slotMask.tuesday.dinner = true;
-    const plan = saveGeneratedPlan({
+    const plan = await saveGeneratedPlan(ident.householdId, {
       weekStart: "2026-04-27",
       slotMask,
       meals: [
@@ -487,17 +536,19 @@ describe("meals repo", () => {
     });
     const monday = plan.meals.find((item) => item.day === "monday")!;
     const tuesday = plan.meals.find((item) => item.day === "tuesday")!;
-    setMealExtra(
+    await setMealExtra(
+      ident.householdId,
       monday.id,
       suggestionExtra({ id: "keep-side", kind: "side", title: "Slaw" }),
     );
-    setMealExtra(
+    await setMealExtra(
+      ident.householdId,
       tuesday.id,
       suggestionExtra({ id: "drop-side", kind: "side", title: "Fries" }),
     );
-    setPinned(monday.id, true);
+    await setPinned(ident.householdId, monday.id, true);
 
-    const merged = mergeGeneratedPlan({
+    const merged = await mergeGeneratedPlan(ident.householdId, {
       weekStart: "2026-04-27",
       slotMask,
       meals: [
@@ -514,19 +565,19 @@ describe("meals repo", () => {
     );
   });
 
-  it("placeExtra copies a library recipe onto a lunch as a side", () => {
+  it("placeExtra copies a library recipe onto a lunch as a side", async () => {
     const slotMask = emptyMask();
     slotMask.monday.lunch = true;
-    const plan = saveGeneratedPlan({
+    const plan = await saveGeneratedPlan(ident.householdId, {
       weekStart: "2026-05-11",
       slotMask,
       meals: [meal({ day: "monday", slot: "lunch", title: "Chicken pita" })],
     });
-    const source = saveStandaloneMeal({
+    const source = await saveStandaloneMeal(ident.householdId, {
       meal: meal({ title: "Greek salad", slot: "side" }),
       slot: "side",
     });
-    const updated = placeExtra({
+    const updated = await placeExtra(ident.householdId, {
       sourceMealId: source.id,
       mealId: plan.meals[0]!.id,
       kind: "side",
@@ -536,17 +587,18 @@ describe("meals repo", () => {
     expect(updated.extras.side?.id).toBe(source.id);
   });
 
-  it("placeMeal does not copy extras onto the week", () => {
-    const source = saveStandaloneMeal({
+  it("placeMeal does not copy extras onto the week", async () => {
+    const source = await saveStandaloneMeal(ident.householdId, {
       meal: meal({ title: "Library chili" }),
       slot: "dinner",
     });
-    setMealExtra(
+    await setMealExtra(
+      ident.householdId,
       source.id,
       suggestionExtra({ id: "lib-side", kind: "side", title: "Cornbread" }),
     );
 
-    const placed = placeMeal({
+    const placed = await placeMeal(ident.householdId, {
       sourceMealId: source.id,
       day: "wednesday",
       slot: "dinner",
@@ -556,98 +608,114 @@ describe("meals repo", () => {
     expect(placed.extras).toEqual(EMPTY_EXTRAS);
   });
 
-  it("keeps drafts out of the library until they are approved", () => {
-    const draft = saveStandaloneMeal({
+  it("keeps drafts out of the library until they are approved", async () => {
+    const draft = await saveStandaloneMeal(ident.householdId, {
       meal: meal({ title: "Draft chili", slot: "dinner" }),
       slot: "dinner",
       draft: true,
     });
-    expect(listAllMeals().some((item) => item.id === draft.id)).toBe(false);
-    expect(listDraftMeals().some((item) => item.id === draft.id)).toBe(true);
-    expect(listLibraryMeals("dinner").some((item) => item.id === draft.id)).toBe(
-      false,
-    );
+    expect((await listAllMeals(ident.householdId)).some((item) => item.id === draft.id)).toBe(false);
+    expect((await listDraftMeals(ident.householdId)).some((item) => item.id === draft.id)).toBe(true);
+    expect(
+      (await listLibraryMeals(ident.householdId, "dinner")).some((item) => item.id === draft.id),
+    ).toBe(false);
 
-    const saved = approveDraft(draft.id);
+    const saved = await approveDraft(ident.householdId, draft.id);
     expect(saved.draft).toBe(false);
-    expect(listAllMeals().some((item) => item.id === draft.id)).toBe(true);
-    expect(listDraftMeals()).toHaveLength(0);
+    expect((await listAllMeals(ident.householdId)).some((item) => item.id === draft.id)).toBe(true);
+    expect(await listDraftMeals(ident.householdId)).toHaveLength(0);
   });
 
-  it("deletes a rejected draft", () => {
-    const draft = saveStandaloneMeal({
+  it("deletes a rejected draft", async () => {
+    const draft = await saveStandaloneMeal(ident.householdId, {
       meal: meal({ title: "Reject me", slot: "lunch" }),
       slot: "lunch",
       draft: true,
     });
-    rejectDraft(draft.id);
-    expect(listDraftMeals().some((item) => item.id === draft.id)).toBe(false);
-    expect(listAllMeals().some((item) => item.id === draft.id)).toBe(false);
+    await rejectDraft(ident.householdId, draft.id);
+    expect((await listDraftMeals(ident.householdId)).some((item) => item.id === draft.id)).toBe(false);
+    expect((await listAllMeals(ident.householdId)).some((item) => item.id === draft.id)).toBe(false);
   });
 
-  it("rates a saved meal and refuses a draft", () => {
-    const saved = saveStandaloneMeal({
+  it("rates a saved meal and refuses a draft", async () => {
+    const saved = await saveStandaloneMeal(ident.householdId, {
       meal: meal({ title: "Rated stew", slot: "dinner" }),
       slot: "dinner",
     });
-    expect(setMealStars(saved.id, 4).stars).toBe(4);
-    const draft = saveStandaloneMeal({
+    expect((await setMealStars(ident.householdId, saved.id, 4)).stars).toBe(4);
+    const draft = await saveStandaloneMeal(ident.householdId, {
       meal: meal({ title: "Unrated draft", slot: "dinner" }),
       slot: "dinner",
       draft: true,
     });
-    expect(() => setMealStars(draft.id, 5)).toThrow(/draft/i);
+    await expect(setMealStars(ident.householdId, draft.id, 5)).rejects.toThrow(/draft/i);
   });
 
-  it("renames and favorites a plan", () => {
-    const plan = saveGeneratedPlan({
+  it("renames and favorites a plan", async () => {
+    const plan = await saveGeneratedPlan(ident.householdId, {
       weekStart: "2026-05-25",
       slotMask: emptyMask(),
       meals: [meal({ title: "May chili" })],
     });
-    const named = updatePlan({ planId: plan.id, name: "  Beach week  " });
+    const named = await updatePlan(ident.householdId, {
+      planId: plan.id,
+      name: "  Beach week  ",
+    });
     expect(named.name).toBe("Beach week");
-    const starred = updatePlan({ planId: plan.id, favorited: true });
+    const starred = await updatePlan(ident.householdId, {
+      planId: plan.id,
+      favorited: true,
+    });
     expect(starred.favorited).toBe(true);
-    expect(listPlans().find((item) => item.id === plan.id)?.name).toBe(
-      "Beach week",
-    );
+    expect(
+      (await listPlans(ident.householdId)).find((item) => item.id === plan.id)?.name,
+    ).toBe("Beach week");
   });
 
-  it("opens another week without deleting this week", () => {
-    const first = saveGeneratedPlan({
+  it("opens another week without deleting this week", async () => {
+    const first = await saveGeneratedPlan(ident.householdId, {
       weekStart: "2026-06-01",
       slotMask: emptyMask(),
       meals: [meal({ title: "June chili" })],
     });
-    const next = openPlan("2026-06-08");
+    const next = await openPlan(ident.householdId, "2026-06-08");
     expect(next.weekStart).toBe("2026-06-08");
     expect(next.isCurrent).toBe(true);
-    expect(getPlan(first.id)?.meals.some((item) => item.title === "June chili")).toBe(
-      true,
-    );
-    const back = openPlan("2026-06-01");
+    expect(
+      (await getPlan(ident.householdId, first.id))?.meals.some(
+        (item) => item.title === "June chili",
+      ),
+    ).toBe(true);
+    const back = await openPlan(ident.householdId, "2026-06-01");
     expect(back.id).toBe(first.id);
     expect(back.meals.some((item) => item.title === "June chili")).toBe(true);
   });
 
-  it("opens this calendar week when the current plan is in the past", () => {
-    const past = openPlan("2026-08-24");
-    const opened = resolveOpenPlan(undefined, new Date(2026, 8, 6));
+  it("opens this calendar week when the current plan is in the past", async () => {
+    const past = await openPlan(ident.householdId, "2026-08-24");
+    const opened = await resolveOpenPlan(
+      ident.householdId,
+      undefined,
+      new Date(2026, 8, 6),
+    );
     expect(opened.weekStart).toBe("2026-08-31");
     expect(opened.isCurrent).toBe(true);
-    expect(getPlan(past.id)?.isCurrent).toBe(false);
+    expect((await getPlan(ident.householdId, past.id))?.isCurrent).toBe(false);
   });
 
-  it("keeps a future current plan instead of snapping back", () => {
-    const next = openPlan("2026-09-07");
-    const opened = resolveOpenPlan(undefined, new Date(2026, 8, 6));
+  it("keeps a future current plan instead of snapping back", async () => {
+    const next = await openPlan(ident.householdId, "2026-09-07");
+    const opened = await resolveOpenPlan(
+      ident.householdId,
+      undefined,
+      new Date(2026, 8, 6),
+    );
     expect(opened.id).toBe(next.id);
     expect(opened.weekStart).toBe("2026-09-07");
   });
 
-  it("saves takeout without ingredients", () => {
-    const mealRow = saveTakeoutMeal({
+  it("saves takeout without ingredients", async () => {
+    const mealRow = await saveTakeoutMeal(ident.householdId, {
       day: "friday",
       slot: "dinner",
       title: "Thai Palace",
@@ -655,19 +723,21 @@ describe("meals repo", () => {
     });
     expect(mealRow.takeout).toBe(true);
     expect(mealRow.ingredients).toEqual([]);
-    expect(listLibraryMeals("dinner").some((item) => item.id === mealRow.id)).toBe(
-      false,
-    );
+    expect(
+      (await listLibraryMeals(ident.householdId, "dinner")).some(
+        (item) => item.id === mealRow.id,
+      ),
+    ).toBe(false);
   });
 
-  it("copies leftovers onto another cell", () => {
-    const plan = saveGeneratedPlan({
+  it("copies leftovers onto another cell", async () => {
+    const plan = await saveGeneratedPlan(ident.householdId, {
       weekStart: "2026-06-22",
       slotMask: emptyMask(),
       meals: [meal({ title: "Chili", day: "monday", slot: "dinner" })],
     });
     const source = plan.meals[0]!;
-    const leftover = saveLeftoverMeal({
+    const leftover = await saveLeftoverMeal(ident.householdId, {
       sourceMealId: source.id,
       day: "tuesday",
       slot: "lunch",
@@ -676,17 +746,17 @@ describe("meals repo", () => {
     expect(leftover.title).toBe("Chili");
   });
 
-  it("fill respects the protein cap", () => {
+  it("fill respects the protein cap", async () => {
     const chicken = {
       ingredients: [
         { name: "chicken", quantity: "1", unit: "lb", aisle: "meat" },
       ],
     };
-    saveStandaloneMeal({
+    await saveStandaloneMeal(ident.householdId, {
       meal: meal({ title: "Chicken A", slot: "dinner", ...chicken }),
       slot: "dinner",
     });
-    saveStandaloneMeal({
+    await saveStandaloneMeal(ident.householdId, {
       meal: meal({ title: "Chicken B", slot: "dinner", ...chicken }),
       slot: "dinner",
     });
@@ -694,7 +764,7 @@ describe("meals repo", () => {
     mask.monday.dinner = true;
     mask.tuesday.dinner = true;
     mask.wednesday.dinner = true;
-    const plan = fillEmptySlots({
+    const plan = await fillEmptySlots(ident.householdId, {
       weekStart: "2026-06-29",
       slotMask: mask,
       allowRepeats: true,
@@ -713,8 +783,8 @@ describe("meals repo", () => {
     expect(chickenDinners.length).toBeLessThanOrEqual(2);
   });
 
-  it("fill still uses a dinner recipe after it was leftover as lunch", () => {
-    const source = saveStandaloneMeal({
+  it("fill still uses a dinner recipe after it was leftover as lunch", async () => {
+    const source = await saveStandaloneMeal(ident.householdId, {
       meal: meal({
         title: "Thighs for fill",
         slot: "dinner",
@@ -724,23 +794,23 @@ describe("meals repo", () => {
       }),
       slot: "dinner",
     });
-    setMealStars(source.id, 5);
+    await setMealStars(ident.householdId, source.id, 5);
     const week = "2026-07-13";
-    const placed = placeMeal({
+    const placed = await placeMeal(ident.householdId, {
       sourceMealId: source.id,
       day: "monday",
       slot: "dinner",
       weekStart: week,
     });
-    saveLeftoverMeal({
+    await saveLeftoverMeal(ident.householdId, {
       sourceMealId: placed.id,
       day: "tuesday",
       slot: "lunch",
     });
-    openPlan("2026-07-20");
+    await openPlan(ident.householdId, "2026-07-20");
     const mask = emptyMask();
     mask.monday.dinner = true;
-    const filled = fillEmptySlots({
+    const filled = await fillEmptySlots(ident.householdId, {
       weekStart: "2026-07-20",
       slotMask: mask,
       allowRepeats: false,
@@ -754,55 +824,61 @@ describe("meals repo", () => {
     );
   });
 
-  it("fill repeats, protein, and leftover lunches only look at the plan being filled", () => {
+  it("fill repeats, protein, and leftover lunches only look at the plan being filled", async () => {
     const chicken = {
       ingredients: [
         { name: "chicken thighs", quantity: "1", unit: "lb", aisle: "meat" },
       ],
     };
-    const thighs = saveStandaloneMeal({
+    const thighs = await saveStandaloneMeal(ident.householdId, {
       meal: meal({ title: "BBQ chicken thighs", slot: "dinner", ...chicken }),
       slot: "dinner",
     });
-    setMealStars(thighs.id, 5);
-    setMealStars(
-      saveStandaloneMeal({
-        meal: meal({ title: "Mushroom chicken skillet", slot: "dinner", ...chicken }),
-        slot: "dinner",
-      }).id,
-      5,
-    );
-    setMealStars(
-      saveStandaloneMeal({
-        meal: meal({
-          title: "Lemon herb salmon fill",
+    await setMealStars(ident.householdId, thighs.id, 5);
+    await setMealStars(
+      ident.householdId,
+      (
+        await saveStandaloneMeal(ident.householdId, {
+          meal: meal({ title: "Mushroom chicken skillet", slot: "dinner", ...chicken }),
           slot: "dinner",
-          ingredients: [
-            { name: "salmon", quantity: "1", unit: "lb", aisle: "meat" },
-          ],
-        }),
-        slot: "dinner",
-      }).id,
+        })
+      ).id,
       5,
     );
-    const prior = placeMeal({
+    await setMealStars(
+      ident.householdId,
+      (
+        await saveStandaloneMeal(ident.householdId, {
+          meal: meal({
+            title: "Lemon herb salmon fill",
+            slot: "dinner",
+            ingredients: [
+              { name: "salmon", quantity: "1", unit: "lb", aisle: "meat" },
+            ],
+          }),
+          slot: "dinner",
+        })
+      ).id,
+      5,
+    );
+    const prior = await placeMeal(ident.householdId, {
       sourceMealId: thighs.id,
       day: "thursday",
       slot: "dinner",
       weekStart: "2026-08-10",
     });
-    saveLeftoverMeal({
+    await saveLeftoverMeal(ident.householdId, {
       sourceMealId: prior.id,
       day: "friday",
       slot: "lunch",
     });
-    const current = openPlan("2026-08-17");
+    const current = await openPlan(ident.householdId, "2026-08-17");
     const mask = emptyMask();
     mask.monday.dinner = true;
     mask.tuesday.dinner = true;
     mask.wednesday.dinner = true;
     mask.tuesday.lunch = true;
-    const filled = fillEmptySlots({
+    const filled = await fillEmptySlots(ident.householdId, {
       planId: current.id,
       weekStart: "2026-08-17",
       slotMask: mask,
@@ -813,7 +889,9 @@ describe("meals repo", () => {
       maxCookMinutes: 45,
     });
     expect(filled.id).toBe(current.id);
-    expect(getPlan(prior.planId)?.meals).toHaveLength(2);
+    expect(
+      (await getPlan(ident.householdId, prior.planId!))?.meals,
+    ).toHaveLength(2);
     const dinners = filled.meals.filter((item) => item.slot === "dinner");
     expect(dinners).toHaveLength(3);
     expect(dinners.some((item) => item.title === "BBQ chicken thighs")).toBe(
@@ -833,19 +911,22 @@ describe("meals repo", () => {
     expect(leftoverLunch?.title).toBe(dinners.find((item) => item.day === "monday")?.title);
   });
 
-  it("fill writes only to the given plan, not another week's leftover", () => {
-    setMealStars(
-      saveStandaloneMeal({
-        meal: meal({ title: "Plan scoped chili", slot: "dinner" }),
-        slot: "dinner",
-      }).id,
+  it("fill writes only to the given plan, not another week's leftover", async () => {
+    await setMealStars(
+      ident.householdId,
+      (
+        await saveStandaloneMeal(ident.householdId, {
+          meal: meal({ title: "Plan scoped chili", slot: "dinner" }),
+          slot: "dinner",
+        })
+      ).id,
       5,
     );
-    const other = openPlan("2026-09-07");
-    const current = openPlan("2026-09-14");
+    const other = await openPlan(ident.householdId, "2026-09-07");
+    const current = await openPlan(ident.householdId, "2026-09-14");
     const mask = emptyMask();
     mask.monday.dinner = true;
-    const filled = fillEmptySlots({
+    const filled = await fillEmptySlots(ident.householdId, {
       planId: current.id,
       weekStart: other.weekStart,
       slotMask: mask,
@@ -857,75 +938,79 @@ describe("meals repo", () => {
     });
     expect(filled.id).toBe(current.id);
     expect(filled.meals.map((item) => item.title)).toEqual(["Plan scoped chili"]);
-    expect(getPlan(other.id)?.meals).toEqual([]);
+    expect((await getPlan(ident.householdId, other.id))?.meals).toEqual([]);
   });
 
-  it("refuses a second standalone with the same title", () => {
-    saveStandaloneMeal({
+  it("refuses a second standalone with the same title", async () => {
+    await saveStandaloneMeal(ident.householdId, {
       meal: meal({ title: "Unique stew", slot: "dinner" }),
       slot: "dinner",
     });
-    expect(() =>
-      saveStandaloneMeal({
+    await expect(
+      saveStandaloneMeal(ident.householdId, {
         meal: meal({ title: "unique stew!", slot: "dinner" }),
         slot: "dinner",
       }),
-    ).toThrow(/already in the library/i);
+    ).rejects.toThrow(/already in the library/i);
   });
 
-  it("catalog lists a placed copy once", () => {
-    const source = saveStandaloneMeal({
+  it("catalog lists a placed copy once", async () => {
+    const source = await saveStandaloneMeal(ident.householdId, {
       meal: meal({ title: "Catalog chili", slot: "dinner" }),
       slot: "dinner",
     });
-    placeMeal({
+    await placeMeal(ident.householdId, {
       sourceMealId: source.id,
       day: "monday",
       slot: "dinner",
       weekStart: "2026-07-06",
     });
-    const matches = listCatalogMeals().filter((item) => item.title === "Catalog chili");
+    const matches = (await listCatalogMeals(ident.householdId)).filter(
+      (item) => item.title === "Catalog chili",
+    );
     expect(matches).toHaveLength(1);
   });
 
-  it("dedupes extra standalone copies and keeps the week row", () => {
-    const first = saveStandaloneMeal({
+  it("dedupes extra standalone copies and keeps the week row", async () => {
+    const first = await saveStandaloneMeal(ident.householdId, {
       meal: meal({ title: "Dedupe soup", slot: "dinner" }),
       slot: "dinner",
     });
-    getDb().insert(mealsTable)
-      .values({
-        id: crypto.randomUUID(),
-        planId: "",
-        day: "monday",
-        slot: "dinner",
-        title: "Dedupe soup",
-        whyItFits: "",
-        cookMinutes: 20,
-        method: "pot",
-        ingredientsJson: "[]",
-        stepsJson: "[]",
-        usedWebSearch: 0,
-        pinned: 0,
-        weekStart: "",
-        createdAt: "2020-01-01T00:00:00.000Z",
-        extrasJson: "{}",
-        draft: 0,
-        stars: 0,
-        takeout: 0,
-        leftover: 0,
-      })
-      .run();
-    expect(dedupeLibraryMeals()).toBeGreaterThanOrEqual(1);
+    await getDb().insert(mealsTable).values({
+      householdId: ident.householdId,
+      planId: null,
+      day: "monday",
+      slot: "dinner",
+      title: "Dedupe soup",
+      whyItFits: "",
+      cookMinutes: 20,
+      method: "pot",
+      ingredients: [],
+      steps: [],
+      usedWebSearch: false,
+      pinned: false,
+      weekStart: "",
+      createdAt: "2020-01-01T00:00:00.000Z",
+      extras: EMPTY_EXTRAS,
+      draft: false,
+      stars: 0,
+      takeout: false,
+      leftover: false,
+    });
+    expect(await dedupeLibraryMeals(ident.householdId)).toBeGreaterThanOrEqual(1);
     expect(
-      listCatalogMeals().filter((item) => /dedupe soup/i.test(item.title)),
+      (await listCatalogMeals(ident.householdId)).filter((item) =>
+        /dedupe soup/i.test(item.title),
+      ),
     ).toHaveLength(1);
-    expect(listCatalogMeals().some((item) => item.id === first.id)).toBe(true);
+    expect(
+      (await listCatalogMeals(ident.householdId)).some((item) => item.id === first.id),
+    ).toBe(true);
   });
 });
 
-function getMealOnCurrent(day: "wednesday", slot: "dinner") {
-  return getCurrentPlan()?.meals.find(
+async function getMealOnCurrent(day: "wednesday", slot: "dinner") {
+  return (await getCurrentPlan(ident.householdId))?.meals.find(
     (item) => item.day === day && item.slot === slot,
   );
 }

@@ -1,32 +1,55 @@
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { resetDbForTests } from "@/lib/db";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { getDb, resetDbForTests } from "@/lib/db";
+import { households } from "@/lib/schema";
+import { createTestIdentity, deleteTestUser } from "@/lib/test-identity";
 import { getSettings, saveSettings } from "./settings-repo";
 
-const dbPath = path.join(
-  os.tmpdir(),
-  `mortang-settings-${crypto.randomUUID()}.db`,
-);
+let ident: Awaited<ReturnType<typeof createTestIdentity>>;
+const extraUsers: string[] = [];
 
-beforeAll(() => {
-  process.env.MORTANG_DB_PATH = dbPath;
-  resetDbForTests();
+beforeAll(async () => {
+  ident = await createTestIdentity();
 });
 
-afterAll(() => {
-  resetDbForTests();
-  for (const suffix of ["", "-wal", "-shm"]) {
-    fs.rmSync(`${dbPath}${suffix}`, { force: true });
-  }
+afterEach(async () => {
+  await Promise.all(extraUsers.splice(0).map(deleteTestUser));
+  await resetDbForTests();
+  const [row] = await getDb()
+    .insert(households)
+    .values({
+      ownerId: ident.userId,
+      name: "",
+      dietStyle: "",
+      notes: "",
+      servings: 1,
+    })
+    .returning();
+  ident.householdId = row!.id;
+});
+
+afterAll(async () => {
+  await resetDbForTests();
+  await deleteTestUser(ident.userId);
 });
 
 describe("settings repo", () => {
-  it("defaults web search to off and persists the toggle", () => {
-    expect(getSettings().webSearch).toBe(false);
-    expect(saveSettings({ webSearch: true }).webSearch).toBe(true);
-    expect(getSettings().webSearch).toBe(true);
-    expect(saveSettings({ webSearch: false }).webSearch).toBe(false);
+  it("defaults web search to off and persists the toggle", async () => {
+    expect((await getSettings(ident.householdId)).webSearch).toBe(false);
+    expect((await saveSettings(ident.householdId, { webSearch: true })).webSearch).toBe(
+      true,
+    );
+    expect((await getSettings(ident.householdId)).webSearch).toBe(true);
+    expect((await saveSettings(ident.householdId, { webSearch: false })).webSearch).toBe(
+      false,
+    );
+  });
+
+  it("two households have independent model", async () => {
+    const other = await createTestIdentity();
+    extraUsers.push(other.userId);
+    await saveSettings(ident.householdId, { model: "grok-a" });
+    await saveSettings(other.householdId, { model: "grok-b" });
+    expect((await getSettings(ident.householdId)).model).toBe("grok-a");
+    expect((await getSettings(other.householdId)).model).toBe("grok-b");
   });
 });

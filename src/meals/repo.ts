@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { meals, weekPlans } from "@/lib/schema";
 import type {
@@ -35,17 +35,17 @@ function mapMeal(row: MealRow): Meal {
     whyItFits: row.whyItFits,
     cookMinutes: row.cookMinutes,
     method: row.method,
-    ingredients: JSON.parse(row.ingredientsJson) as Ingredient[],
-    steps: JSON.parse(row.stepsJson) as string[],
-    usedWebSearch: row.usedWebSearch === 1,
-    pinned: row.pinned === 1,
+    ingredients: row.ingredients,
+    steps: row.steps,
+    usedWebSearch: row.usedWebSearch,
+    pinned: row.pinned,
     createdAt: row.createdAt,
     sourceUrl: row.sourceUrl,
-    extras: parseMealExtras(row.extrasJson),
-    draft: row.draft === 1,
+    extras: parseMealExtras(row.extras),
+    draft: row.draft,
     stars: row.stars,
-    takeout: row.takeout === 1,
-    leftover: row.leftover === 1,
+    takeout: row.takeout,
+    leftover: row.leftover,
   };
 }
 
@@ -57,44 +57,61 @@ function sortMeals(items: Meal[]): Meal[] {
   });
 }
 
-function loadMeals(planId: string): Meal[] {
+async function loadMeals(householdId: string, planId: string): Promise<Meal[]> {
   const db = getDb();
-  return sortMeals(
-    db.select().from(meals).where(eq(meals.planId, planId)).all().map(mapMeal),
-  );
+  const rows = await db
+    .select()
+    .from(meals)
+    .where(and(eq(meals.householdId, householdId), eq(meals.planId, planId)));
+  return sortMeals(rows.map(mapMeal));
+}
+
+async function loadMealRow(
+  householdId: string,
+  id: string,
+): Promise<MealRow | undefined> {
+  const db = getDb();
+  const [row] = await db
+    .select()
+    .from(meals)
+    .where(and(eq(meals.householdId, householdId), eq(meals.id, id)))
+    .limit(1);
+  return row;
 }
 
 function mapPlan(row: PlanRow, planMeals: Meal[]): WeekPlan {
   return {
     id: row.id,
     weekStart: row.weekStart,
-    isCurrent: row.isCurrent === 1,
-    slotMask: JSON.parse(row.slotMaskJson) as SlotMask,
+    isCurrent: row.isCurrent,
+    slotMask: row.slotMask,
     meals: planMeals,
     name: row.name ?? "",
-    favorited: row.favorited === 1,
+    favorited: row.favorited,
   };
 }
 
 function mealInsertValues(
-  planId: string,
+  householdId: string,
+  planId: string | null,
   meal: GeneratedMeal,
   extras: {
-    usedWebSearch: number;
-    pinned: number;
+    usedWebSearch: boolean;
+    pinned: boolean;
     weekStart: string;
     createdAt?: string;
     sourceUrl?: string | null;
     id?: string;
     extras?: MealExtras;
-    draft?: number;
+    draft?: boolean;
     stars?: number;
-    takeout?: number;
-    leftover?: number;
+    takeout?: boolean;
+    leftover?: boolean;
   },
 ) {
   return {
     id: extras.id ?? crypto.randomUUID(),
+    householdId,
     planId,
     day: meal.day,
     slot: meal.slot,
@@ -102,36 +119,38 @@ function mealInsertValues(
     whyItFits: meal.whyItFits,
     cookMinutes: meal.cookMinutes,
     method: meal.method,
-    ingredientsJson: JSON.stringify(meal.ingredients),
-    stepsJson: JSON.stringify(meal.steps),
+    ingredients: meal.ingredients,
+    steps: meal.steps,
     usedWebSearch: extras.usedWebSearch,
     pinned: extras.pinned,
     weekStart: extras.weekStart,
     createdAt: extras.createdAt ?? new Date().toISOString(),
     sourceUrl: extras.sourceUrl ?? meal.sourceUrl ?? null,
-    extrasJson: JSON.stringify(extras.extras ?? EMPTY_EXTRAS),
-    draft: extras.draft ?? 0,
+    extras: extras.extras ?? EMPTY_EXTRAS,
+    draft: extras.draft ?? false,
     stars: extras.stars ?? 0,
-    takeout: extras.takeout ?? 0,
-    leftover: extras.leftover ?? 0,
+    takeout: extras.takeout ?? false,
+    leftover: extras.leftover ?? false,
   };
 }
 
-export function listPlans(): Pick<
-  WeekPlan,
-  "id" | "weekStart" | "isCurrent" | "name" | "favorited"
->[] {
+export async function listPlans(
+  householdId: string,
+): Promise<
+  Pick<WeekPlan, "id" | "weekStart" | "isCurrent" | "name" | "favorited">[]
+> {
   const db = getDb();
-  return db
+  const rows = await db
     .select()
     .from(weekPlans)
-    .all()
+    .where(eq(weekPlans.householdId, householdId));
+  return rows
     .map((row) => ({
       id: row.id,
       weekStart: row.weekStart,
-      isCurrent: row.isCurrent === 1,
+      isCurrent: row.isCurrent,
       name: row.name ?? "",
-      favorited: row.favorited === 1,
+      favorited: row.favorited,
     }))
     .sort((a, b) => {
       const weekDelta = b.weekStart.localeCompare(a.weekStart);
@@ -141,165 +160,227 @@ export function listPlans(): Pick<
     });
 }
 
-export function getPlan(id: string): WeekPlan | null {
+export async function getPlan(
+  householdId: string,
+  id: string,
+): Promise<WeekPlan | null> {
   const db = getDb();
-  const row = db.select().from(weekPlans).where(eq(weekPlans.id, id)).get();
-  if (!row) return null;
-  return mapPlan(row, loadMeals(row.id));
-}
-
-export function getCurrentPlan(): WeekPlan | null {
-  const db = getDb();
-  const row = db
+  const [row] = await db
     .select()
     .from(weekPlans)
-    .where(eq(weekPlans.isCurrent, 1))
-    .get();
+    .where(and(eq(weekPlans.householdId, householdId), eq(weekPlans.id, id)))
+    .limit(1);
   if (!row) return null;
-  return mapPlan(row, loadMeals(row.id));
+  return mapPlan(row, await loadMeals(householdId, row.id));
 }
 
-export function listAllMeals(): Meal[] {
+export async function getCurrentPlan(
+  householdId: string,
+): Promise<WeekPlan | null> {
   const db = getDb();
-  return db
+  const [row] = await db
+    .select()
+    .from(weekPlans)
+    .where(
+      and(eq(weekPlans.householdId, householdId), eq(weekPlans.isCurrent, true)),
+    )
+    .limit(1);
+  if (!row) return null;
+  return mapPlan(row, await loadMeals(householdId, row.id));
+}
+
+export async function listAllMeals(householdId: string): Promise<Meal[]> {
+  const db = getDb();
+  const rows = await db
     .select()
     .from(meals)
-    .all()
+    .where(eq(meals.householdId, householdId));
+  return rows
     .map(mapMeal)
     .filter((meal) => !meal.draft)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
+    .sort(
+      (a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id),
+    );
 }
 
-export function listCatalogMeals(): Meal[] {
-  return uniqueCatalogMeals(listAllMeals());
+export async function listCatalogMeals(householdId: string): Promise<Meal[]> {
+  return uniqueCatalogMeals(await listAllMeals(householdId));
 }
 
-export function titleTaken(title: string, exceptId?: string): boolean {
-  return listCatalogMeals().some(
+export async function titleTaken(
+  householdId: string,
+  title: string,
+  exceptId?: string,
+): Promise<boolean> {
+  return (await listCatalogMeals(householdId)).some(
     (meal) => meal.id !== exceptId && isDuplicateTitle(meal.title, [title]),
   );
 }
 
-export function listDraftMeals(): Meal[] {
+export async function listDraftMeals(householdId: string): Promise<Meal[]> {
   const db = getDb();
-  return db
+  const rows = await db
     .select()
     .from(meals)
-    .all()
+    .where(eq(meals.householdId, householdId));
+  return rows
     .map(mapMeal)
     .filter((meal) => meal.draft)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
+    .sort(
+      (a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id),
+    );
 }
 
-export function saveStandaloneMeal(input: {
-  meal: GeneratedMeal;
-  slot: MealSlot;
-  sourceUrl?: string | null;
-  usedWebSearch?: boolean;
-  draft?: boolean;
-}): Meal {
-  if (input.draft !== true && titleTaken(input.meal.title)) {
+export async function saveStandaloneMeal(
+  householdId: string,
+  input: {
+    meal: GeneratedMeal;
+    slot: MealSlot;
+    sourceUrl?: string | null;
+    usedWebSearch?: boolean;
+    draft?: boolean;
+  },
+): Promise<Meal> {
+  if (input.draft !== true && (await titleTaken(householdId, input.meal.title))) {
     throw new Error("That recipe is already in the library.");
   }
   const db = getDb();
   const weekStart = mondayOf(new Date());
-  const row = mealInsertValues(
-    "",
+  const values = mealInsertValues(
+    householdId,
+    null,
     { ...input.meal, day: "monday", slot: input.slot },
     {
-      usedWebSearch: input.usedWebSearch === true ? 1 : 0,
-      pinned: 0,
+      usedWebSearch: input.usedWebSearch === true,
+      pinned: false,
       weekStart,
       sourceUrl: input.sourceUrl ?? null,
-      draft: input.draft === true ? 1 : 0,
+      draft: input.draft === true,
     },
   );
-  db.insert(meals).values(row).run();
+  const [row] = await db.insert(meals).values(values).returning();
+  if (!row) throw new Error("Meal insert failed");
   return mapMeal(row);
 }
 
-export function saveDraftMeals(
+export async function saveDraftMeals(
+  householdId: string,
   items: Array<{
     meal: GeneratedMeal;
     slot: MealSlot;
     usedWebSearch?: boolean;
   }>,
-): Meal[] {
-  return items.map((item) =>
-    saveStandaloneMeal({ ...item, draft: true }),
-  );
-}
-
-export function approveDraft(mealId: string): Meal {
-  const db = getDb();
-  const existing = db.select().from(meals).where(eq(meals.id, mealId)).get();
-  if (!existing) throw new Error("Meal not found");
-  if (existing.draft !== 1) throw new Error("Not a draft");
-  if (titleTaken(existing.title, existing.id)) {
-    throw new Error("That recipe is already in the library.");
+): Promise<Meal[]> {
+  const saved: Meal[] = [];
+  for (const item of items) {
+    saved.push(await saveStandaloneMeal(householdId, { ...item, draft: true }));
   }
-  db.update(meals).set({ draft: 0 }).where(eq(meals.id, mealId)).run();
-  return mapMeal({ ...existing, draft: 0 });
+  return saved;
 }
 
-export function rejectDraft(mealId: string): void {
-  const existing = getMeal(mealId);
+export async function approveDraft(
+  householdId: string,
+  mealId: string,
+): Promise<Meal> {
+  const existing = await loadMealRow(householdId, mealId);
   if (!existing) throw new Error("Meal not found");
   if (!existing.draft) throw new Error("Not a draft");
-  deleteMeal(mealId);
+  if (await titleTaken(householdId, existing.title, existing.id)) {
+    throw new Error("That recipe is already in the library.");
+  }
+  const [row] = await getDb()
+    .update(meals)
+    .set({ draft: false })
+    .where(and(eq(meals.householdId, householdId), eq(meals.id, mealId)))
+    .returning();
+  if (!row) throw new Error("Meal not found");
+  return mapMeal(row);
 }
 
-export function setMealStars(mealId: string, stars: number): Meal {
+export async function rejectDraft(
+  householdId: string,
+  mealId: string,
+): Promise<void> {
+  const existing = await getMeal(householdId, mealId);
+  if (!existing) throw new Error("Meal not found");
+  if (!existing.draft) throw new Error("Not a draft");
+  await deleteMeal(householdId, mealId);
+}
+
+export async function setMealStars(
+  householdId: string,
+  mealId: string,
+  stars: number,
+): Promise<Meal> {
   if (!Number.isInteger(stars) || stars < 0 || stars > 5) {
     throw new Error("Stars must be 0 through 5.");
   }
-  const db = getDb();
-  const existing = db.select().from(meals).where(eq(meals.id, mealId)).get();
+  const existing = await loadMealRow(householdId, mealId);
   if (!existing) throw new Error("Meal not found");
-  if (existing.draft === 1) throw new Error("Drafts cannot be rated.");
-  db.update(meals).set({ stars }).where(eq(meals.id, mealId)).run();
-  return mapMeal({ ...existing, stars });
+  if (existing.draft) throw new Error("Drafts cannot be rated.");
+  const [row] = await getDb()
+    .update(meals)
+    .set({ stars })
+    .where(and(eq(meals.householdId, householdId), eq(meals.id, mealId)))
+    .returning();
+  if (!row) throw new Error("Meal not found");
+  return mapMeal(row);
 }
 
-export function saveImportedMeal(input: {
-  meal: GeneratedMeal;
-  slot: MealSlot;
-  sourceUrl: string;
-  usedWebSearch?: boolean;
-}): Meal {
-  return saveStandaloneMeal(input);
+export async function saveImportedMeal(
+  householdId: string,
+  input: {
+    meal: GeneratedMeal;
+    slot: MealSlot;
+    sourceUrl: string;
+    usedWebSearch?: boolean;
+  },
+): Promise<Meal> {
+  return saveStandaloneMeal(householdId, input);
 }
 
-export function getMeal(id: string): Meal | null {
-  const db = getDb();
-  const row = db.select().from(meals).where(eq(meals.id, id)).get();
+export async function getMeal(
+  householdId: string,
+  id: string,
+): Promise<Meal | null> {
+  const row = await loadMealRow(householdId, id);
   return row ? mapMeal(row) : null;
 }
 
-export function setMealExtra(mealId: string, extra: MealExtra): Meal {
-  const db = getDb();
-  const existing = db.select().from(meals).where(eq(meals.id, mealId)).get();
+export async function setMealExtra(
+  householdId: string,
+  mealId: string,
+  extra: MealExtra,
+): Promise<Meal> {
+  const existing = await loadMealRow(householdId, mealId);
   if (!existing) throw new Error("Meal not found");
   const extras = {
-    ...parseMealExtras(existing.extrasJson),
+    ...parseMealExtras(existing.extras),
     [extra.kind]: extra,
   };
-  const extrasJson = JSON.stringify(extras);
-  db.update(meals).set({ extrasJson }).where(eq(meals.id, mealId)).run();
-  return mapMeal({ ...existing, extrasJson });
+  const [row] = await getDb()
+    .update(meals)
+    .set({ extras })
+    .where(and(eq(meals.householdId, householdId), eq(meals.id, mealId)))
+    .returning();
+  if (!row) throw new Error("Meal not found");
+  return mapMeal(row);
 }
 
-export function placeExtra(input: {
-  sourceMealId: string;
-  mealId: string;
-  kind: ExtraKind;
-}): Meal {
-  const source = getMeal(input.sourceMealId);
+export async function placeExtra(
+  householdId: string,
+  input: {
+    sourceMealId: string;
+    mealId: string;
+    kind: ExtraKind;
+  },
+): Promise<Meal> {
+  const source = await getMeal(householdId, input.sourceMealId);
   if (!source) throw new Error("Meal not found");
   if (source.draft) throw new Error("Meal not found");
-  const parent = getMeal(input.mealId);
+  const parent = await getMeal(householdId, input.mealId);
   if (!parent) throw new Error("Meal not found");
-  const current = getCurrentPlan();
+  const current = await getCurrentPlan(householdId);
   if (!current || parent.planId !== current.id) {
     throw new Error("Sides and desserts can only be added on this week.");
   }
@@ -309,26 +390,31 @@ export function placeExtra(input: {
   if (parent.extras[input.kind]) {
     throw new Error(`That meal already has a ${input.kind}.`);
   }
-  return setMealExtra(parent.id, extraFromMeal(source, input.kind));
+  return setMealExtra(householdId, parent.id, extraFromMeal(source, input.kind));
 }
 
-export function clearMealExtra(
+export async function clearMealExtra(
+  householdId: string,
   mealId: string,
   kind: ExtraKind,
-): Meal {
-  const db = getDb();
-  const existing = db.select().from(meals).where(eq(meals.id, mealId)).get();
+): Promise<Meal> {
+  const existing = await loadMealRow(householdId, mealId);
   if (!existing) throw new Error("Meal not found");
   const extras = {
-    ...parseMealExtras(existing.extrasJson),
+    ...parseMealExtras(existing.extras),
     [kind]: null,
   };
-  const extrasJson = JSON.stringify(extras);
-  db.update(meals).set({ extrasJson }).where(eq(meals.id, mealId)).run();
-  return mapMeal({ ...existing, extrasJson });
+  const [row] = await getDb()
+    .update(meals)
+    .set({ extras })
+    .where(and(eq(meals.householdId, householdId), eq(meals.id, mealId)))
+    .returning();
+  if (!row) throw new Error("Meal not found");
+  return mapMeal(row);
 }
 
-export function updateMeal(
+export async function updateMeal(
+  householdId: string,
   id: string,
   fields: {
     title: string;
@@ -338,66 +424,64 @@ export function updateMeal(
     ingredients: Ingredient[];
     steps: string[];
   },
-): Meal {
-  const db = getDb();
-  const existing = db.select().from(meals).where(eq(meals.id, id)).get();
+): Promise<Meal> {
+  const existing = await loadMealRow(householdId, id);
   if (!existing) throw new Error("Meal not found");
-  if (titleTaken(fields.title, id)) {
+  if (await titleTaken(householdId, fields.title, id)) {
     throw new Error("That recipe is already in the library.");
   }
-  db.update(meals)
+  const [row] = await getDb()
+    .update(meals)
     .set({
       title: fields.title,
       whyItFits: fields.whyItFits,
       cookMinutes: fields.cookMinutes,
       method: fields.method,
-      ingredientsJson: JSON.stringify(fields.ingredients),
-      stepsJson: JSON.stringify(fields.steps),
+      ingredients: fields.ingredients,
+      steps: fields.steps,
     })
-    .where(eq(meals.id, id))
-    .run();
-  return mapMeal({
-    ...existing,
-    title: fields.title,
-    whyItFits: fields.whyItFits,
-    cookMinutes: fields.cookMinutes,
-    method: fields.method,
-    ingredientsJson: JSON.stringify(fields.ingredients),
-    stepsJson: JSON.stringify(fields.steps),
-  });
+    .where(and(eq(meals.householdId, householdId), eq(meals.id, id)))
+    .returning();
+  if (!row) throw new Error("Meal not found");
+  return mapMeal(row);
 }
 
-export function saveGeneratedPlan(input: {
-  weekStart: string;
-  slotMask: SlotMask;
-  meals: GeneratedMeal[];
-  usedWebSearch?: boolean;
-}): WeekPlan {
+export async function saveGeneratedPlan(
+  householdId: string,
+  input: {
+    weekStart: string;
+    slotMask: SlotMask;
+    meals: GeneratedMeal[];
+    usedWebSearch?: boolean;
+  },
+): Promise<WeekPlan> {
   const db = getDb();
   const planId = crypto.randomUUID();
-  const usedWebSearch = input.usedWebSearch === true ? 1 : 0;
+  const usedWebSearch = input.usedWebSearch === true;
   const mealRows = input.meals.map((meal) =>
-    mealInsertValues(planId, meal, {
+    mealInsertValues(householdId, planId, meal, {
       usedWebSearch,
-      pinned: 0,
+      pinned: false,
       weekStart: input.weekStart,
     }),
   );
 
-  db.transaction((tx) => {
-    tx.update(weekPlans).set({ isCurrent: 0 }).run();
-    tx.insert(weekPlans)
-      .values({
-        id: planId,
-        weekStart: input.weekStart,
-        isCurrent: 1,
-        slotMaskJson: JSON.stringify(input.slotMask),
-        name: "",
-        favorited: 0,
-      })
-      .run();
+  await db.transaction(async (tx) => {
+    await tx
+      .update(weekPlans)
+      .set({ isCurrent: false })
+      .where(eq(weekPlans.householdId, householdId));
+    await tx.insert(weekPlans).values({
+      id: planId,
+      householdId,
+      weekStart: input.weekStart,
+      isCurrent: true,
+      slotMask: input.slotMask,
+      name: "",
+      favorited: false,
+    });
     if (mealRows.length > 0) {
-      tx.insert(meals).values(mealRows).run();
+      await tx.insert(meals).values(mealRows);
     }
   });
 
@@ -412,26 +496,31 @@ export function saveGeneratedPlan(input: {
   };
 }
 
-export function mergeGeneratedPlan(input: {
-  weekStart: string;
-  slotMask: SlotMask;
-  meals: GeneratedMeal[];
-  usedWebSearch?: boolean;
-}): WeekPlan {
-  const current = getCurrentPlan();
+export async function mergeGeneratedPlan(
+  householdId: string,
+  input: {
+    weekStart: string;
+    slotMask: SlotMask;
+    meals: GeneratedMeal[];
+    usedWebSearch?: boolean;
+  },
+): Promise<WeekPlan> {
+  const current = await getCurrentPlan(householdId);
   if (!current) {
-    return saveGeneratedPlan(input);
+    return saveGeneratedPlan(householdId, input);
   }
 
   const db = getDb();
-  const usedWebSearch = input.usedWebSearch === true ? 1 : 0;
+  const usedWebSearch = input.usedWebSearch === true;
   const incoming = input.meals;
 
-  db.transaction((tx) => {
-    tx.update(weekPlans)
-      .set({ slotMaskJson: JSON.stringify(input.slotMask) })
-      .where(eq(weekPlans.id, current.id))
-      .run();
+  await db.transaction(async (tx) => {
+    await tx
+      .update(weekPlans)
+      .set({ slotMask: input.slotMask })
+      .where(
+        and(eq(weekPlans.householdId, householdId), eq(weekPlans.id, current.id)),
+      );
 
     for (const next of incoming) {
       const existing = current.meals.find(
@@ -440,57 +529,66 @@ export function mergeGeneratedPlan(input: {
       if (existing?.pinned) continue;
 
       if (existing) {
-        tx.delete(meals).where(eq(meals.id, existing.id)).run();
+        await tx
+          .delete(meals)
+          .where(
+            and(eq(meals.householdId, householdId), eq(meals.id, existing.id)),
+          );
       }
-      tx.insert(meals)
-        .values(
-          mealInsertValues(current.id, next, {
-            usedWebSearch,
-            pinned: 0,
-            weekStart: current.weekStart,
-          }),
-        )
-        .run();
+      await tx.insert(meals).values(
+        mealInsertValues(householdId, current.id, next, {
+          usedWebSearch,
+          pinned: false,
+          weekStart: current.weekStart,
+        }),
+      );
     }
   });
 
-  return getPlan(current.id) ?? current;
+  return (await getPlan(householdId, current.id)) ?? current;
 }
 
-export function replaceMeal(
+export async function replaceMeal(
+  householdId: string,
   planId: string,
   mealId: string,
   next: GeneratedMeal,
   usedWebSearch = false,
-): Meal {
-  const db = getDb();
-  const existing = db
-    .select()
-    .from(meals)
-    .where(eq(meals.id, mealId))
-    .get();
+): Promise<Meal> {
+  const existing = await loadMealRow(householdId, mealId);
   if (!existing || existing.planId !== planId) {
     throw new Error("Meal not found");
   }
 
-  const row = mealInsertValues(planId, next, {
+  const values = mealInsertValues(householdId, planId, next, {
     id: mealId,
-    usedWebSearch: usedWebSearch ? 1 : 0,
+    usedWebSearch,
     pinned: existing.pinned,
     weekStart: existing.weekStart,
     createdAt: existing.createdAt,
     sourceUrl: next.sourceUrl ?? null,
-    extras: parseMealExtras(existing.extrasJson),
+    extras: parseMealExtras(existing.extras),
     draft: existing.draft,
     stars: existing.stars,
   });
-  db.update(meals).set(row).where(eq(meals.id, mealId)).run();
+  const [row] = await getDb()
+    .update(meals)
+    .set(values)
+    .where(and(eq(meals.householdId, householdId), eq(meals.id, mealId)))
+    .returning();
+  if (!row) throw new Error("Meal not found");
   return mapMeal(row);
 }
 
-export function listLibraryMeals(slot: MealSlot): LibraryMeal[] {
+export async function listLibraryMeals(
+  householdId: string,
+  slot: MealSlot,
+): Promise<LibraryMeal[]> {
   const db = getDb();
-  const rows = db.select().from(meals).where(eq(meals.slot, slot)).all();
+  const rows = await db
+    .select()
+    .from(meals)
+    .where(and(eq(meals.householdId, householdId), eq(meals.slot, slot)));
 
   rows.sort((a, b) => {
     const weekDelta = b.weekStart.localeCompare(a.weekStart);
@@ -501,7 +599,7 @@ export function listLibraryMeals(slot: MealSlot): LibraryMeal[] {
   const seen = new Set<string>();
   const unique: LibraryMeal[] = [];
   for (const row of rows) {
-    if (row.draft === 1 || row.takeout === 1) continue;
+    if (row.draft || row.takeout) continue;
     const key = normalizeTitle(row.title);
     if (!key || seen.has(key)) continue;
     seen.add(key);
@@ -513,69 +611,89 @@ export function listLibraryMeals(slot: MealSlot): LibraryMeal[] {
       method: row.method,
       slot: row.slot as MealSlot,
       weekStart: row.weekStart,
-      usedWebSearch: row.usedWebSearch === 1,
+      usedWebSearch: row.usedWebSearch,
     });
   }
   return unique;
 }
 
-export function ensureCurrentPlan(weekStart: string): WeekPlan {
-  return openPlan(weekStart);
+export async function ensureCurrentPlan(
+  householdId: string,
+  weekStart: string,
+): Promise<WeekPlan> {
+  return openPlan(householdId, weekStart);
 }
 
 /** Open a specific plan, or this calendar week if current is in the past. */
-export function resolveOpenPlan(
+export async function resolveOpenPlan(
+  householdId: string,
   planId?: string,
   today: Date = new Date(),
-): WeekPlan {
+): Promise<WeekPlan> {
   if (planId) {
-    const requested = getPlan(planId);
+    const requested = await getPlan(householdId, planId);
     if (requested) return requested;
   }
   const thisMonday = mondayOf(today);
-  const current = getCurrentPlan();
+  const current = await getCurrentPlan(householdId);
   if (current && current.weekStart >= thisMonday) return current;
-  return openPlan(thisMonday);
+  return openPlan(householdId, thisMonday);
 }
 
-export function openPlan(weekStart: string): WeekPlan {
+export async function openPlan(
+  householdId: string,
+  weekStart: string,
+): Promise<WeekPlan> {
   const db = getDb();
-  const rows = db
+  const [existing] = await db
     .select()
     .from(weekPlans)
-    .all()
-    .filter((row) => row.weekStart === weekStart)
-    .sort((a, b) => {
-      if (a.isCurrent !== b.isCurrent) return b.isCurrent - a.isCurrent;
-      return b.id.localeCompare(a.id);
+    .where(
+      and(
+        eq(weekPlans.householdId, householdId),
+        eq(weekPlans.weekStart, weekStart),
+      ),
+    )
+    .limit(1);
+  if (existing) {
+    await db.transaction(async (tx) => {
+      await tx
+        .update(weekPlans)
+        .set({ isCurrent: false })
+        .where(eq(weekPlans.householdId, householdId));
+      await tx
+        .update(weekPlans)
+        .set({ isCurrent: true })
+        .where(
+          and(
+            eq(weekPlans.householdId, householdId),
+            eq(weekPlans.id, existing.id),
+          ),
+        );
     });
-  if (rows[0]) {
-    const id = rows[0].id;
-    db.transaction((tx) => {
-      tx.update(weekPlans).set({ isCurrent: 0 }).run();
-      tx.update(weekPlans).set({ isCurrent: 1 }).where(eq(weekPlans.id, id)).run();
-    });
-    return getPlan(id)!;
+    return (await getPlan(householdId, existing.id))!;
   }
-  return saveGeneratedPlan({
+  return saveGeneratedPlan(householdId, {
     weekStart,
     slotMask: emptySlotMask(),
     meals: [],
   });
 }
 
-export function placeMeal(input: {
-  sourceMealId: string;
-  day: DayOfWeek;
-  slot: MealSlot;
-  weekStart: string;
-}): Meal {
-  const source = getMeal(input.sourceMealId);
+export async function placeMeal(
+  householdId: string,
+  input: {
+    sourceMealId: string;
+    day: DayOfWeek;
+    slot: MealSlot;
+    weekStart: string;
+  },
+): Promise<Meal> {
+  const source = await getMeal(householdId, input.sourceMealId);
   if (!source) throw new Error("Meal not found");
   if (source.draft) throw new Error("Meal not found");
 
-  const plan = ensureCurrentPlan(input.weekStart);
-  const db = getDb();
+  const plan = await ensureCurrentPlan(householdId, input.weekStart);
   const occupant = plan.meals.find(
     (meal) => meal.day === input.day && meal.slot === input.slot,
   );
@@ -589,43 +707,51 @@ export function placeMeal(input: {
     ingredients: source.ingredients,
     steps: source.steps,
   };
-  const usedWebSearch = source.usedWebSearch ? 1 : 0;
+  const usedWebSearch = source.usedWebSearch;
 
   if (occupant) {
-    const row = mealInsertValues(plan.id, copy, {
+    const values = mealInsertValues(householdId, plan.id, copy, {
       id: occupant.id,
       usedWebSearch,
-      pinned: occupant.pinned ? 1 : 0,
+      pinned: occupant.pinned,
       weekStart: plan.weekStart,
       sourceUrl: source.sourceUrl,
     });
-    db.update(meals).set(row).where(eq(meals.id, occupant.id)).run();
+    const [row] = await getDb()
+      .update(meals)
+      .set(values)
+      .where(and(eq(meals.householdId, householdId), eq(meals.id, occupant.id)))
+      .returning();
+    if (!row) throw new Error("Meal update failed");
     return mapMeal(row);
   }
 
-  const row = mealInsertValues(plan.id, copy, {
+  const values = mealInsertValues(householdId, plan.id, copy, {
     usedWebSearch,
-    pinned: 0,
+    pinned: false,
     weekStart: plan.weekStart,
     sourceUrl: source.sourceUrl,
   });
-  db.insert(meals).values(row).run();
+  const [row] = await getDb().insert(meals).values(values).returning();
+  if (!row) throw new Error("Meal insert failed");
   return mapMeal(row);
 }
 
-function copyOntoPlan(input: {
-  source: Meal;
-  day: DayOfWeek;
-  slot: MealSlot;
-  leftover: boolean;
-  weekStart: string;
-  planId?: string;
-}): Meal {
+async function copyOntoPlan(
+  householdId: string,
+  input: {
+    source: Meal;
+    day: DayOfWeek;
+    slot: MealSlot;
+    leftover: boolean;
+    weekStart: string;
+    planId?: string;
+  },
+): Promise<Meal> {
   const plan = input.planId
-    ? getPlan(input.planId)
-    : openPlan(input.weekStart);
+    ? await getPlan(householdId, input.planId)
+    : await openPlan(householdId, input.weekStart);
   if (!plan) throw new Error("Plan not found");
-  const db = getDb();
   const occupant = plan.meals.find(
     (meal) => meal.day === input.day && meal.slot === input.slot,
   );
@@ -640,30 +766,42 @@ function copyOntoPlan(input: {
     steps: input.source.steps,
   };
   const extras = {
-    usedWebSearch: input.source.usedWebSearch ? 1 : 0,
-    pinned: occupant?.pinned ? 1 : 0,
+    usedWebSearch: input.source.usedWebSearch,
+    pinned: occupant?.pinned ?? false,
     weekStart: plan.weekStart,
     sourceUrl: input.source.sourceUrl,
-    leftover: input.leftover ? 1 : 0,
-    takeout: 0,
+    leftover: input.leftover,
+    takeout: false,
   };
   if (occupant) {
-    const row = mealInsertValues(plan.id, copy, { ...extras, id: occupant.id });
-    db.update(meals).set(row).where(eq(meals.id, occupant.id)).run();
+    const values = mealInsertValues(householdId, plan.id, copy, {
+      ...extras,
+      id: occupant.id,
+    });
+    const [row] = await getDb()
+      .update(meals)
+      .set(values)
+      .where(and(eq(meals.householdId, householdId), eq(meals.id, occupant.id)))
+      .returning();
+    if (!row) throw new Error("Meal update failed");
     return mapMeal(row);
   }
-  const row = mealInsertValues(plan.id, copy, extras);
-  db.insert(meals).values(row).run();
+  const values = mealInsertValues(householdId, plan.id, copy, extras);
+  const [row] = await getDb().insert(meals).values(values).returning();
+  if (!row) throw new Error("Meal insert failed");
   return mapMeal(row);
 }
 
-export function saveTakeoutMeal(input: {
-  day: DayOfWeek;
-  slot: MealSlot;
-  title?: string;
-  weekStart: string;
-}): Meal {
-  const plan = openPlan(input.weekStart);
+export async function saveTakeoutMeal(
+  householdId: string,
+  input: {
+    day: DayOfWeek;
+    slot: MealSlot;
+    title?: string;
+    weekStart: string;
+  },
+): Promise<Meal> {
+  const plan = await openPlan(householdId, input.weekStart);
   const occupant = plan.meals.find(
     (meal) => meal.day === input.day && meal.slot === input.slot,
   );
@@ -679,41 +817,49 @@ export function saveTakeoutMeal(input: {
     steps: [],
   };
   const extras = {
-    usedWebSearch: 0,
-    pinned: occupant?.pinned ? 1 : 0,
+    usedWebSearch: false,
+    pinned: occupant?.pinned ?? false,
     weekStart: plan.weekStart,
     sourceUrl: null as string | null,
-    takeout: 1,
-    leftover: 0,
+    takeout: true,
+    leftover: false,
     extras: EMPTY_EXTRAS,
   };
-  const db = getDb();
   if (occupant) {
-    const row = mealInsertValues(plan.id, generated, {
+    const values = mealInsertValues(householdId, plan.id, generated, {
       ...extras,
       id: occupant.id,
     });
-    db.update(meals).set(row).where(eq(meals.id, occupant.id)).run();
+    const [row] = await getDb()
+      .update(meals)
+      .set(values)
+      .where(and(eq(meals.householdId, householdId), eq(meals.id, occupant.id)))
+      .returning();
+    if (!row) throw new Error("Meal update failed");
     return mapMeal(row);
   }
-  const row = mealInsertValues(plan.id, generated, extras);
-  db.insert(meals).values(row).run();
+  const values = mealInsertValues(householdId, plan.id, generated, extras);
+  const [row] = await getDb().insert(meals).values(values).returning();
+  if (!row) throw new Error("Meal insert failed");
   return mapMeal(row);
 }
 
-export function saveLeftoverMeal(input: {
-  sourceMealId: string;
-  day: DayOfWeek;
-  slot: MealSlot;
-}): Meal {
-  const source = getMeal(input.sourceMealId);
+export async function saveLeftoverMeal(
+  householdId: string,
+  input: {
+    sourceMealId: string;
+    day: DayOfWeek;
+    slot: MealSlot;
+  },
+): Promise<Meal> {
+  const source = await getMeal(householdId, input.sourceMealId);
   if (!source) throw new Error("Meal not found");
   if (source.takeout) throw new Error("Takeout cannot be leftovers.");
-  const current = getCurrentPlan();
+  const current = await getCurrentPlan(householdId);
   if (!current || source.planId !== current.id) {
     throw new Error("Leftovers can only be copied from this week.");
   }
-  return copyOntoPlan({
+  return copyOntoPlan(householdId, {
     source,
     day: input.day,
     slot: input.slot,
@@ -722,29 +868,32 @@ export function saveLeftoverMeal(input: {
   });
 }
 
-export function fillEmptySlots(input: {
-  weekStart: string;
-  planId?: string;
-  slotMask: SlotMask;
-  allowRepeats: boolean;
-  leftoverLunches: boolean;
-  maxProtein: number;
-  allergies: string[];
-  maxCookMinutes: number;
-}): WeekPlan {
+export async function fillEmptySlots(
+  householdId: string,
+  input: {
+    weekStart: string;
+    planId?: string;
+    slotMask: SlotMask;
+    allowRepeats: boolean;
+    leftoverLunches: boolean;
+    maxProtein: number;
+    allergies: string[];
+    maxCookMinutes: number;
+  },
+): Promise<WeekPlan> {
   const plan = input.planId
-    ? getPlan(input.planId) ?? openPlan(input.weekStart)
-    : openPlan(input.weekStart);
-  const db = getDb();
-  db.update(weekPlans)
-    .set({ slotMaskJson: JSON.stringify(input.slotMask) })
-    .where(eq(weekPlans.id, plan.id))
-    .run();
+    ? ((await getPlan(householdId, input.planId)) ??
+      (await openPlan(householdId, input.weekStart)))
+    : await openPlan(householdId, input.weekStart);
+  await getDb()
+    .update(weekPlans)
+    .set({ slotMask: input.slotMask })
+    .where(and(eq(weekPlans.householdId, householdId), eq(weekPlans.id, plan.id)));
 
   const picks = pickFillMeals({
     mask: input.slotMask,
     occupied: plan.meals,
-    library: listCatalogMeals(),
+    library: await listCatalogMeals(householdId),
     allergies: input.allergies,
     maxCookMinutes: input.maxCookMinutes,
     allowRepeats: input.allowRepeats,
@@ -753,7 +902,7 @@ export function fillEmptySlots(input: {
   });
 
   for (const pick of picks) {
-    copyOntoPlan({
+    await copyOntoPlan(householdId, {
       source: pick.source,
       day: pick.day,
       slot: pick.slot,
@@ -762,87 +911,107 @@ export function fillEmptySlots(input: {
       planId: plan.id,
     });
   }
-  return getPlan(plan.id) ?? plan;
+  return (await getPlan(householdId, plan.id)) ?? plan;
 }
 
-export function updatePlan(input: {
-  planId: string;
-  name?: string;
-  favorited?: boolean;
-}): WeekPlan {
-  const existing = getPlan(input.planId);
+export async function updatePlan(
+  householdId: string,
+  input: {
+    planId: string;
+    name?: string;
+    favorited?: boolean;
+  },
+): Promise<WeekPlan> {
+  const existing = await getPlan(householdId, input.planId);
   if (!existing) throw new Error("Plan not found");
-  const patch: { name?: string; favorited?: number } = {};
+  const patch: { name?: string; favorited?: boolean } = {};
   if (input.name !== undefined) {
     patch.name = input.name.trim().slice(0, 60);
   }
   if (input.favorited !== undefined) {
-    patch.favorited = input.favorited ? 1 : 0;
+    patch.favorited = input.favorited;
   }
   if (Object.keys(patch).length > 0) {
-    getDb()
+    await getDb()
       .update(weekPlans)
       .set(patch)
-      .where(eq(weekPlans.id, input.planId))
-      .run();
+      .where(
+        and(eq(weekPlans.householdId, householdId), eq(weekPlans.id, input.planId)),
+      );
   }
-  return getPlan(input.planId)!;
+  return (await getPlan(householdId, input.planId))!;
 }
 
-export function deletePlan(planId: string): void {
+export async function deletePlan(
+  householdId: string,
+  planId: string,
+): Promise<void> {
   const db = getDb();
-  const existing = db
+  const [existing] = await db
     .select()
     .from(weekPlans)
-    .where(eq(weekPlans.id, planId))
-    .get();
+    .where(and(eq(weekPlans.householdId, householdId), eq(weekPlans.id, planId)))
+    .limit(1);
   if (!existing) throw new Error("Plan not found");
-  db.delete(weekPlans).where(eq(weekPlans.id, planId)).run();
+  await db
+    .delete(weekPlans)
+    .where(and(eq(weekPlans.householdId, householdId), eq(weekPlans.id, planId)));
 }
 
-export function deleteMeal(mealId: string): void {
-  const db = getDb();
-  const existing = db.select().from(meals).where(eq(meals.id, mealId)).get();
+export async function deleteMeal(
+  householdId: string,
+  mealId: string,
+): Promise<void> {
+  const existing = await loadMealRow(householdId, mealId);
   if (!existing) throw new Error("Meal not found");
-  db.delete(meals).where(eq(meals.id, mealId)).run();
+  await getDb()
+    .delete(meals)
+    .where(and(eq(meals.householdId, householdId), eq(meals.id, mealId)));
 }
 
-export function setPinned(mealId: string, pinned: boolean): Meal {
-  const db = getDb();
-  const existing = db.select().from(meals).where(eq(meals.id, mealId)).get();
+export async function setPinned(
+  householdId: string,
+  mealId: string,
+  pinned: boolean,
+): Promise<Meal> {
+  const existing = await loadMealRow(householdId, mealId);
   if (!existing) throw new Error("Meal not found");
-  db.update(meals)
-    .set({ pinned: pinned ? 1 : 0 })
-    .where(eq(meals.id, mealId))
-    .run();
-  return mapMeal({ ...existing, pinned: pinned ? 1 : 0 });
+  const [row] = await getDb()
+    .update(meals)
+    .set({ pinned })
+    .where(and(eq(meals.householdId, householdId), eq(meals.id, mealId)))
+    .returning();
+  if (!row) throw new Error("Meal not found");
+  return mapMeal(row);
 }
 
-export function setPlanPinned(planId: string, pinned: boolean): WeekPlan {
-  const plan = getPlan(planId);
+export async function setPlanPinned(
+  householdId: string,
+  planId: string,
+  pinned: boolean,
+): Promise<WeekPlan> {
+  const plan = await getPlan(householdId, planId);
   if (!plan) throw new Error("Plan not found");
-  const db = getDb();
-  db.update(meals)
-    .set({ pinned: pinned ? 1 : 0 })
-    .where(eq(meals.planId, planId))
-    .run();
-  return getPlan(planId) ?? plan;
+  await getDb()
+    .update(meals)
+    .set({ pinned })
+    .where(and(eq(meals.householdId, householdId), eq(meals.planId, planId)));
+  return (await getPlan(householdId, planId)) ?? plan;
 }
 
 export function mealAt(
   planMeals: Meal[],
   day: DayOfWeek,
   slot: MealSlot,
-  ): Meal | undefined {
+): Meal | undefined {
   return planMeals.find((meal) => meal.day === day && meal.slot === slot);
 }
 
-export function dedupeLibraryMeals(): number {
+export async function dedupeLibraryMeals(householdId: string): Promise<number> {
   const db = getDb();
-  const rows = db
-    .select()
-    .from(meals)
-    .all()
+  const rows = (
+    await db.select().from(meals).where(eq(meals.householdId, householdId))
+  )
     .map(mapMeal)
     .filter((meal) => !meal.draft && !meal.takeout);
   const buckets = new Map<string, Meal[]>();
@@ -857,8 +1026,8 @@ export function dedupeLibraryMeals(): number {
   for (const group of buckets.values()) {
     if (group.length < 2) continue;
     const ranked = [...group].sort((a, b) => {
-      const aLib = a.planId === "" ? 0 : 1;
-      const bLib = b.planId === "" ? 0 : 1;
+      const aLib = a.planId == null ? 0 : 1;
+      const bLib = b.planId == null ? 0 : 1;
       if (aLib !== bLib) return aLib - bLib;
       if (Number(a.leftover) !== Number(b.leftover)) {
         return Number(a.leftover) - Number(b.leftover);
@@ -866,10 +1035,11 @@ export function dedupeLibraryMeals(): number {
       if (b.stars !== a.stars) return b.stars - a.stars;
       return b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id);
     });
-    const winner = ranked[0]!;
     for (const meal of ranked.slice(1)) {
-      if (meal.planId !== "") continue;
-      db.delete(meals).where(eq(meals.id, meal.id)).run();
+      if (meal.planId != null) continue;
+      await db
+        .delete(meals)
+        .where(and(eq(meals.householdId, householdId), eq(meals.id, meal.id)));
       removed += 1;
     }
   }

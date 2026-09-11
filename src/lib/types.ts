@@ -90,7 +90,7 @@ export type MealExtras = {
 
 export type Meal = GeneratedMeal & {
   id: string;
-  planId: string;
+  planId: string | null;
   usedWebSearch: boolean;
   pinned: boolean;
   createdAt: string;

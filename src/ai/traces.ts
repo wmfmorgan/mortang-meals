@@ -1,4 +1,4 @@
-import { desc, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { aiTraces } from "@/lib/schema";
 import type { AiTrace } from "@/lib/types";
@@ -33,10 +33,13 @@ export function redactSecrets(text: string): string {
     .replace(/(XAI_API_KEY|api[_-]?key)\s*[:=]\s*\S+/gi, "$1=[redacted]");
 }
 
-export function recordTrace(input: Omit<AiTrace, "id" | "createdAt">): AiTrace {
+export async function recordTrace(
+  input: Omit<AiTrace, "id" | "createdAt"> & { householdId: string },
+): Promise<AiTrace> {
   const db = getDb();
   const row = {
     id: crypto.randomUUID(),
+    householdId: input.householdId,
     createdAt: nextCreatedAt(),
     kind: input.kind,
     mode: input.mode,
@@ -46,31 +49,36 @@ export function recordTrace(input: Omit<AiTrace, "id" | "createdAt">): AiTrace {
     responseText: redactSecrets(input.responseText),
     validation: input.validation,
   };
-  db.transaction((tx) => {
-    tx.insert(aiTraces).values(row).run();
-    tx.run(
-      sql`DELETE FROM ai_traces WHERE id NOT IN (
-        SELECT id FROM (
-          SELECT id FROM ai_traces ORDER BY created_at DESC LIMIT 25
+  await db.transaction(async (tx) => {
+    await tx.insert(aiTraces).values(row);
+    await tx.execute(sql`
+      delete from ai_traces
+      where household_id = ${input.householdId}
+        and id not in (
+          select id from (
+            select id from ai_traces
+            where household_id = ${input.householdId}
+            order by created_at desc
+            limit 25
+          ) keepers
         )
-      )`,
-    );
+    `);
   });
   return mapTrace(row);
 }
 
-export function listTraces(): AiTrace[] {
+export async function listTraces(householdId: string): Promise<AiTrace[]> {
   const db = getDb();
-  return db
+  const rows = await db
     .select()
     .from(aiTraces)
+    .where(eq(aiTraces.householdId, householdId))
     .orderBy(desc(aiTraces.createdAt))
-    .limit(25)
-    .all()
-    .map(mapTrace);
+    .limit(25);
+  return rows.map(mapTrace);
 }
 
-export function clearTraces(): void {
+export async function clearTraces(householdId: string): Promise<void> {
   const db = getDb();
-  db.delete(aiTraces).run();
+  await db.delete(aiTraces).where(eq(aiTraces.householdId, householdId));
 }

@@ -3,8 +3,6 @@ import { getDb } from "@/lib/db";
 import { aiSettings } from "@/lib/schema";
 import type { AiSettings } from "@/lib/types";
 
-const SETTINGS_ID = "default";
-
 const DEFAULT_SETTINGS: AiSettings = {
   mode: "grok",
   baseUrl: "https://api.x.ai/v1",
@@ -22,8 +20,8 @@ function mapSettings(row: SettingsRow): AiSettings {
     baseUrl: row.baseUrl,
     model: row.model,
     customApiKey: row.customApiKey,
-    developerTools: row.developerTools === 1,
-    webSearch: row.webSearch === 1,
+    developerTools: row.developerTools,
+    webSearch: row.webSearch,
   };
 }
 
@@ -33,34 +31,47 @@ function settingsValues(settings: AiSettings) {
     baseUrl: settings.baseUrl,
     model: settings.model,
     customApiKey: settings.customApiKey,
-    developerTools: settings.developerTools ? 1 : 0,
-    webSearch: settings.webSearch ? 1 : 0,
+    developerTools: settings.developerTools,
+    webSearch: settings.webSearch,
   };
 }
 
-export function getSettings(): AiSettings {
+export async function getSettings(householdId: string): Promise<AiSettings> {
   const db = getDb();
-  const row = db.select().from(aiSettings).get();
+  const [row] = await db
+    .select()
+    .from(aiSettings)
+    .where(eq(aiSettings.householdId, householdId))
+    .limit(1);
   if (row) return mapSettings(row);
-  db.insert(aiSettings)
-    .values({ id: SETTINGS_ID, ...settingsValues(DEFAULT_SETTINGS) })
-    .run();
+  await db.insert(aiSettings).values({
+    householdId,
+    ...settingsValues(DEFAULT_SETTINGS),
+  });
   return { ...DEFAULT_SETTINGS };
 }
 
-export function saveSettings(patch: Partial<AiSettings>): AiSettings {
-  const next = { ...getSettings(), ...patch };
+export async function saveSettings(
+  householdId: string,
+  patch: Partial<AiSettings>,
+): Promise<AiSettings> {
+  const next = { ...(await getSettings(householdId)), ...patch };
   const db = getDb();
-  const row = db.select().from(aiSettings).get();
+  const [row] = await db
+    .select()
+    .from(aiSettings)
+    .where(eq(aiSettings.householdId, householdId))
+    .limit(1);
   if (!row) {
-    db.insert(aiSettings)
-      .values({ id: SETTINGS_ID, ...settingsValues(next) })
-      .run();
+    await db.insert(aiSettings).values({
+      householdId,
+      ...settingsValues(next),
+    });
     return next;
   }
-  db.update(aiSettings)
+  await db
+    .update(aiSettings)
     .set(settingsValues(next))
-    .where(eq(aiSettings.id, row.id))
-    .run();
+    .where(eq(aiSettings.householdId, householdId));
   return next;
 }

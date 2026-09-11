@@ -19,7 +19,7 @@ function recipe(
 ): Meal {
   return {
     id: title,
-    planId: "",
+    planId: null,
     day: "monday",
     slot,
     title,
