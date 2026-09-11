@@ -1,4 +1,5 @@
 import { handleCreateMeal } from "@/meals/http";
+import { requireHousehold } from "@/lib/request-auth";
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -7,6 +8,12 @@ export async function POST(req: Request) {
   } catch {
     return Response.json({ message: "Invalid JSON." }, { status: 400 });
   }
-  const result = handleCreateMeal(body);
+  const auth = await requireHousehold();
+  if (!auth.ok) {
+    return Response.json(auth.result.body, { status: auth.result.status });
+  }
+  const result = await handleCreateMeal(body, {
+    auth: { userId: auth.userId, householdId: auth.householdId },
+  });
   return Response.json(result.body, { status: result.status });
 }

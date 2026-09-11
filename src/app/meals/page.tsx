@@ -1,12 +1,12 @@
 import { PageHeader } from "@/components/page-header";
 import { MealsCatalog } from "@/components/meals-catalog";
-import { getHousehold } from "@/household/repo";
+import { requirePageHousehold } from "@/lib/request-auth";
 import { getCurrentPlan, listCatalogMeals, listDraftMeals } from "@/meals/repo";
 
-export default function MealsPage() {
-  const meals = listCatalogMeals();
-  const household = getHousehold();
-  const current = getCurrentPlan();
+export default async function MealsPage() {
+  const { household, householdId } = await requirePageHousehold();
+  const meals = await listCatalogMeals(householdId);
+  const current = await getCurrentPlan(householdId);
 
   return (
     <div>
@@ -17,9 +17,9 @@ export default function MealsPage() {
       />
       <MealsCatalog
         meals={meals}
-        drafts={listDraftMeals()}
-        people={household?.people ?? []}
-        servings={household?.servings ?? 2}
+        drafts={await listDraftMeals(householdId)}
+        people={household.people}
+        servings={household.servings}
         currentPlanId={current?.id ?? null}
       />
     </div>

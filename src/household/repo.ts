@@ -37,14 +37,6 @@ function mapHousehold(row: HouseholdRow, members: Person[]): Household {
   };
 }
 
-/** First-row helper until Task 6 wires pages to `getHouseholdForUser`. */
-export async function getHousehold(): Promise<Household | null> {
-  const db = getDb();
-  const [row] = await db.select().from(households).limit(1);
-  if (!row) return null;
-  return mapHousehold(row, await loadPeople(row.id));
-}
-
 export async function getHouseholdForUser(
   userId: string,
 ): Promise<Household | null> {

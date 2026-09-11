@@ -1,17 +1,17 @@
 import { PageHeader } from "@/components/page-header";
-import { getHousehold } from "@/household/repo";
 import { getKitchenPrefs } from "@/kitchen/prefs-repo";
 import { listKitchen, seedKitchenIfEmpty } from "@/kitchen/repo";
+import { requirePageHousehold } from "@/lib/request-auth";
 import { KitchenForm } from "./kitchen-form";
 
-export default function KitchenPage() {
-  seedKitchenIfEmpty();
-  const items = listKitchen();
-  const prefs = getKitchenPrefs();
-  const household = getHousehold();
+export default async function KitchenPage() {
+  const { household, householdId } = await requirePageHousehold();
+  await seedKitchenIfEmpty(householdId);
+  const items = await listKitchen(householdId);
+  const prefs = await getKitchenPrefs(householdId);
   const seeded = prefs.overallDiet.trim()
     ? prefs
-    : { ...prefs, overallDiet: household?.dietStyle ?? "" };
+    : { ...prefs, overallDiet: household.dietStyle };
 
   return (
     <div>

@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/page-header";
 import { PlanSwitcher } from "@/components/plan-switcher";
 import { ThisWeekPlanner } from "@/components/this-week-planner";
 import { WeekSwitcher } from "@/components/week-switcher";
-import { getHousehold } from "@/household/repo";
+import { requirePageHousehold } from "@/lib/request-auth";
 import { weekRangeLabel } from "@/lib/week";
 import { listPlans, resolveOpenPlan } from "@/meals/repo";
 
@@ -12,14 +12,14 @@ export default async function HomePage({
 }: {
   searchParams: Promise<{ plan?: string }>;
 }) {
-  const household = getHousehold();
-  if (!household || household.people.length === 0) {
+  const { household, householdId } = await requirePageHousehold();
+  if (household.people.length === 0) {
     redirect("/setup");
   }
 
   const { plan: planId } = await searchParams;
-  const plans = listPlans();
-  const plan = resolveOpenPlan(planId);
+  const plans = await listPlans(householdId);
+  const plan = await resolveOpenPlan(householdId, planId);
   const weekStart = plan.weekStart;
 
   return (

@@ -51,4 +51,10 @@ describe("updateSession", () => {
     expect(response.status).not.toBe(307);
     expect(response.headers.get("location")).toBeNull();
   });
+
+  it("does not redirect unauthenticated /api/* so handlers can return 401", async () => {
+    const response = await updateSession(requestFor("/api/generate"));
+    expect(response.status).not.toBe(307);
+    expect(response.headers.get("location")).toBeNull();
+  });
 });

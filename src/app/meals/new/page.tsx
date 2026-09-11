@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { MealDetail } from "@/components/meal-detail";
-import { getHousehold } from "@/household/repo";
+import { requirePageHousehold } from "@/lib/request-auth";
 
-export default function NewRecipePage() {
-  const household = getHousehold();
+export default async function NewRecipePage() {
+  const { household } = await requirePageHousehold();
 
   return (
     <article className="recipe-page mx-auto max-w-2xl">
@@ -15,7 +15,7 @@ export default function NewRecipePage() {
       </Link>
       <MealDetail
         mode="create"
-        servings={household ? `Serves ${household.servings}` : "Serves household"}
+        servings={`Serves ${household.servings}`}
         canSwap={false}
         eyebrow="New recipe"
       />

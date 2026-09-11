@@ -1,9 +1,11 @@
 import { PageHeader } from "@/components/page-header";
 import { getSettings } from "@/ai/settings-repo";
+import { requirePageHousehold } from "@/lib/request-auth";
 import { SettingsForm } from "./settings-form";
 
-export default function SettingsPage() {
-  const settings = getSettings();
+export default async function SettingsPage() {
+  const { householdId } = await requirePageHousehold();
+  const settings = await getSettings(householdId);
 
   return (
     <div>

@@ -1,4 +1,5 @@
 import { handleImportRecipe } from "@/meals/http";
+import { requireHousehold } from "@/lib/request-auth";
 
 export type ImportStreamEvent =
   | { type: "progress"; phase: string; message: string }
@@ -13,6 +14,11 @@ export async function POST(req: Request) {
     return Response.json({ message: "Invalid JSON." }, { status: 400 });
   }
 
+  const auth = await requireHousehold();
+  if (!auth.ok) {
+    return Response.json(auth.result.body, { status: auth.result.status });
+  }
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
@@ -21,6 +27,7 @@ export async function POST(req: Request) {
       };
 
       const result = await handleImportRecipe(body, {
+        auth: { userId: auth.userId, householdId: auth.householdId },
         signal: req.signal,
         onProgress: (event) => {
           if (req.signal.aborted) return;

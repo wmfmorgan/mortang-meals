@@ -2,7 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { normalizePeople } from "@/household/normalize-people";
-import { getHousehold, replacePeople, upsertHousehold } from "@/household/repo";
+import {
+  getHouseholdForUser,
+  replacePeople,
+  upsertHousehold,
+} from "@/household/repo";
+import { seedKitchenIfEmpty } from "@/kitchen/repo";
+import { requirePageUser } from "@/lib/request-auth";
 import type { Sex } from "@/lib/types";
 
 export type HouseholdSaveInput = {
@@ -20,6 +26,7 @@ export type HouseholdSaveInput = {
 };
 
 export async function saveHouseholdAction(input: HouseholdSaveInput) {
+  const userId = await requirePageUser();
   const people = normalizePeople(input.people);
 
   const servingsRaw = input.servings.trim();
@@ -28,18 +35,20 @@ export async function saveHouseholdAction(input: HouseholdSaveInput) {
       ? people.length
       : Number.parseInt(servingsRaw, 10) || people.length;
 
-  const existing = getHousehold();
-  const household = upsertHousehold({
+  const existing = await getHouseholdForUser(userId);
+  const household = await upsertHousehold({
     ...(existing ? { id: existing.id } : {}),
+    ownerId: userId,
     name: input.name.trim(),
     dietStyle: input.dietStyle.trim(),
     notes: input.notes.trim(),
     servings,
   });
-  replacePeople(household.id, people);
+  await seedKitchenIfEmpty(household.id);
+  await replacePeople(household.id, people);
 
   revalidatePath("/");
   revalidatePath("/household");
   revalidatePath("/setup");
-  return getHousehold();
+  return getHouseholdForUser(userId);
 }

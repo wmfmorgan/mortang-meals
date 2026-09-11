@@ -1,7 +1,14 @@
 import { getLibraryGeneratePrefs, saveLibraryGeneratePrefs } from "@/meals/library-prefs";
+import { requireHousehold } from "@/lib/request-auth";
 
-export function GET() {
-  return Response.json({ prefs: getLibraryGeneratePrefs() });
+export async function GET() {
+  const auth = await requireHousehold();
+  if (!auth.ok) {
+    return Response.json(auth.result.body, { status: auth.result.status });
+  }
+  return Response.json({
+    prefs: await getLibraryGeneratePrefs(auth.householdId),
+  });
 }
 
 export async function PUT(req: Request) {
@@ -11,6 +18,10 @@ export async function PUT(req: Request) {
   } catch {
     return Response.json({ message: "Invalid JSON." }, { status: 400 });
   }
-  saveLibraryGeneratePrefs(body);
+  const auth = await requireHousehold();
+  if (!auth.ok) {
+    return Response.json(auth.result.body, { status: auth.result.status });
+  }
+  await saveLibraryGeneratePrefs(auth.householdId, body);
   return Response.json({ ok: true });
 }

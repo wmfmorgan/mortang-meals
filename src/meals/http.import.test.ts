@@ -1,33 +1,37 @@
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { resetDbForTests } from "@/lib/db";
+import { createTestIdentity, deleteTestUser } from "@/lib/test-identity";
+import type { AdapterRequest, AdapterResult } from "@/lib/types";
 import { handleCreateMeal, handleImportRecipe, handleUpdateMeal } from "./http";
 import { getMeal } from "./repo";
 
-const dbPath = path.join(
-  os.tmpdir(),
-  `mortang-import-${crypto.randomUUID()}.db`,
-);
+let ident: Awaited<ReturnType<typeof createTestIdentity>>;
 
-beforeAll(() => {
-  process.env.MORTANG_DB_PATH = dbPath;
-  resetDbForTests();
+function deps(extra: {
+  complete?: (req: AdapterRequest) => Promise<AdapterResult>;
+  onProgress?: (event: { phase: string; message: string }) => void;
+} = {}) {
+  return {
+    auth: { userId: ident.userId, householdId: ident.householdId },
+    ...extra,
+  };
+}
+
+beforeAll(async () => {
+  await resetDbForTests();
+  ident = await createTestIdentity();
 });
 
-afterAll(() => {
-  resetDbForTests();
-  for (const suffix of ["", "-wal", "-shm"]) {
-    fs.rmSync(`${dbPath}${suffix}`, { force: true });
-  }
+afterAll(async () => {
+  await resetDbForTests();
+  await deleteTestUser(ident.userId);
 });
 
 describe("handleImportRecipe", () => {
   it("saves a normal meal with the source URL", async () => {
     const result = await handleImportRecipe(
       { url: "https://example.com/salmon", slot: "dinner" },
-      {
+      deps({
         complete: async () => ({
           ok: true,
           text: JSON.stringify({
@@ -45,12 +49,12 @@ describe("handleImportRecipe", () => {
             },
           }),
         }),
-      },
+      }),
     );
 
     expect(result.status).toBe(200);
     const meal = (result.body as { meal: { id: string } }).meal;
-    const saved = getMeal(meal.id);
+    const saved = await getMeal(ident.householdId, meal.id);
     expect(saved?.title).toBe("Imported salmon");
     expect(saved?.sourceUrl).toBe("https://example.com/salmon");
     expect(saved?.slot).toBe("dinner");
@@ -60,8 +64,8 @@ describe("handleImportRecipe", () => {
     const phases: string[] = [];
     await handleImportRecipe(
       { url: "https://example.com/salmon", slot: "dinner" },
-      {
-        onProgress: (event) => {
+      deps({
+        onProgress: (event: { phase: string }) => {
           phases.push(event.phase);
         },
         complete: async () => ({
@@ -81,7 +85,7 @@ describe("handleImportRecipe", () => {
             },
           }),
         }),
-      },
+      }),
     );
     expect(phases).toEqual(["opening", "writing", "saving"]);
   });
@@ -91,7 +95,7 @@ describe("handleUpdateMeal", () => {
   it("rejects an empty title", async () => {
     const imported = await handleImportRecipe(
       { url: "https://example.com/stew", slot: "lunch" },
-      {
+      deps({
         complete: async () => ({
           ok: true,
           text: JSON.stringify({
@@ -109,18 +113,21 @@ describe("handleUpdateMeal", () => {
             },
           }),
         }),
-      },
+      }),
     );
     const meal = (imported.body as { meal: { id: string } }).meal;
-    const result = handleUpdateMeal({
-      mealId: meal.id,
-      title: "",
-      whyItFits: "Hearty",
-      cookMinutes: 40,
-      method: "pot",
-      ingredients: [{ name: "beef", quantity: "1", unit: "lb", aisle: "meat" }],
-      steps: ["Simmer"],
-    });
+    const result = await handleUpdateMeal(
+      {
+        mealId: meal.id,
+        title: "",
+        whyItFits: "Hearty",
+        cookMinutes: 40,
+        method: "pot",
+        ingredients: [{ name: "beef", quantity: "1", unit: "lb", aisle: "meat" }],
+        steps: ["Simmer"],
+      },
+      deps({}),
+    );
     expect(result.status).toBe(400);
   });
 });
@@ -135,50 +142,65 @@ const typedRecipe = {
 };
 
 describe("handleCreateMeal", () => {
-  it("saves a typed library meal", () => {
-    const result = handleCreateMeal({ ...typedRecipe, slot: "lunch" });
+  it("saves a typed library meal", async () => {
+    const result = await handleCreateMeal(
+      { ...typedRecipe, slot: "lunch" },
+      deps({}),
+    );
     expect(result.status).toBe(200);
-    const meal = (result.body as { meal: ReturnType<typeof getMeal> }).meal;
-    expect(meal?.title).toBe("Grandma chili");
-    expect(meal?.slot).toBe("lunch");
-    expect(meal?.planId).toBe("");
-    expect(meal?.sourceUrl).toBeNull();
-    expect(meal?.usedWebSearch).toBe(false);
-    expect(getMeal(meal!.id)?.title).toBe("Grandma chili");
+    const meal = (result.body as { meal: { id: string } }).meal;
+    const saved = await getMeal(ident.householdId, meal.id);
+    expect(saved?.title).toBe("Grandma chili");
+    expect(saved?.slot).toBe("lunch");
+    expect(saved?.planId).toBeNull();
+    expect(saved?.sourceUrl).toBeNull();
+    expect(saved?.usedWebSearch).toBe(false);
   });
 
-  it("rejects an empty title", () => {
-    const result = handleCreateMeal({ ...typedRecipe, title: "", slot: "dinner" });
+  it("rejects an empty title", async () => {
+    const result = await handleCreateMeal(
+      { ...typedRecipe, title: "", slot: "dinner" },
+      deps({}),
+    );
     expect(result.status).toBe(400);
   });
 
-  it("rejects a recipe with no ingredients", () => {
-    const result = handleCreateMeal({
-      ...typedRecipe,
-      ingredients: [],
-      slot: "dinner",
-    });
+  it("rejects a recipe with no ingredients", async () => {
+    const result = await handleCreateMeal(
+      {
+        ...typedRecipe,
+        ingredients: [],
+        slot: "dinner",
+      },
+      deps({}),
+    );
     expect(result.status).toBe(400);
   });
 
-  it("allows an empty why-it-fits", () => {
-    const result = handleCreateMeal({
-      ...typedRecipe,
-      title: "Weeknight beans",
-      whyItFits: "",
-      slot: "dinner",
-    });
+  it("allows an empty why-it-fits", async () => {
+    const result = await handleCreateMeal(
+      {
+        ...typedRecipe,
+        title: "Weeknight beans",
+        whyItFits: "",
+        slot: "dinner",
+      },
+      deps({}),
+    );
     expect(result.status).toBe(200);
     const meal = (result.body as { meal: { whyItFits: string } }).meal;
     expect(meal.whyItFits).toBe("");
   });
 
-  it("rejects a recipe with no steps", () => {
-    const result = handleCreateMeal({
-      ...typedRecipe,
-      steps: [],
-      slot: "dinner",
-    });
+  it("rejects a recipe with no steps", async () => {
+    const result = await handleCreateMeal(
+      {
+        ...typedRecipe,
+        steps: [],
+        slot: "dinner",
+      },
+      deps({}),
+    );
     expect(result.status).toBe(400);
   });
 });

@@ -1,6 +1,3 @@
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { saveSettings } from "@/ai/settings-repo";
 import {
@@ -19,9 +16,14 @@ import {
   handleRateMeal,
   handleRejectDraft,
 } from "@/meals/http";
-import { getHousehold, replacePeople, upsertHousehold } from "@/household/repo";
+import {
+  getHouseholdForUser,
+  replacePeople,
+  upsertHousehold,
+} from "@/household/repo";
 import { seedKitchenIfEmpty } from "@/kitchen/repo";
 import { resetDbForTests } from "@/lib/db";
+import { createTestIdentity, deleteTestUser } from "@/lib/test-identity";
 import type {
   AdapterRequest,
   AdapterResult,
@@ -45,26 +47,35 @@ import {
 import { suggestionExtra } from "@/meals/extras";
 import { mergeShoppingList } from "@/meals/shopping-list";
 
-const dbPath = path.join(
-  os.tmpdir(),
-  `mortang-api-smoke-${crypto.randomUUID()}.db`,
-);
-
+let ident: Awaited<ReturnType<typeof createTestIdentity>>;
+const extraUsers: string[] = [];
 let previousXaiKey: string | undefined;
 
-beforeAll(() => {
-  process.env.MORTANG_DB_PATH = dbPath;
+function authOf(identity: { userId: string; householdId: string }) {
+  return { userId: identity.userId, householdId: identity.householdId };
+}
+
+function deps(extra: {
+  complete?: (req: AdapterRequest) => Promise<AdapterResult>;
+} = {}) {
+  return { auth: authOf(ident), ...extra };
+}
+
+beforeAll(async () => {
   previousXaiKey = process.env.XAI_API_KEY;
   process.env.XAI_API_KEY = "test-key";
-  resetDbForTests();
+  await resetDbForTests();
 
-  const household = upsertHousehold({
+  ident = await createTestIdentity();
+  await upsertHousehold({
+    ownerId: ident.userId,
+    id: ident.householdId,
     name: "Mortang",
     dietStyle: "high-protein Mediterranean",
     notes: "",
     servings: 2,
   });
-  replacePeople(household.id, [
+  await replacePeople(ident.householdId, [
     {
       name: "Alex",
       age: 53,
@@ -80,16 +91,15 @@ beforeAll(() => {
       avoidances: ["cilantro"],
     },
   ]);
-  seedKitchenIfEmpty();
+  await seedKitchenIfEmpty(ident.householdId);
 });
 
-afterAll(() => {
-  resetDbForTests();
+afterAll(async () => {
+  await resetDbForTests();
+  await deleteTestUser(ident.userId);
+  await Promise.all(extraUsers.splice(0).map(deleteTestUser));
   if (previousXaiKey === undefined) delete process.env.XAI_API_KEY;
   else process.env.XAI_API_KEY = previousXaiKey;
-  for (const suffix of ["", "-wal", "-shm"]) {
-    fs.rmSync(`${dbPath}${suffix}`, { force: true });
-  }
 });
 
 function emptyMask(): SlotMask {
@@ -104,6 +114,10 @@ function weekdayDinnerMask(): SlotMask {
     slotMask[day].dinner = true;
   }
   return slotMask;
+}
+
+function allDinners(): SlotMask {
+  return weekdayDinnerMask();
 }
 
 function dinner(
@@ -145,6 +159,35 @@ function fakeComplete(queue: AdapterResult[]) {
 }
 
 describe("API smoke path", () => {
+  it("generate without auth is 401", async () => {
+    const result = await handleGenerate(
+      { slotMask: allDinners() },
+      { complete: async () => ({ ok: true, text: "{}" }) },
+    );
+    expect(result.status).toBe(401);
+  });
+
+  it("user B cannot list user A's library", async () => {
+    const a = authOf(ident);
+    const other = await createTestIdentity();
+    extraUsers.push(other.userId);
+    const b = authOf(other);
+    await handleCreateMeal(
+      {
+        slot: "dinner",
+        title: "A only",
+        whyItFits: "x",
+        cookMinutes: 20,
+        method: "pot",
+        ingredients: [{ name: "beans", quantity: "1", unit: "can", aisle: "pantry" }],
+        steps: ["Cook"],
+      },
+      { auth: a },
+    );
+    const listed = await handleListLibrary("dinner", { auth: b });
+    expect((listed.body as { meals: { title: string }[] }).meals).toEqual([]);
+  });
+
   it("generates seven weekday dinners and persists the current plan", async () => {
     const { complete } = fakeComplete([
       { ok: true, text: JSON.stringify({ meals: WEEK_DINNERS }) },
@@ -152,13 +195,13 @@ describe("API smoke path", () => {
 
     const result = await handleGenerate(
       { weekStart: "2026-08-10", slotMask: weekdayDinnerMask() },
-      { complete },
+      deps({ complete }),
     );
 
     expect(result.status).toBe(200);
     const body = result.body as { plan: WeekPlan };
     expect(body.plan.meals).toHaveLength(7);
-    expect(getCurrentPlan()).toEqual(body.plan);
+    expect(await getCurrentPlan(ident.householdId)).toEqual(body.plan);
   });
 
   it("swaps Monday dinner and returns the shopping list the client would show", async () => {
@@ -167,7 +210,7 @@ describe("API smoke path", () => {
     ]);
     const generated = await handleGenerate(
       { weekStart: "2026-08-10", slotMask: weekdayDinnerMask() },
-      { complete: generateComplete },
+      deps({ complete: generateComplete }),
     );
     const plan = (generated.body as { plan: WeekPlan }).plan;
     const monday = plan.meals.find((meal) => meal.day === "monday");
@@ -187,14 +230,14 @@ describe("API smoke path", () => {
 
     const result = await handleSwap(
       { planId: plan.id, mealId: monday!.id },
-      { complete },
+      deps({ complete }),
     );
 
     expect(result.status).toBe(200);
     const body = result.body as { meal: Meal; shoppingList: ShoppingList };
     expect(body.meal.title).toBe("Sheet-pan trout");
 
-    const current = getCurrentPlan();
+    const current = await getCurrentPlan(ident.householdId);
     expect(current?.meals.find((meal) => meal.day === "monday")?.title).toBe(
       "Sheet-pan trout",
     );
@@ -207,7 +250,7 @@ describe("API smoke path", () => {
   });
 
   it("swaps with a prompt and still only replaces that meal", async () => {
-    const existing = getCurrentPlan();
+    const existing = await getCurrentPlan(ident.householdId);
     expect(existing).toBeTruthy();
     const monday = existing!.meals.find((meal) => meal.day === "monday");
     expect(monday).toBeDefined();
@@ -231,7 +274,7 @@ describe("API smoke path", () => {
         mealId: monday!.id,
         prompt: "made on the grill",
       },
-      { complete },
+      deps({ complete }),
     );
 
     expect(result.status).toBe(200);
@@ -240,27 +283,27 @@ describe("API smoke path", () => {
       "made on the grill",
     );
     expect(
-      getCurrentPlan()
+      (await getCurrentPlan(ident.householdId))
         ?.meals.filter((meal) => meal.day !== "monday")
         .map((meal) => meal.title),
     ).toEqual(otherTitles);
   });
 
   it("marks generated meals as usedWebSearch when the Grok toggle is on", async () => {
-    saveSettings({ webSearch: true });
+    await saveSettings(ident.householdId, { webSearch: true });
     try {
       const { complete } = fakeComplete([
         { ok: true, text: JSON.stringify({ meals: WEEK_DINNERS }) },
       ]);
       const result = await handleGenerate(
         { weekStart: "2026-08-17", slotMask: weekdayDinnerMask() },
-        { complete },
+        deps({ complete }),
       );
       expect(result.status).toBe(200);
       const meals = (result.body as { plan: WeekPlan }).plan.meals;
       expect(meals.every((meal) => meal.usedWebSearch)).toBe(true);
     } finally {
-      saveSettings({ webSearch: false });
+      await saveSettings(ident.householdId, { webSearch: false });
     }
   });
 
@@ -270,11 +313,11 @@ describe("API smoke path", () => {
     ]);
     const generated = await handleGenerate(
       { weekStart: "2026-08-24", slotMask: weekdayDinnerMask() },
-      { complete: first },
+      deps({ complete: first }),
     );
     const plan = (generated.body as { plan: WeekPlan }).plan;
     const monday = plan.meals.find((meal) => meal.day === "monday")!;
-    setPinned(monday.id, true);
+    await setPinned(ident.householdId, monday.id, true);
 
     const rest = WEEK_DINNERS.filter((meal) => meal.day !== "monday").map(
       (meal) => ({ ...meal, title: `New ${meal.title}` }),
@@ -284,7 +327,7 @@ describe("API smoke path", () => {
     ]);
     const result = await handleGenerate(
       { weekStart: "2026-08-24", slotMask: weekdayDinnerMask() },
-      { complete },
+      deps({ complete }),
     );
 
     expect(result.status).toBe(200);
@@ -301,8 +344,8 @@ describe("API smoke path", () => {
   });
 
   it("does not call the model when every requested slot is pinned", async () => {
-    const existing = getCurrentPlan();
-    if (existing) setPlanPinned(existing.id, false);
+    const existing = await getCurrentPlan(ident.householdId);
+    if (existing) await setPlanPinned(ident.householdId, existing.id, false);
 
     const mask = emptyMask();
     mask.monday.dinner = true;
@@ -311,20 +354,20 @@ describe("API smoke path", () => {
     ]);
     const generated = await handleGenerate(
       { weekStart: "2026-08-31", slotMask: mask },
-      { complete: first },
+      deps({ complete: first }),
     );
     const meal = (generated.body as { plan: WeekPlan }).plan.meals[0]!;
-    setPinned(meal.id, true);
+    await setPinned(ident.householdId, meal.id, true);
 
     let called = false;
     const result = await handleGenerate(
       { weekStart: "2026-08-31", slotMask: mask },
-      {
+      deps({
         complete: async () => {
           called = true;
           return { ok: true, text: "{}" };
         },
-      },
+      }),
     );
 
     expect(result.status).toBe(400);
@@ -333,9 +376,11 @@ describe("API smoke path", () => {
   });
 
   it("rejects generate with an empty diet style without calling the adapter", async () => {
-    const household = getHousehold();
+    const household = await getHouseholdForUser(ident.userId);
     expect(household).not.toBeNull();
-    upsertHousehold({
+    await upsertHousehold({
+      ownerId: ident.userId,
+      id: household!.id,
       name: household!.name,
       dietStyle: "",
       notes: household!.notes,
@@ -351,14 +396,16 @@ describe("API smoke path", () => {
 
       const result = await handleGenerate(
         { slotMask: weekdayDinnerMask() },
-        { complete },
+        deps({ complete }),
       );
 
       expect(result.status).toBe(400);
       expect((result.body as { message: string }).message).toMatch(/diet style/i);
       expect(called).toBe(false);
     } finally {
-      upsertHousehold({
+      await upsertHousehold({
+        ownerId: ident.userId,
+        id: household!.id,
         name: household!.name,
         dietStyle: "high-protein Mediterranean",
         notes: household!.notes,
@@ -385,7 +432,7 @@ describe("API smoke path", () => {
     ]);
     const generated = await handleGenerate(
       { weekStart: "2026-09-07", slotMask: mask },
-      { complete: generateComplete },
+      deps({ complete: generateComplete }),
     );
     const lunch = (generated.body as { plan: WeekPlan }).plan.meals[0]!;
 
@@ -394,14 +441,17 @@ describe("API smoke path", () => {
     ]);
     const added = await handleGenerateExtra(
       { mealId: lunch.id, kind: "side", mode: "suggestion" },
-      { complete },
+      deps({ complete }),
     );
     expect(added.status).toBe(200);
     const withSide = (added.body as { meal: Meal }).meal;
     expect(withSide.extras.side?.title).toBe("Baked potato");
     expect(withSide.extras.side?.mode).toBe("suggestion");
 
-    const deleted = handleDeleteExtra({ mealId: lunch.id, kind: "side" });
+    const deleted = await handleDeleteExtra(
+      { mealId: lunch.id, kind: "side" },
+      deps({}),
+    );
     expect(deleted.status).toBe(200);
     expect((deleted.body as { meal: Meal }).meal.extras.side).toBeNull();
   });
@@ -424,29 +474,29 @@ describe("API smoke path", () => {
     ]);
     const breakfastPlan = await handleGenerate(
       { weekStart: "2026-09-14", slotMask: breakfastMask },
-      { complete: breakfastComplete },
+      deps({ complete: breakfastComplete }),
     );
     const breakfast = (breakfastPlan.body as { plan: WeekPlan }).plan.meals[0]!;
     const breakfastResult = await handleGenerateExtra(
       { mealId: breakfast.id, kind: "side", mode: "suggestion" },
-      {
+      deps({
         complete: async () => ({
           ok: true,
           text: JSON.stringify({ title: "Toast" }),
         }),
-      },
+      }),
     );
     expect(breakfastResult.status).toBe(400);
     expect((breakfastResult.body as { message: string }).message).toMatch(
       /breakfast/i,
     );
 
-    const historical = saveGeneratedPlan({
+    const historical = await saveGeneratedPlan(ident.householdId, {
       weekStart: "2026-01-05",
       slotMask: weekdayDinnerMask(),
       meals: [dinner("monday", "Old salmon", "salmon")],
     });
-    saveGeneratedPlan({
+    await saveGeneratedPlan(ident.householdId, {
       weekStart: "2026-01-12",
       slotMask: weekdayDinnerMask(),
       meals: [dinner("monday", "New trout", "trout")],
@@ -454,12 +504,12 @@ describe("API smoke path", () => {
     const oldMeal = historical.meals[0]!;
     const historicalResult = await handleGenerateExtra(
       { mealId: oldMeal.id, kind: "dessert", mode: "suggestion" },
-      {
+      deps({
         complete: async () => ({
           ok: true,
           text: JSON.stringify({ title: "Pie" }),
         }),
-      },
+      }),
     );
     expect(historicalResult.status).toBe(400);
     expect((historicalResult.body as { message: string }).message).toMatch(
@@ -475,10 +525,11 @@ describe("API smoke path", () => {
     ]);
     const generated = await handleGenerate(
       { weekStart: "2026-09-21", slotMask: mask },
-      { complete: generateComplete },
+      deps({ complete: generateComplete }),
     );
     const dinnerMeal = (generated.body as { plan: WeekPlan }).plan.meals[0]!;
-    setMealExtra(
+    await setMealExtra(
+      ident.householdId,
       dinnerMeal.id,
       suggestionExtra({
         id: "keep-side",
@@ -503,11 +554,15 @@ describe("API smoke path", () => {
     ]);
     const result = await handleGenerateExtra(
       { mealId: dinnerMeal.id, kind: "side", mode: "recipe" },
-      { complete },
+      deps({ complete }),
     );
     expect(result.status).toBe(422);
-    expect(getCurrentPlan()?.meals[0]?.extras.side?.mode).toBe("suggestion");
-    expect(getCurrentPlan()?.meals[0]?.extras.side?.title).toBe("Baked potato");
+    expect(
+      (await getCurrentPlan(ident.householdId))?.meals[0]?.extras.side?.mode,
+    ).toBe("suggestion");
+    expect(
+      (await getCurrentPlan(ident.householdId))?.meals[0]?.extras.side?.title,
+    ).toBe("Baked potato");
   });
 
   it("saves a generated extra recipe to the library and lets you place it", async () => {
@@ -518,7 +573,7 @@ describe("API smoke path", () => {
     ]);
     const generated = await handleGenerate(
       { weekStart: "2026-09-28", slotMask: mask },
-      { complete: generateComplete },
+      deps({ complete: generateComplete }),
     );
     const dinnerMeal = (generated.body as { plan: WeekPlan }).plan.meals[0]!;
     const potato = {
@@ -536,50 +591,56 @@ describe("API smoke path", () => {
     ]);
     const added = await handleGenerateExtra(
       { mealId: dinnerMeal.id, kind: "side", mode: "recipe" },
-      { complete },
+      deps({ complete }),
     );
     expect(added.status).toBe(200);
     const extraId = (added.body as { meal: Meal }).meal.extras.side?.id;
     expect(extraId).toBeTruthy();
-    const library = handleListLibrary("side");
+    const library = await handleListLibrary("side", deps({}));
     expect(library.status).toBe(200);
     expect(
       (library.body as { meals: { title: string }[] }).meals.map((item) => item.title),
     ).toContain("Baked potato");
 
-    handleDeleteExtra({ mealId: dinnerMeal.id, kind: "side" });
-    const placed = handlePlaceExtra({
-      sourceMealId: extraId,
-      mealId: dinnerMeal.id,
-      kind: "side",
-    });
+    await handleDeleteExtra({ mealId: dinnerMeal.id, kind: "side" }, deps({}));
+    const placed = await handlePlaceExtra(
+      {
+        sourceMealId: extraId,
+        mealId: dinnerMeal.id,
+        kind: "side",
+      },
+      deps({}),
+    );
     expect(placed.status).toBe(200);
     expect((placed.body as { meal: Meal }).meal.extras.side?.title).toBe(
       "Baked potato",
     );
   });
 
-  it("creates a typed dessert in the library", () => {
-    const result = handleCreateMeal({
-      title: "Key lime pie",
-      cookMinutes: 20,
-      method: "no bake",
-      slot: "dessert",
-      ingredients: [
-        { name: "lime juice", quantity: "1/2", unit: "cup", aisle: "produce" },
-      ],
-      steps: ["Mix", "Chill"],
-    });
+  it("creates a typed dessert in the library", async () => {
+    const result = await handleCreateMeal(
+      {
+        title: "Key lime pie",
+        cookMinutes: 20,
+        method: "no bake",
+        slot: "dessert",
+        ingredients: [
+          { name: "lime juice", quantity: "1/2", unit: "cup", aisle: "produce" },
+        ],
+        steps: ["Mix", "Chill"],
+      },
+      deps({}),
+    );
     expect(result.status).toBe(200);
     expect((result.body as { meal: Meal }).meal.slot).toBe("dessert");
-    const library = handleListLibrary("dessert");
+    const library = await handleListLibrary("dessert", deps({}));
     expect(
       (library.body as { meals: { title: string }[] }).meals.map((item) => item.title),
     ).toContain("Key lime pie");
   });
 
   it("generates library drafts, then approve, rate, and reject", async () => {
-    const household = getHousehold();
+    const household = await getHouseholdForUser(ident.userId);
     expect(household).toBeTruthy();
     const personIds = household!.people.map((person) => person.id);
     const { complete } = fakeComplete([
@@ -595,32 +656,47 @@ describe("API smoke path", () => {
         personIds,
         dinner: { count: 1, diet: "high-protein", avoidances: "pork" },
       },
-      { complete },
+      deps({ complete }),
     );
     expect(result.status).toBe(200);
     const drafts = (result.body as { meals: Meal[] }).meals;
     expect(drafts).toHaveLength(1);
     expect(drafts[0]!.draft).toBe(true);
-    expect(listAllMeals().some((item) => item.id === drafts[0]!.id)).toBe(false);
     expect(
-      (handleListLibrary("dinner").body as { meals: { id: string }[] }).meals.some(
-        (item) => item.id === drafts[0]!.id,
-      ),
+      (await listAllMeals(ident.householdId)).some((item) => item.id === drafts[0]!.id),
+    ).toBe(false);
+    expect(
+      (
+        (await handleListLibrary("dinner", deps({}))).body as {
+          meals: { id: string }[];
+        }
+      ).meals.some((item) => item.id === drafts[0]!.id),
     ).toBe(false);
 
-    const placedDraft = handlePlaceMeal({
-      sourceMealId: drafts[0]!.id,
-      day: "monday",
-      slot: "dinner",
-    });
+    const placedDraft = await handlePlaceMeal(
+      {
+        sourceMealId: drafts[0]!.id,
+        day: "monday",
+        slot: "dinner",
+      },
+      deps({}),
+    );
     expect(placedDraft.status).toBe(404);
 
-    const approved = handleApproveDraft({ mealId: drafts[0]!.id });
+    const approved = await handleApproveDraft(
+      { mealId: drafts[0]!.id },
+      deps({}),
+    );
     expect(approved.status).toBe(200);
     expect((approved.body as { meal: Meal }).meal.draft).toBe(false);
-    expect(listAllMeals().some((item) => item.id === drafts[0]!.id)).toBe(true);
+    expect(
+      (await listAllMeals(ident.householdId)).some((item) => item.id === drafts[0]!.id),
+    ).toBe(true);
 
-    const rated = handleRateMeal({ mealId: drafts[0]!.id, stars: 5 });
+    const rated = await handleRateMeal(
+      { mealId: drafts[0]!.id, stars: 5 },
+      deps({}),
+    );
     expect(rated.status).toBe(200);
     expect((rated.body as { meal: Meal }).meal.stars).toBe(5);
 
@@ -637,18 +713,22 @@ describe("API smoke path", () => {
         personIds,
         dinner: { count: 1, diet: "high-protein", avoidances: "" },
       },
-      { complete: rejectComplete },
+      deps({ complete: rejectComplete }),
     );
     const rejectId = (second.body as { meals: Meal[] }).meals[0]!.id;
-    const rejected = handleRejectDraft({ mealId: rejectId });
+    const rejected = await handleRejectDraft({ mealId: rejectId }, deps({}));
     expect(rejected.status).toBe(200);
-    expect(listDraftMeals().some((item) => item.id === rejectId)).toBe(false);
-    expect(listAllMeals().some((item) => item.id === rejectId)).toBe(false);
+    expect(
+      (await listDraftMeals(ident.householdId)).some((item) => item.id === rejectId),
+    ).toBe(false);
+    expect(
+      (await listAllMeals(ident.householdId)).some((item) => item.id === rejectId),
+    ).toBe(false);
   });
 
   it("retries then fails library generate without writing drafts", async () => {
-    const before = listDraftMeals().length;
-    const household = getHousehold()!;
+    const before = (await listDraftMeals(ident.householdId)).length;
+    const household = (await getHouseholdForUser(ident.userId))!;
     const { complete } = fakeComplete([
       { ok: false, error: "timeout" },
       { ok: false, error: "timeout" },
@@ -663,9 +743,9 @@ describe("API smoke path", () => {
           avoidances: "",
         },
       },
-      { complete },
+      deps({ complete }),
     );
     expect(result.status).toBe(422);
-    expect(listDraftMeals()).toHaveLength(before);
+    expect(await listDraftMeals(ident.householdId)).toHaveLength(before);
   });
 });

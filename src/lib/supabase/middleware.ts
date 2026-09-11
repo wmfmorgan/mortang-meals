@@ -5,7 +5,8 @@ function isPublicPath(pathname: string) {
   return (
     pathname.startsWith("/login") ||
     pathname.startsWith("/auth") ||
-    pathname.startsWith("/logout")
+    pathname.startsWith("/logout") ||
+    pathname.startsWith("/api/")
   );
 }
 

@@ -1,11 +1,13 @@
 import { PageHeader } from "@/components/page-header";
 import { getSettings } from "@/ai/settings-repo";
 import { listTraces } from "@/ai/traces";
+import { requirePageHousehold } from "@/lib/request-auth";
 import { DeveloperLog } from "./developer-log";
 import { canViewDeveloper } from "./visibility";
 
-export default function DeveloperPage() {
-  const settings = getSettings();
+export default async function DeveloperPage() {
+  const { householdId } = await requirePageHousehold();
+  const settings = await getSettings(householdId);
   if (!canViewDeveloper(settings.developerTools)) {
     return (
       <div>
@@ -18,7 +20,7 @@ export default function DeveloperPage() {
     );
   }
 
-  const traces = listTraces();
+  const traces = await listTraces(householdId);
 
   return (
     <div>

@@ -1,12 +1,16 @@
 import { z } from "zod";
-import { getHousehold } from "@/household/repo";
 import { getKitchenPrefs } from "@/kitchen/prefs-repo";
 import { listKitchen, seedKitchenIfEmpty } from "@/kitchen/repo";
+import {
+  resolveHandlerAuth,
+  type Authed,
+} from "@/lib/request-auth";
 import { mondayOf } from "@/lib/week";
 import type {
   AdapterRequest,
   AdapterResult,
   AiSettings,
+  AiTrace,
   ExtraKind,
   Household,
   SlotMask,
@@ -53,6 +57,7 @@ export type GenerateStreamEvent =
   | { type: "error"; status: number; message: string };
 
 export type HandlerDeps = {
+  auth?: Authed;
   complete?: (req: AdapterRequest) => Promise<AdapterResult>;
   onProgress?: (event: GenerateUiEvent) => void;
   signal?: AbortSignal;
@@ -199,30 +204,39 @@ function toSafeSettings(settings: AiSettings) {
   };
 }
 
-function loadReadyHousehold():
-  | { ok: true; household: Household }
-  | { ok: false; result: HttpResult } {
-  const household = getHousehold();
-  if (!household) {
-    return {
-      ok: false,
-      result: jsonError(400, "Add a household before generating."),
-    };
-  }
-  if (household.people.length === 0) {
+function logTraceFor(householdId: string) {
+  return (t: Omit<AiTrace, "id" | "createdAt">) => {
+    void recordTrace({ ...t, householdId });
+  };
+}
+
+async function loadReadyHousehold(
+  deps?: HandlerDeps,
+): Promise<
+  | {
+      ok: true;
+      userId: string;
+      householdId: string;
+      household: Household;
+    }
+  | { ok: false; result: HttpResult }
+> {
+  const authed = await resolveHandlerAuth(deps?.auth);
+  if (!authed.ok) return authed;
+  if (authed.household.people.length === 0) {
     return {
       ok: false,
       result: jsonError(400, "Add people before generating."),
     };
   }
-  const prefs = getKitchenPrefs();
-  if (!household.dietStyle.trim() && !prefs.overallDiet.trim()) {
+  const prefs = await getKitchenPrefs(authed.householdId);
+  if (!authed.household.dietStyle.trim() && !prefs.overallDiet.trim()) {
     return {
       ok: false,
       result: jsonError(400, "Add a diet style before generating."),
     };
   }
-  return { ok: true, household };
+  return authed;
 }
 
 export async function handleGenerate(
@@ -234,33 +248,34 @@ export async function handleGenerate(
     return jsonError(400, "slotMask is required.");
   }
 
-  const ready = loadReadyHousehold();
+  const ready = await loadReadyHousehold(deps);
   if (!ready.ok) return ready.result;
+  const { householdId, household } = ready;
 
   if (!hasAnySlot(parsed.data.slotMask)) {
     return jsonError(400, "Turn on at least one meal slot.");
   }
 
-  const current = getCurrentPlan();
+  const current = await getCurrentPlan(householdId);
   const pinned = current?.meals.filter((meal) => meal.pinned) ?? [];
   const effectiveMask = maskMinusPinned(parsed.data.slotMask, pinned);
   if (!hasAnySlot(effectiveMask)) {
     return jsonError(400, ALL_PINNED);
   }
 
-  const settings = getSettings();
+  const settings = await getSettings(householdId);
   if (grokKeyMissing(settings)) {
     return jsonError(400, GROK_KEY_MESSAGE);
   }
 
-  seedKitchenIfEmpty();
+  await seedKitchenIfEmpty(householdId);
   const result = await generateWeekPlan({
-    household: ready.household,
-    kitchen: listKitchen(),
-    prefs: getKitchenPrefs(),
+    household,
+    kitchen: await listKitchen(householdId),
+    prefs: await getKitchenPrefs(householdId),
     slotMask: effectiveMask,
     adapter: resolveAdapter(settings, deps),
-    logTrace: recordTrace,
+    logTrace: logTraceFor(householdId),
     settings,
     reservedTitles: pinned.map((meal) => meal.title),
     useIngredients: (parsed.data.useIngredients ?? []).filter(
@@ -280,7 +295,7 @@ export async function handleGenerate(
   }
 
   deps?.onProgress?.({ phase: "saving", message: "Saving the week" });
-  const plan = mergeGeneratedPlan({
+  const plan = await mergeGeneratedPlan(householdId, {
     weekStart: parsed.data.weekStart ?? mondayOf(new Date()),
     slotMask: parsed.data.slotMask,
     meals: result.meals,
@@ -298,29 +313,30 @@ export async function handleSwap(
     return jsonError(400, "planId and mealId are required.");
   }
 
-  const plan = getPlan(parsed.data.planId);
+  const ready = await loadReadyHousehold(deps);
+  if (!ready.ok) return ready.result;
+  const { householdId, household } = ready;
+
+  const plan = await getPlan(householdId, parsed.data.planId);
   if (!plan) return jsonError(404, "Plan not found.");
   const current = plan.meals.find((meal) => meal.id === parsed.data.mealId);
   if (!current) return jsonError(404, "Meal not found.");
 
-  const ready = loadReadyHousehold();
-  if (!ready.ok) return ready.result;
-
-  const settings = getSettings();
+  const settings = await getSettings(householdId);
   if (grokKeyMissing(settings)) {
     return jsonError(400, GROK_KEY_MESSAGE);
   }
 
-  seedKitchenIfEmpty();
+  await seedKitchenIfEmpty(householdId);
   const result = await swapMeal({
-    household: ready.household,
-    kitchen: listKitchen(),
-    prefs: getKitchenPrefs(),
+    household,
+    kitchen: await listKitchen(householdId),
+    prefs: await getKitchenPrefs(householdId),
     slotMask: plan.slotMask,
     current,
     otherMeals: plan.meals.filter((meal) => meal.id !== current.id),
     adapter: resolveAdapter(settings, deps),
-    logTrace: recordTrace,
+    logTrace: logTraceFor(householdId),
     settings,
     useIngredients: parsed.data.useIngredients,
     prompt: parsed.data.prompt,
@@ -330,13 +346,14 @@ export async function handleSwap(
     return jsonError(422, result.message);
   }
 
-  const meal = replaceMeal(
+  const meal = await replaceMeal(
+    householdId,
     plan.id,
     current.id,
     result.meal,
     grokWebSearchEnabled(settings),
   );
-  const updated = getPlan(plan.id);
+  const updated = await getPlan(householdId, plan.id);
   return {
     status: 200,
     body: {
@@ -355,10 +372,14 @@ export async function handleGenerateExtra(
     return jsonError(400, "mealId, kind, and mode are required.");
   }
 
-  const meal = getMeal(parsed.data.mealId);
+  const ready = await loadReadyHousehold(deps);
+  if (!ready.ok) return ready.result;
+  const { householdId, household } = ready;
+
+  const meal = await getMeal(householdId, parsed.data.mealId);
   if (!meal) return jsonError(404, "Meal not found.");
 
-  const current = getCurrentPlan();
+  const current = await getCurrentPlan(householdId);
   if (!current || meal.planId !== current.id) {
     return jsonError(400, "Sides and desserts can only be added on this week.");
   }
@@ -373,24 +394,21 @@ export async function handleGenerateExtra(
     return jsonError(400, `That meal already has a ${parsed.data.kind}.`);
   }
 
-  const ready = loadReadyHousehold();
-  if (!ready.ok) return ready.result;
-
-  const settings = getSettings();
+  const settings = await getSettings(householdId);
   if (grokKeyMissing(settings)) {
     return jsonError(400, GROK_KEY_MESSAGE);
   }
 
-  seedKitchenIfEmpty();
+  await seedKitchenIfEmpty(householdId);
   const reservedTitles = extraReservedTitles(
     current.meals,
     meal.id,
     parsed.data.kind,
   );
   const result = await generateExtra({
-    household: ready.household,
-    kitchen: listKitchen(),
-    prefs: getKitchenPrefs(),
+    household,
+    kitchen: await listKitchen(householdId),
+    prefs: await getKitchenPrefs(householdId),
     slotMask: current.slotMask,
     parent: meal,
     kind: parsed.data.kind,
@@ -398,7 +416,7 @@ export async function handleGenerateExtra(
     keepTitle: upgrading ? existing.title : undefined,
     reservedTitles,
     adapter: resolveAdapter(settings, deps),
-    logTrace: recordTrace,
+    logTrace: logTraceFor(householdId),
     settings,
   });
 
@@ -413,7 +431,7 @@ export async function handleGenerateExtra(
   };
   if (extra.mode === "recipe") {
     try {
-      const saved = saveStandaloneMeal({
+      const saved = await saveStandaloneMeal(householdId, {
         meal: {
           day: "monday",
           slot: parsed.data.kind,
@@ -435,7 +453,10 @@ export async function handleGenerateExtra(
       if (!message.includes("already in the library")) throw error;
     }
   }
-  return { status: 200, body: { meal: setMealExtra(meal.id, extra) } };
+  return {
+    status: 200,
+    body: { meal: await setMealExtra(householdId, meal.id, extra) },
+  };
 }
 
 function extraReservedTitles(
@@ -468,10 +489,10 @@ export async function handleGenerateLibrary(
     );
   }
 
-  const household = getHousehold();
-  if (!household) {
-    return jsonError(400, "Add a household before generating.");
-  }
+  const authed = await resolveHandlerAuth(deps?.auth);
+  if (!authed.ok) return authed.result;
+  const { householdId, household } = authed;
+
   const selected = household.people.filter((person) =>
     parsed.data.personIds.includes(person.id),
   );
@@ -479,7 +500,7 @@ export async function handleGenerateLibrary(
     return jsonError(400, "Select at least one person.");
   }
 
-  const settings = getSettings();
+  const settings = await getSettings(householdId);
   if (grokKeyMissing(settings)) {
     return jsonError(400, GROK_KEY_MESSAGE);
   }
@@ -491,24 +512,25 @@ export async function handleGenerateLibrary(
     return jsonError(400, "Ask for at most 24 recipes at once.");
   }
 
-  seedKitchenIfEmpty();
+  await seedKitchenIfEmpty(householdId);
   const reservedTitles = reservedTitlesForSlots(
-    [...listAllMeals(), ...listDraftMeals()].filter(
-      (meal) => !meal.takeout && !meal.leftover,
-    ),
+    [
+      ...(await listAllMeals(householdId)),
+      ...(await listDraftMeals(householdId)),
+    ].filter((meal) => !meal.takeout && !meal.leftover),
     groups.map((group) => group.slot),
   );
   const result = await generateLibraryMeals({
     household: { ...household, people: selected },
-    kitchen: listKitchen(),
-    prefs: getKitchenPrefs(),
+    kitchen: await listKitchen(householdId),
+    prefs: await getKitchenPrefs(householdId),
     groups,
     request: parsed.data.request
       ? { slot: parsed.data.request.slot, text: parsed.data.request.text }
       : undefined,
     reservedTitles,
     adapter: resolveAdapter(settings, deps),
-    logTrace: recordTrace,
+    logTrace: logTraceFor(householdId),
     settings,
     onProgress: deps?.onProgress,
     signal: deps?.signal,
@@ -518,7 +540,8 @@ export async function handleGenerateLibrary(
   if (deps?.signal?.aborted) return jsonError(422, "Generate cancelled.");
 
   deps?.onProgress?.({ phase: "saving", message: "Saving drafts" });
-  const meals = saveDraftMeals(
+  const meals = await saveDraftMeals(
+    householdId,
     result.meals.map((meal) => ({
       meal,
       slot: meal.slot,
@@ -528,32 +551,51 @@ export async function handleGenerateLibrary(
   return { status: 200, body: { meals } };
 }
 
-export function handleGetSettings(): HttpResult {
-  return { status: 200, body: { settings: toSafeSettings(getSettings()) } };
+export async function handleGetSettings(
+  deps?: HandlerDeps,
+): Promise<HttpResult> {
+  const authed = await resolveHandlerAuth(deps?.auth);
+  if (!authed.ok) return authed.result;
+  return {
+    status: 200,
+    body: { settings: toSafeSettings(await getSettings(authed.householdId)) },
+  };
 }
 
-export function handlePutSettings(body: unknown): HttpResult {
+export async function handlePutSettings(
+  body: unknown,
+  deps?: HandlerDeps,
+): Promise<HttpResult> {
+  const authed = await resolveHandlerAuth(deps?.auth);
+  if (!authed.ok) return authed.result;
   const parsed = settingsPatchSchema.safeParse(body);
   if (!parsed.success) {
     return jsonError(400, "Invalid settings.");
   }
   return {
     status: 200,
-    body: { settings: toSafeSettings(saveSettings(parsed.data)) },
+    body: {
+      settings: toSafeSettings(
+        await saveSettings(authed.householdId, parsed.data),
+      ),
+    },
   };
 }
 
 export async function handleTestConnection(
   deps?: HandlerDeps,
 ): Promise<HttpResult> {
-  const settings = getSettings();
+  const authed = await resolveHandlerAuth(deps?.auth);
+  if (!authed.ok) return authed.result;
+  const settings = await getSettings(authed.householdId);
   const messages = [{ role: "user" as const, content: "Reply with pong=ok" }];
 
-  const writeTestTrace = (
+  const writeTestTrace = async (
     responseText: string,
     validation: "ok" | "transport",
   ) => {
-    recordTrace({
+    await recordTrace({
+      householdId: authed.householdId,
       kind: "test",
       mode: settings.mode,
       baseUrl: settings.baseUrl,
@@ -565,7 +607,7 @@ export async function handleTestConnection(
   };
 
   if (grokKeyMissing(settings) && !deps?.complete) {
-    writeTestTrace(GROK_KEY_MESSAGE, "transport");
+    await writeTestTrace(GROK_KEY_MESSAGE, "transport");
     return { status: 200, body: { ok: false, message: GROK_KEY_MESSAGE } };
   }
 
@@ -575,7 +617,10 @@ export async function handleTestConnection(
     schemaName: "test",
   });
 
-  writeTestTrace(result.ok ? result.text : result.error, result.ok ? "ok" : "transport");
+  await writeTestTrace(
+    result.ok ? result.text : result.error,
+    result.ok ? "ok" : "transport",
+  );
   return {
     status: 200,
     body: {
@@ -585,11 +630,22 @@ export async function handleTestConnection(
   };
 }
 
-export function handleListTraces(): HttpResult {
-  return { status: 200, body: { traces: listTraces() } };
+export async function handleListTraces(
+  deps?: HandlerDeps,
+): Promise<HttpResult> {
+  const authed = await resolveHandlerAuth(deps?.auth);
+  if (!authed.ok) return authed.result;
+  return {
+    status: 200,
+    body: { traces: await listTraces(authed.householdId) },
+  };
 }
 
-export function handleClearTraces(): HttpResult {
-  clearTraces();
+export async function handleClearTraces(
+  deps?: HandlerDeps,
+): Promise<HttpResult> {
+  const authed = await resolveHandlerAuth(deps?.auth);
+  if (!authed.ok) return authed.result;
+  await clearTraces(authed.householdId);
   return { status: 200, body: { ok: true } };
 }

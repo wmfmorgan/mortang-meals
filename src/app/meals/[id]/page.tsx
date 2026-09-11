@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MealDetail } from "@/components/meal-detail";
-import { getHousehold } from "@/household/repo";
+import { requirePageHousehold } from "@/lib/request-auth";
 import { getCurrentPlan, getMeal } from "@/meals/repo";
 
 const DAY_LABELS = {
@@ -19,12 +19,12 @@ export default async function RecipePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { household, householdId } = await requirePageHousehold();
   const { id } = await params;
-  const meal = getMeal(id);
+  const meal = await getMeal(householdId, id);
   if (!meal) notFound();
 
-  const household = getHousehold();
-  const current = getCurrentPlan();
+  const current = await getCurrentPlan(householdId);
   const onCurrentWeek = Boolean(current?.meals.some((item) => item.id === meal.id));
   const eyebrow = onCurrentWeek
     ? `${DAY_LABELS[meal.day]} ${meal.slot}`
@@ -42,7 +42,7 @@ export default async function RecipePage({
       </Link>
       <MealDetail
         meal={meal}
-        servings={household ? `Serves ${household.servings}` : "Serves household"}
+        servings={`Serves ${household.servings}`}
         canSwap={onCurrentWeek}
         eyebrow={eyebrow}
       />

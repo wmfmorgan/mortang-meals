@@ -485,15 +485,7 @@ export async function saveGeneratedPlan(
     }
   });
 
-  return {
-    id: planId,
-    weekStart: input.weekStart,
-    isCurrent: true,
-    slotMask: input.slotMask,
-    meals: sortMeals(mealRows.map(mapMeal)),
-    name: "",
-    favorited: false,
-  };
+  return (await getPlan(householdId, planId))!;
 }
 
 export async function mergeGeneratedPlan(

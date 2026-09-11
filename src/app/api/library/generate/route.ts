@@ -3,6 +3,7 @@ import {
   type GenerateStreamEvent,
   type GenerateUiEvent,
 } from "@/ai/http";
+import { requireHousehold } from "@/lib/request-auth";
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -10,6 +11,11 @@ export async function POST(req: Request) {
     body = await req.json();
   } catch {
     return Response.json({ message: "Invalid JSON." }, { status: 400 });
+  }
+
+  const auth = await requireHousehold();
+  if (!auth.ok) {
+    return Response.json(auth.result.body, { status: auth.result.status });
   }
 
   const encoder = new TextEncoder();
@@ -20,6 +26,7 @@ export async function POST(req: Request) {
       };
 
       const result = await handleGenerateLibrary(body, {
+        auth: { userId: auth.userId, householdId: auth.householdId },
         signal: req.signal,
         onProgress: (event: GenerateUiEvent) => {
           if (req.signal.aborted) return;
