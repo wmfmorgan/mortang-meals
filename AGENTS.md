@@ -6,42 +6,46 @@ Read this before changing the app. It describes the **current** code, not the or
 
 ## What this is
 
-A local, single-household meal planner. The user describes who they cook for and how they cook; the app generates a week of recipes, keeps a meal library, and derives a shopping list.
+A single-household meal planner (one household per signed-in user). The user describes who they cook for and how they cook; the app generates a week of recipes, keeps a meal library, and derives a shopping list.
 
-No auth, no multi-household, no hosted deploy. One Next.js process. The browser never calls an AI provider.
+Auth is invite-only magic link. Hosted on Vercel + Supabase Postgres is supported. The browser never calls an AI provider. Open signup, shared households, and Netlify stay out of scope.
 
-Success path: set up household + kitchen → generate library drafts on Meals (or pick slots on Plans) → approve keepers → cook from a card → pin / swap / place from the library → shop from the merged list.
+Success path: sign in → set up household + kitchen → generate library drafts on Meals (or pick slots on Plans) → approve keepers → cook from a card → pin / swap / place from the library → shop from the merged list.
 
 ## Stack and commands
 
 - Next.js 15 App Router (`src/`), React 19, TypeScript, Tailwind 4
-- SQLite via `better-sqlite3` + Drizzle (queries only — schema is created in `src/lib/db.ts`, not drizzle-kit)
+- Supabase Postgres + Drizzle via `postgres.js` (`DATABASE_URL`). Schema lives in `supabase/migrations/`; Drizzle is queries only.
+- Supabase Auth magic link (`@supabase/ssr`), invite-only (`shouldCreateUser: false`), `households.owner_id`
 - Zod for AI JSON and HTTP bodies
 - OpenAI SDK against xAI (`https://api.x.ai/v1`) or a custom OpenAI-compatible base URL
+- AI stays on Node route handlers (`maxDuration = 300`). Shared-key usage uses `AI_DAILY_CAP` (`src/ai/usage.ts`). No Edge Functions / Edge runtime for AI.
+- `better-sqlite3` is **import-script only** (`scripts/import-sqlite.ts`), not the app database
 - Vitest. Component tests set `// @vitest-environment happy-dom`
 
 ```
 npm run dev     # localhost:3000
-npm test        # vitest run
+npm test        # vitest run (needs local supabase start)
 npm run build
 ```
 
-Env: copy `.env.example` to `.env.local` and set `XAI_API_KEY`. Optional `MORTANG_DB_PATH` overrides the SQLite file (default `data/mortang.db`, gitignored). Tests should set `MORTANG_DB_PATH` to a temp file and call `resetDbForTests()` when they open the db.
+Env: copy `.env.example` to `.env.local`. Set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `DATABASE_URL`, `XAI_API_KEY`. Tests also need `SUPABASE_SERVICE_ROLE_KEY`. There is no `MORTANG_DB_PATH`. Local Supabase in this repo uses **563xx** ports (see README).
 
-`src/app/layout.tsx` is `force-dynamic`. `next.config.ts` marks `better-sqlite3` as a server external package.
+`src/app/layout.tsx` is `force-dynamic`. Middleware (`src/middleware.ts`) requires a session except `/login` and auth routes.
 
 ## Hard constraints
 
-- Browser talks only to local API routes / server actions. Keys stay on the server.
-- Grok key is `process.env.XAI_API_KEY` only. Never store it in SQLite. Custom-provider keys may live in settings.
-- Automated tests mock the adapter (`complete`). No live model calls.
-- One household. Week is Monday–Sunday (`mondayOf` in `src/lib/week.ts`). Week slots are `breakfast | lunch | dinner` (21 cells). Library recipes may also be `side` or `dessert`.
+- Browser talks only to Next.js API routes / server actions. Keys stay on the server.
+- Grok key is `process.env.XAI_API_KEY` only. Never store it in the database. Custom-provider keys may live in settings.
+- Automated tests mock the adapter (`complete`). No live model calls. DB tests use local `supabase start` + `createTestIdentity` / `deleteTestUser` (`src/lib/test-identity.ts`); `resetDbForTests()` truncates app tables only.
+- One household per user (`households.owner_id`). Every repo/handler call is scoped by `householdId`. Week is Monday–Sunday (`mondayOf` in `src/lib/week.ts`). Week slots are `breakfast | lunch | dinner` (21 cells). Library recipes may also be `side` or `dessert`.
 - At most one plan has `isCurrent = 1`.
 - Last good plan / meal / extra is never replaced by a failed generate, swap, extra, import, or library generate. Failed library generate writes no drafts.
 - Ingredient `quantity` is a **string** (`"1"`, `"1/2"`, `"1/4"`). Never a number. Never `0` for a used ingredient.
 - Duplicate = normalized title match only (`src/meals/duplicates.ts`: lowercase, strip non-alphanumerics, collapse spaces). No fuzzy matching.
 - Allergen = case-insensitive substring of an ingredient **name** (`src/meals/allergen.ts`). Diet excludes (dessert dairy-free, form avoidances) skip plant stand-ins such as peanut butter, soy milk, and coconut cream.
 - Generate, swap, extra, and library generate retry **once** on transport / invalid JSON / schema / allergen / duplicate. Then keep the previous data.
+- Shared-host-key AI calls (generate, library generate, import, swap, extra) consume `AI_DAILY_CAP` (10) per user per UTC day; custom-key mode skips the cap. Cap exhaustion returns 429 and leaves data unchanged.
 - AI traces: always record, keep last 25, redact `Bearer` tokens and `api_key=` values. Developer nav is hidden unless Settings → developer tools is on.
 - Visual language lives in `src/app/globals.css` (olive / linen / paper). Match existing components; do not invent a parallel design system.
 
@@ -49,28 +53,29 @@ Env: copy `.env.example` to `.env.local` and set `XAI_API_KEY`. Optional `MORTAN
 
 ```
 UI (server pages + client components)
-    │  fetch / server actions
+    │  fetch / server actions (cookie session via @supabase/ssr)
     ▼
-HTTP handlers
+HTTP handlers (auth → householdId)
     src/ai/http.ts        generate, swap, extra, library generate, settings, traces
     src/meals/http.ts     library, place, pin, import, update, delete, extra delete, drafts, stars
     │
     ├── domain (pure, easy to test)
     │     brief, schema, allergen, duplicates, extras, shopping-list, slot-mask, catalog
-    ├── repos (SQLite)
-    │     household, kitchen, prefs, meals, settings, traces
+    ├── repos (Postgres via Drizzle; always take householdId)
+    │     household, kitchen, prefs, meals, settings, traces, ai_usage
     └── adapter
           src/ai/adapter.ts  → xAI / custom OpenAI-compatible endpoint
 ```
 
-Shared types: `src/lib/types.ts`. Drizzle tables: `src/lib/schema.ts`. Schema bootstrap + additive columns: `src/lib/db.ts` (`ensureSchema` + `ensureColumn`). There are no foreign keys.
+Shared types: `src/lib/types.ts`. Drizzle tables: `src/lib/schema.ts`. Runtime DB client: `src/lib/db.ts` (`getDb()` + `resetDbForTests()`). Schema changes go through `supabase/migrations/`, not runtime `ensureColumn`.
 
-Thin `src/app/api/*/route.ts` files parse JSON and call a handler. Keep logic in the handler modules so tests can call them without Next.
+Thin `src/app/api/*/route.ts` files parse JSON, resolve the session household, and call a handler. Keep logic in the handler modules so tests can call them without Next.
 
 ## Screens
 
 | Route | Role |
 | --- | --- |
+| `/login` | Magic-link sign-in. Invite-only; unknown emails get the same success copy and do not create users. |
 | `/setup` | First-run wizard: household → kitchen checklist → slot mask. Redirect target when there is no household or no named people. |
 | `/` Plans | Home. Week switcher, slot picker (cells to fill), fill-empty-slots from the library, takeout, leftovers, week grid, recipe flyout, library flyout. Labels are Monday–Sunday ranges. Visiting `/` with no `?plan=` opens this calendar week if the current plan is in the past. `?plan=` opens a historical plan. |
 | `/meals` | Library: generate drafts (batch or one recipe), approve/reject queue, then search / filter / group, import-from-URL, add-recipe. Catalog is unique by title. Saved meals can be rated 1–5 stars. |
@@ -88,7 +93,7 @@ Generation UX is global (`GenerationProvider` in `AppShell`): NDJSON stream in t
 
 ## Data model
 
-**Household** — one row. Name, `dietStyle` (legacy / fallback), notes, servings, people.
+**Household** — one row per user (`owner_id` unique). Name, `dietStyle` (legacy / fallback), notes, servings, people. Created on first authenticated setup / invite acceptance path.
 
 **Person** — name, age, optional sex, allergies (hard exclude), avoidances (soft prefer-to-skip). Blank-name people are dropped on save (`normalizePeople`).
 
@@ -196,8 +201,10 @@ Brief (`src/household/brief.ts`) includes people, diet, notes, allergies, avoida
 | Path | Responsibility |
 | --- | --- |
 | `src/lib/types.ts` | Domain types and constants (`DAYS`, `SLOTS`, `AISLES`) |
-| `src/lib/db.ts` | Open SQLite, create/alter tables, test reset |
-| `src/lib/schema.ts` | Drizzle table defs |
+| `src/lib/db.ts` | Postgres Drizzle client (`DATABASE_URL`), test truncate |
+| `src/lib/schema.ts` | Drizzle table defs (mirrors `supabase/migrations/`) |
+| `src/lib/test-identity.ts` | `createTestIdentity` / `deleteTestUser` for Postgres tests |
+| `src/lib/supabase/*` | Browser, server, and middleware Supabase clients |
 | `src/lib/slot-mask.ts` | Mask helpers + session persistence |
 | `src/lib/use-ingredients.ts` | Session persistence for assigned ingredients |
 | `src/lib/generate-progress.ts` | Progress % / step labels for generate, import, and library |
@@ -215,9 +222,11 @@ Brief (`src/household/brief.ts`) includes people, diet, notes, allergies, avoida
 | `src/ai/swap-meal.ts` | Swap loop + validation |
 | `src/ai/generate-extra.ts` | Side/dessert suggestion or recipe loop |
 | `src/ai/http.ts` | Generate / swap / extra / library generate / settings / traces handlers |
+| `src/ai/usage.ts` | Per-user shared-key `AI_DAILY_CAP` |
 | `src/meals/library-prefs.ts` | Meals generate-form JSON prefs |
 | `src/ai/settings-repo.ts` | Settings row |
 | `src/ai/traces.ts` | Trace log |
+| `scripts/import-sqlite.ts` | One-time SQLite → Postgres import (`better-sqlite3`) |
 | `src/components/this-week-planner.tsx` | Plans client orchestrator |
 | `src/components/generation-provider.tsx` | Shared generate/import/library stream client |
 | `src/components/generation-status.tsx` | Nav chip + expandable steps for the in-tab job |
@@ -267,8 +276,8 @@ Household and kitchen writes are server actions (`src/app/household/actions.ts`,
 ## How to change things
 
 - New generate/swap constraint → brief line and/or Zod + the retry loop. Add a unit test next to the domain function. Do not put prompt-only rules that the server cannot enforce if they matter (allergies, slots, duplicates, cook time if you start enforcing it).
-- New meal field → types, drizzle table + `ensureColumn`, `mealInsertValues` / `mapMeal`, Zod + JSON Schema, UI.
-- New API → handler in `src/ai/http.ts` or `src/meals/http.ts`, thin route file, test in `src/app/api/smoke.test.ts` or a focused `*.test.ts`.
+- New meal field → types, Drizzle table + Supabase migration, `mealInsertValues` / `mapMeal`, Zod + JSON Schema, UI.
+- New API → handler in `src/ai/http.ts` or `src/meals/http.ts`, thin route file (set `maxDuration = 300` on AI routes), test in `src/app/api/smoke.test.ts` or a focused `*.test.ts`.
 - New screen → `src/app/.../page.tsx`, add a nav link if it is first-class, keep the olive/linen styles.
 - AI provider changes → `adapter.ts` only if possible. Keep `complete({ messages, jsonSchema, schemaName, signal })` so tests stay fakeable.
 
@@ -276,10 +285,10 @@ Cook time is currently a **prompt** rule (`Keep cookMinutes at or under N`). It 
 
 ## Testing
 
-`npm test`. Prefer extending existing tests over new runners.
+`npm test` with local `supabase start`. Prefer extending existing tests over new runners. No `MORTANG_DB_PATH`.
 
 - Domain: `src/**/*.test.ts` next to the module.
 - UI: `*.test.tsx` with happy-dom.
-- HTTP: `src/app/api/smoke.test.ts` and `src/meals/http.import.test.ts` inject `deps.complete`.
+- HTTP / repo: create a user + household with `createTestIdentity`, pass that identity into handlers, clean up with `deleteTestUser`. Inject `deps.complete` for AI. See `src/app/api/smoke.test.ts` and `src/meals/http.import.test.ts`.
 
-When you add a generate/swap/import/library validation path, cover the retry-then-fail case and assert the previous plan/meal is unchanged (library: no drafts written).
+When you add a generate/swap/import/library validation path, cover the retry-then-fail case and assert the previous plan/meal is unchanged (library: no drafts written). Cap tests: 10th shared-key call succeeds, 11th is 429 with data unchanged.
