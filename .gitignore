@@ -22,3 +22,8 @@ data/
 
 # isolated git worktrees
 .worktrees/
+
+# vercel
+.vercel/
+.env.vercel.production
+.env.vercel.*

@@ -35,11 +35,9 @@ Dashboard work — create the projects if they do not exist yet; this repo does 
 1. Create a hosted Supabase project and a Vercel project for this app.
 2. Disable public signup on the hosted project (Authentication → Providers / Allow new users). Local `supabase/config.toml` does **not** apply to hosted. Invite-only is dashboard invites + `shouldCreateUser: false` + signup disabled on hosted.
 3. `supabase link` then `supabase db push` (or apply `supabase/migrations/` in the dashboard).
-4. Set Vercel env (Production; use a separate DB for Preview — **do not** point preview deploys at the production database):
+4. Set Vercel env (Production; use a separate DB for Preview — **do not** point preview deploys at the production database). With the Vercel ↔ Supabase Marketplace integration, `POSTGRES_*` and `NEXT_PUBLIC_SUPABASE_*` are injected automatically; also set:
    - `XAI_API_KEY`
-   - `DATABASE_URL` (transaction pooler)
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+   - Optional `DATABASE_URL` (transaction pooler) — if omitted, the app uses `POSTGRES_PRISMA_URL` / `POSTGRES_URL`
    - `SUPABASE_SERVICE_ROLE_KEY` only if you run the import script against hosted from a trusted machine (never expose it to the browser)
 5. Auth URL allowlist: Site URL + redirect URLs for the production origin (and `/auth/confirm`).
 6. Hosted Auth email templates must use PKCE. Magic link stays `type=email`; Invite User uses `type=invite` so Studio invite mail hits `/auth/confirm`:
