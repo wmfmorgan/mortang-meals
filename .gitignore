@@ -27,3 +27,4 @@ data/
 .vercel/
 .env.vercel.production
 .env.vercel.*
+.env.prod.import
