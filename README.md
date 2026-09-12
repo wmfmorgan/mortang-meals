@@ -39,20 +39,13 @@ Dashboard work — create the projects if they do not exist yet; this repo does 
    - `XAI_API_KEY`
    - Optional `DATABASE_URL` (transaction pooler) — if omitted, the app uses `POSTGRES_PRISMA_URL` / `POSTGRES_URL`
    - `SUPABASE_SERVICE_ROLE_KEY` only if you run the import script against hosted from a trusted machine (never expose it to the browser)
-5. Auth URL allowlist: Site URL + redirect URLs for the production origin (and `/auth/confirm`).
-6. Hosted Auth email templates **must not** use `{{ .ConfirmationURL }}` for this SSR app (that path puts the session in the URL hash / a `code` the server often cannot finish). Paste these into [Email Templates](https://supabase.com/dashboard/project/_/auth/templates):
-
-   **Magic link** — replace the link with:
-   ```html
-   <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email">Sign in</a>
-   ```
-
-   **Invite user** — replace the link with:
-   ```html
-   <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite">Accept the invite</a>
-   ```
-
-   After changing templates, send a **new** invite or magic link (old links stay on the broken shape).
+5. Auth URL allowlist ([URL Configuration](https://supabase.com/dashboard/project/_/auth/url-configuration)):
+   - **Site URL:** `https://YOUR-VERCEL-HOST/auth/confirm`  
+     (Studio invites redirect here; `/auth/confirm` accepts the default email hash/`code`.)
+   - **Redirect URLs:**  
+     `https://YOUR-VERCEL-HOST/auth/confirm`  
+     `https://YOUR-VERCEL-HOST/**` (optional catch-all)
+6. **Email templates on Free + default SMTP are read-only** (HTML preview only — [Supabase changelog, Jun 2026](https://supabase.com/changelog/46599-changes-to-email-template-customisation-on-free-tier)). That is fine: the app works with the stock `{{ .ConfirmationURL }}` emails. To customize copy later, add your own SMTP (Resend/Postmark/etc.) or upgrade; then you can use `token_hash` links if you want.
 
 7. Invite yourself in Studio. Sign in once so the household row exists.
 8. Optional one-time migrate from the old local SQLite file. After first login/setup, run with **`--force`** (wipes that household’s app rows, not `auth.users`, then copies sqlite). Without `--force`, the empty current week from `openPlan` plus unique week constraints / duplicate people can fail the import:
