@@ -4,6 +4,19 @@ import { useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 const SUCCESS = "If that address can sign in, check your inbox.";
+const RATE_LIMITED =
+  "Too many sign-in emails just now. Wait about an hour (Supabase free mail limit), then try once.";
+
+function isRateLimitError(message: string | undefined): boolean {
+  if (!message) return false;
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("rate limit") ||
+    lower.includes("too many requests") ||
+    lower.includes("over_email_send_rate_limit") ||
+    lower.includes("429")
+  );
+}
 
 export function LoginForm({ authError = null }: { authError?: string | null }) {
   const [email, setEmail] = useState("");
@@ -15,14 +28,14 @@ export function LoginForm({ authError = null }: { authError?: string | null }) {
     setPending(true);
     setStatus(null);
     const supabase = createClient();
-    await supabase.auth.signInWithOtp({
+    const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
         shouldCreateUser: false,
         emailRedirectTo: `${window.location.origin}/auth/confirm`,
       },
     });
-    setStatus(SUCCESS);
+    setStatus(isRateLimitError(error?.message) ? RATE_LIMITED : SUCCESS);
     setPending(false);
   }
 

@@ -75,4 +75,19 @@ describe("LoginForm", () => {
     });
     expect(screen.queryByText(/signups not allowed/i)).toBeNull();
   });
+
+  it("surfaces the free-tier email rate limit instead of fake success", async () => {
+    signInWithOtp.mockResolvedValueOnce({
+      error: { message: "email rate limit exceeded" },
+    });
+    render(<LoginForm />);
+    fireEvent.change(screen.getByLabelText(/email/i), {
+      target: { value: "guest@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /email me a link/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/too many sign-in emails/i)).toBeTruthy();
+    });
+  });
 });
