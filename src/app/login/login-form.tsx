@@ -5,9 +5,9 @@ import { createClient } from "@/lib/supabase/client";
 
 const SUCCESS = "If that address can sign in, check your inbox.";
 
-export function LoginForm() {
+export function LoginForm({ authError = null }: { authError?: string | null }) {
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(authError);
   const [pending, setPending] = useState(false);
 
   async function onSubmit(event: FormEvent) {
@@ -43,7 +43,14 @@ export function LoginForm() {
       <button type="submit" className="btn btn-primary" disabled={pending}>
         Email me a link
       </button>
-      {status ? <p className="text-sm text-herb">{status}</p> : null}
+      {status ? (
+        <p
+          role={status === SUCCESS ? undefined : "alert"}
+          className={status === SUCCESS ? "text-sm text-herb" : "alert"}
+        >
+          {status}
+        </p>
+      ) : null}
     </form>
   );
 }

@@ -40,11 +40,19 @@ Dashboard work — create the projects if they do not exist yet; this repo does 
    - Optional `DATABASE_URL` (transaction pooler) — if omitted, the app uses `POSTGRES_PRISMA_URL` / `POSTGRES_URL`
    - `SUPABASE_SERVICE_ROLE_KEY` only if you run the import script against hosted from a trusted machine (never expose it to the browser)
 5. Auth URL allowlist: Site URL + redirect URLs for the production origin (and `/auth/confirm`).
-6. Hosted Auth email templates must use PKCE. Magic link stays `type=email`; Invite User uses `type=invite` so Studio invite mail hits `/auth/confirm`:
+6. Hosted Auth email templates **must not** use `{{ .ConfirmationURL }}` for this SSR app (that path puts the session in the URL hash / a `code` the server often cannot finish). Paste these into [Email Templates](https://supabase.com/dashboard/project/_/auth/templates):
 
-   Magic link: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`
+   **Magic link** — replace the link with:
+   ```html
+   <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email">Sign in</a>
+   ```
 
-   Invite User: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite`
+   **Invite user** — replace the link with:
+   ```html
+   <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite">Accept the invite</a>
+   ```
+
+   After changing templates, send a **new** invite or magic link (old links stay on the broken shape).
 
 7. Invite yourself in Studio. Sign in once so the household row exists.
 8. Optional one-time migrate from the old local SQLite file. After first login/setup, run with **`--force`** (wipes that household’s app rows, not `auth.users`, then copies sqlite). Without `--force`, the empty current week from `openPlan` plus unique week constraints / duplicate people can fail the import:

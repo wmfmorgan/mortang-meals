@@ -27,6 +27,15 @@ describe("LoginForm", () => {
     expect(screen.getByRole("button", { name: /email me a link/i })).toBeTruthy();
   });
 
+  it("shows a confirm failure message from the auth callback", () => {
+    render(
+      <LoginForm authError="That sign-in link expired or was already used. Request a new one below." />,
+    );
+    expect(
+      screen.getByText(/sign-in link expired or was already used/i),
+    ).toBeTruthy();
+  });
+
   it("sends a magic link without creating a user and shows the same success copy", async () => {
     signInWithOtp.mockResolvedValueOnce({ error: null });
     render(<LoginForm />);
