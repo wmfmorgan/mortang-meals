@@ -9,7 +9,7 @@ export default async function LoginPage({
   const params = await searchParams;
   const authError =
     params.error === "confirm"
-      ? "That sign-in link expired or was already used. Request a new one below."
+      ? "Google sign-in didn’t finish. Try Continue with Google again."
       : null;
 
   return (
@@ -17,7 +17,7 @@ export default async function LoginPage({
       <PageHeader
         eyebrow="Account"
         title="Sign in"
-        lede="Invite-only. We'll email a magic link if this address can sign in."
+        lede="Invite-only. Use Google with the email an admin already added for you."
       />
       <LoginForm authError={authError} />
     </div>

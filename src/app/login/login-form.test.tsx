@@ -2,13 +2,13 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { signInWithOtp } = vi.hoisted(() => ({
-  signInWithOtp: vi.fn().mockResolvedValue({ error: null }),
+const { signInWithOAuth } = vi.hoisted(() => ({
+  signInWithOAuth: vi.fn().mockResolvedValue({ error: null }),
 }));
 
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
-    auth: { signInWithOtp },
+    auth: { signInWithOAuth },
   }),
 }));
 
@@ -16,78 +16,51 @@ import { LoginForm } from "./login-form";
 
 afterEach(() => {
   cleanup();
-  signInWithOtp.mockReset();
-  signInWithOtp.mockResolvedValue({ error: null });
+  signInWithOAuth.mockReset();
+  signInWithOAuth.mockResolvedValue({ error: null });
 });
 
 describe("LoginForm", () => {
-  it("asks for an email and offers a magic link", () => {
+  it("offers Google sign-in and no magic-link email form", () => {
     render(<LoginForm />);
-    expect(screen.getByLabelText(/email/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /email me a link/i })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /continue with google/i }),
+    ).toBeTruthy();
+    expect(screen.queryByLabelText(/email/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: /email me a link/i })).toBeNull();
+  });
+
+  it("starts Google OAuth redirected to /auth/confirm", async () => {
+    render(<LoginForm />);
+    fireEvent.click(screen.getByRole("button", { name: /continue with google/i }));
+
+    await waitFor(() => {
+      expect(signInWithOAuth).toHaveBeenCalledWith({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/confirm`,
+          queryParams: { prompt: "select_account" },
+        },
+      });
+    });
+  });
+
+  it("shows an error when Google OAuth fails to start", async () => {
+    signInWithOAuth.mockResolvedValueOnce({
+      error: { message: "Provider not enabled" },
+    });
+    render(<LoginForm />);
+    fireEvent.click(screen.getByRole("button", { name: /continue with google/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/provider not enabled/i)).toBeTruthy();
+    });
   });
 
   it("shows a confirm failure message from the auth callback", () => {
     render(
-      <LoginForm authError="That sign-in link expired or was already used. Request a new one below." />,
+      <LoginForm authError="Google sign-in didn’t finish. Try Continue with Google again." />,
     );
-    expect(
-      screen.getByText(/sign-in link expired or was already used/i),
-    ).toBeTruthy();
-  });
-
-  it("sends a magic link without creating a user and shows the same success copy", async () => {
-    signInWithOtp.mockResolvedValueOnce({ error: null });
-    render(<LoginForm />);
-    fireEvent.change(screen.getByLabelText(/email/i), {
-      target: { value: "guest@example.com" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /email me a link/i }));
-
-    await waitFor(() => {
-      expect(signInWithOtp).toHaveBeenCalledWith({
-        email: "guest@example.com",
-        options: {
-          shouldCreateUser: false,
-          emailRedirectTo: `${window.location.origin}/auth/confirm`,
-        },
-      });
-      expect(
-        screen.getByText("If that address can sign in, check your inbox."),
-      ).toBeTruthy();
-    });
-  });
-
-  it("shows the same success copy when the address cannot sign in", async () => {
-    signInWithOtp.mockResolvedValueOnce({
-      error: { message: "Signups not allowed for otp" },
-    });
-    render(<LoginForm />);
-    fireEvent.change(screen.getByLabelText(/email/i), {
-      target: { value: "unknown@example.com" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /email me a link/i }));
-
-    await waitFor(() => {
-      expect(
-        screen.getByText("If that address can sign in, check your inbox."),
-      ).toBeTruthy();
-    });
-    expect(screen.queryByText(/signups not allowed/i)).toBeNull();
-  });
-
-  it("surfaces the free-tier email rate limit instead of fake success", async () => {
-    signInWithOtp.mockResolvedValueOnce({
-      error: { message: "email rate limit exceeded" },
-    });
-    render(<LoginForm />);
-    fireEvent.change(screen.getByLabelText(/email/i), {
-      target: { value: "guest@example.com" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /email me a link/i }));
-
-    await waitFor(() => {
-      expect(screen.getByText(/too many sign-in emails/i)).toBeTruthy();
-    });
+    expect(screen.getByText(/google sign-in didn’t finish/i)).toBeTruthy();
   });
 });
