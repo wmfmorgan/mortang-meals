@@ -1,6 +1,6 @@
 "use client";
 
-import type { DayOfWeek, Meal, MealSlot, SlotMask } from "@/lib/types";
+import type { DayOfWeek, Meal, SlotMask, WeekSlot } from "@/lib/types";
 import { DAYS, SLOTS } from "@/lib/types";
 import {
   pinnedSlotKeys,
@@ -20,7 +20,7 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
   sunday: "Sun",
 };
 
-const SLOT_LABELS: Record<MealSlot, string> = {
+const SLOT_LABELS: Record<WeekSlot, string> = {
   breakfast: "Breakfast",
   lunch: "Lunch",
   dinner: "Dinner",

@@ -1,5 +1,9 @@
-import type { DayOfWeek, Meal, SlotMask, WeekSlot } from "./types";
+import type { DayOfWeek, Meal, MealSlot, SlotMask, WeekSlot } from "./types";
 import { DAYS, SLOTS } from "./types";
+
+function isWeekSlot(slot: MealSlot): slot is WeekSlot {
+  return (SLOTS as readonly string[]).includes(slot);
+}
 
 export const SLOT_MASK_KEY = "mortang.slotMask";
 export const SLOT_PICKER_OPEN_KEY = "mortang.slotPickerOpen";
@@ -72,15 +76,19 @@ export function slotKey(day: DayOfWeek, slot: WeekSlot): string {
 }
 
 export function pinnedSlotKeys(meals: Meal[]): Set<string> {
-  return new Set(
-    meals.filter((meal) => meal.pinned).map((meal) => slotKey(meal.day, meal.slot)),
-  );
+  const keys = new Set<string>();
+  for (const meal of meals) {
+    if (meal.pinned && isWeekSlot(meal.slot)) {
+      keys.add(slotKey(meal.day, meal.slot));
+    }
+  }
+  return keys;
 }
 
 export function maskMinusPinned(mask: SlotMask, meals: Meal[]): SlotMask {
   const next = structuredClone(mask);
   for (const meal of meals) {
-    if (meal.pinned && next[meal.day]) {
+    if (meal.pinned && next[meal.day] && isWeekSlot(meal.slot)) {
       next[meal.day][meal.slot] = false;
     }
   }

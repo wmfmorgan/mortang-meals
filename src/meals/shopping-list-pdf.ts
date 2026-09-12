@@ -79,5 +79,5 @@ export async function shoppingListPdf(input: {
   }
 
   const bytes = await doc.save();
-  return new Blob([bytes], { type: "application/pdf" });
+  return new Blob([Uint8Array.from(bytes)], { type: "application/pdf" });
 }

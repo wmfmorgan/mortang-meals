@@ -18,6 +18,7 @@ import {
   weekPlans,
 } from "../src/lib/schema";
 import { emptySlotMask } from "../src/lib/slot-mask";
+import type { Ingredient } from "../src/lib/types";
 import { parseMealExtras } from "../src/meals/extras";
 
 const SQLITE_TABLES = [
@@ -176,7 +177,7 @@ export async function importSqlite(input: {
         whyItFits: asString(row.why_it_fits),
         cookMinutes: asInt(row.cook_minutes, 0),
         method: asString(row.method),
-        ingredients: asJsonArray(row.ingredients_json),
+        ingredients: asIngredients(row.ingredients_json),
         steps: asStringArray(row.steps_json),
         usedWebSearch: asBool(row.used_web_search),
         pinned: asBool(row.pinned),
@@ -386,6 +387,10 @@ function asJson(value: unknown, fallback: unknown): unknown {
 function asJsonArray(value: unknown): unknown[] {
   const parsed = asJson(value, []);
   return Array.isArray(parsed) ? parsed : [];
+}
+
+function asIngredients(value: unknown): Ingredient[] {
+  return asJsonArray(value) as Ingredient[];
 }
 
 function asStringArray(value: unknown): string[] {

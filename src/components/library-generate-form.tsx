@@ -50,6 +50,14 @@ const emptySlot = (): SlotFields => ({
   avoidances: "",
 });
 
+function mergeSlot(
+  current: SlotFields | undefined,
+  prefs: SlotFields | undefined,
+  defaults: Partial<SlotFields> = {},
+): SlotFields {
+  return { ...emptySlot(), ...defaults, ...current, ...prefs };
+}
+
 function DietField({
   slot,
   value,
@@ -72,19 +80,29 @@ function DietField({
         role="group"
         aria-label={`${slot} ${dessert ? "criteria" : "diet choices"}`}
       >
-        {choices.map((choice) => (
-          <button
-            key={choice}
-            type="button"
-            className="diet-choice"
-            aria-pressed={dessert ? selected.includes(choice) : value === choice}
-            onClick={() =>
-              onChange(dessert ? toggleDessertCriterion(value, choice) : choice)
-            }
-          >
-            {choice}
-          </button>
-        ))}
+        {dessert
+          ? DESSERT_CRITERIA.map((choice) => (
+              <button
+                key={choice}
+                type="button"
+                className="diet-choice"
+                aria-pressed={selected.includes(choice)}
+                onClick={() => onChange(toggleDessertCriterion(value, choice))}
+              >
+                {choice}
+              </button>
+            ))
+          : DIET_CHOICES.map((choice) => (
+              <button
+                key={choice}
+                type="button"
+                className="diet-choice"
+                aria-pressed={value === choice}
+                onClick={() => onChange(choice)}
+              >
+                {choice}
+              </button>
+            ))}
       </div>
       <input
         id={inputId}
@@ -138,16 +156,13 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
             ...current,
             ...prefs,
             personIds: personIds.length > 0 ? personIds : current.personIds,
-            breakfast: { ...emptySlot(), ...current.breakfast, ...prefs.breakfast },
-            lunch: { ...emptySlot(), ...current.lunch, ...prefs.lunch },
-            dinner: { ...emptySlot(), on: true, ...current.dinner, ...prefs.dinner },
-            side: { ...emptySlot(), ...current.side, ...prefs.side },
-            dessert: {
-              ...emptySlot(),
+            breakfast: mergeSlot(current.breakfast, prefs.breakfast),
+            lunch: mergeSlot(current.lunch, prefs.lunch),
+            dinner: mergeSlot(current.dinner, prefs.dinner, { on: true }),
+            side: mergeSlot(current.side, prefs.side),
+            dessert: mergeSlot(current.dessert, prefs.dessert, {
               diet: DEFAULT_DESSERT_DIET,
-              ...current.dessert,
-              ...prefs.dessert,
-            },
+            }),
           };
         });
       })

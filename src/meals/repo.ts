@@ -14,7 +14,7 @@ import type {
   SlotMask,
   WeekPlan,
 } from "@/lib/types";
-import { DAYS, SLOTS } from "@/lib/types";
+import { DAYS, RECIPE_SLOTS } from "@/lib/types";
 import { emptySlotMask } from "@/lib/slot-mask";
 import { mondayOf } from "@/lib/week";
 import { isDuplicateTitle, normalizeTitle } from "./duplicates";
@@ -53,7 +53,7 @@ function sortMeals(items: Meal[]): Meal[] {
   return [...items].sort((a, b) => {
     const dayDelta = DAYS.indexOf(a.day) - DAYS.indexOf(b.day);
     if (dayDelta !== 0) return dayDelta;
-    return SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot);
+    return RECIPE_SLOTS.indexOf(a.slot) - RECIPE_SLOTS.indexOf(b.slot);
   });
 }
 

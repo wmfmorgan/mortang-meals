@@ -6,6 +6,7 @@ import type {
   MealSlot,
   UseIngredient,
   WeekPlan,
+  WeekSlot,
 } from "@/lib/types";
 import { DAYS } from "@/lib/types";
 import { defaultSlotMask, visibleWeekSlots } from "@/lib/slot-mask";
@@ -21,7 +22,7 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
   sunday: "Sun",
 };
 
-const SLOT_LABELS: Record<MealSlot, string> = {
+const SLOT_LABELS: Record<WeekSlot, string> = {
   breakfast: "B",
   lunch: "L",
   dinner: "D",
@@ -40,7 +41,7 @@ const DAY_HEADINGS: Record<DayOfWeek, string> = {
 function mealAt(
   meals: Meal[],
   day: DayOfWeek,
-  slot: MealSlot,
+  slot: WeekSlot,
 ): Meal | undefined {
   return meals.find((meal) => meal.day === day && meal.slot === slot);
 }
