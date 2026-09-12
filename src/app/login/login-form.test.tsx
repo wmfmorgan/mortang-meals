@@ -2,65 +2,81 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { signInWithOAuth } = vi.hoisted(() => ({
-  signInWithOAuth: vi.fn().mockResolvedValue({ error: null }),
+const { signInWithPassword } = vi.hoisted(() => ({
+  signInWithPassword: vi.fn().mockResolvedValue({ error: null }),
+}));
+
+const { replace, refresh } = vi.hoisted(() => ({
+  replace: vi.fn(),
+  refresh: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
-    auth: { signInWithOAuth },
+    auth: { signInWithPassword },
   }),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace, refresh }),
 }));
 
 import { LoginForm } from "./login-form";
 
 afterEach(() => {
   cleanup();
-  signInWithOAuth.mockReset();
-  signInWithOAuth.mockResolvedValue({ error: null });
+  signInWithPassword.mockReset();
+  signInWithPassword.mockResolvedValue({ error: null });
+  replace.mockReset();
+  refresh.mockReset();
 });
 
 describe("LoginForm", () => {
-  it("offers Google sign-in and no magic-link email form", () => {
+  it("shows email and password fields and no Google or magic-link controls", () => {
     render(<LoginForm />);
-    expect(
-      screen.getByRole("button", { name: /continue with google/i }),
-    ).toBeTruthy();
-    expect(screen.queryByLabelText(/email/i)).toBeNull();
+    expect(screen.getByLabelText(/^email$/i)).toBeTruthy();
+    expect(screen.getByLabelText(/^password$/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^sign in$/i })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /continue with google/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /email me a link/i })).toBeNull();
   });
 
-  it("starts Google OAuth redirected to /auth/confirm", async () => {
+  it("signs in with email and password then goes home", async () => {
     render(<LoginForm />);
-    fireEvent.click(screen.getByRole("button", { name: /continue with google/i }));
+    fireEvent.change(screen.getByLabelText(/^email$/i), {
+      target: { value: "guest@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText(/^password$/i), {
+      target: { value: "secret-pass" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
 
     await waitFor(() => {
-      expect(signInWithOAuth).toHaveBeenCalledWith({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/confirm`,
-          queryParams: { prompt: "select_account" },
-        },
+      expect(signInWithPassword).toHaveBeenCalledWith({
+        email: "guest@example.com",
+        password: "secret-pass",
       });
+      expect(replace).toHaveBeenCalledWith("/");
+      expect(refresh).toHaveBeenCalled();
     });
   });
 
-  it("shows an error when Google OAuth fails to start", async () => {
-    signInWithOAuth.mockResolvedValueOnce({
-      error: { message: "Provider not enabled" },
+  it("shows an error when credentials are rejected", async () => {
+    signInWithPassword.mockResolvedValueOnce({
+      error: { message: "Invalid login credentials" },
     });
     render(<LoginForm />);
-    fireEvent.click(screen.getByRole("button", { name: /continue with google/i }));
+    fireEvent.change(screen.getByLabelText(/^email$/i), {
+      target: { value: "guest@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText(/^password$/i), {
+      target: { value: "wrong" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/provider not enabled/i)).toBeTruthy();
+      expect(screen.getByText(/invalid login credentials/i)).toBeTruthy();
     });
-  });
-
-  it("shows a confirm failure message from the auth callback", () => {
-    render(
-      <LoginForm authError="Google sign-in didn’t finish. Try Continue with Google again." />,
-    );
-    expect(screen.getByText(/google sign-in didn’t finish/i)).toBeTruthy();
+    expect(replace).not.toHaveBeenCalled();
   });
 });

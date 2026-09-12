@@ -1,45 +1,65 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm({ authError = null }: { authError?: string | null }) {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [status, setStatus] = useState<string | null>(authError);
   const [pending, setPending] = useState(false);
 
-  async function onGoogle() {
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
     setPending(true);
     setStatus(null);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/confirm`,
-        queryParams: { prompt: "select_account" },
-      },
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       setStatus(error.message);
       setPending(false);
+      return;
     }
-    // On success the browser navigates away to Google.
+    router.replace("/");
+    router.refresh();
   }
 
   return (
-    <div className="max-w-md space-y-5">
-      <button
-        type="button"
-        className="btn btn-primary"
-        disabled={pending}
-        onClick={() => void onGoogle()}
-      >
-        Continue with Google
+    <form className="max-w-md space-y-5" onSubmit={(event) => void onSubmit(event)}>
+      <label className="field">
+        Email
+        <input
+          className="input"
+          type="email"
+          name="email"
+          autoComplete="email"
+          required
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+        />
+      </label>
+      <label className="field">
+        Password
+        <input
+          className="input"
+          type="password"
+          name="password"
+          autoComplete="current-password"
+          required
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+        />
+      </label>
+      <button type="submit" className="btn btn-primary" disabled={pending}>
+        Sign in
       </button>
       {status ? (
         <p role="alert" className="alert">
           {status}
         </p>
       ) : null}
-    </div>
+    </form>
   );
 }
