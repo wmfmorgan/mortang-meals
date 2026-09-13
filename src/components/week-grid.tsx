@@ -22,10 +22,10 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
   sunday: "Sun",
 };
 
-const SLOT_LABELS: Record<WeekSlot, string> = {
-  breakfast: "B",
-  lunch: "L",
-  dinner: "D",
+const SLOT_HEADINGS: Record<WeekSlot, string> = {
+  breakfast: "Breakfast",
+  lunch: "Lunch",
+  dinner: "Dinner",
 };
 
 const DAY_HEADINGS: Record<DayOfWeek, string> = {
@@ -57,7 +57,7 @@ export function WeekGrid({
   onLeftover,
   leftoverFrom = null,
   onPlaceLeftover,
-  onReplace,
+  onReplace: _onReplace,
   editable = false,
   useIngredients = [],
 }: {
@@ -71,6 +71,7 @@ export function WeekGrid({
   onLeftover?: (meal: Meal) => void;
   leftoverFrom?: Meal | null;
   onPlaceLeftover?: (day: DayOfWeek, slot: MealSlot) => void;
+  /** Kept for callers; compact week cards open the library via empty cells / flyout. */
   onReplace?: (meal: Meal) => void;
   editable?: boolean;
   useIngredients?: UseIngredient[];
@@ -83,34 +84,32 @@ export function WeekGrid({
 
   return (
     <div className="week-grid" role="grid" aria-label="Week plan">
-      <div
-        className="week-grid-desktop-label"
-        style={{ gridColumn: 1, gridRow: 1 }}
-      />
       {DAYS.map((day, dayIndex) => (
         <div
           key={`head-${day}`}
           className="week-grid-desktop-label text-center"
-          style={{ gridColumn: dayIndex + 2, gridRow: 1 }}
+          style={{ gridColumn: dayIndex + 1, gridRow: 1 }}
         >
           {DAY_LABELS[day]}
         </div>
       ))}
+
       {slots.map((slot, slotIndex) => (
-        <div
-          key={`slot-${slot}`}
-          className="week-grid-desktop-label self-center"
-          style={{ gridColumn: 1, gridRow: slotIndex + 2 }}
+        <h2
+          key={`slot-head-${slot}`}
+          className="week-grid-slot-heading"
+          style={{
+            gridColumn: "1 / -1",
+            gridRow: slotIndex * 2 + 2,
+          }}
         >
-          {SLOT_LABELS[slot]}
-        </div>
+          {SLOT_HEADINGS[slot]}
+        </h2>
       ))}
 
       {DAYS.map((day, dayIndex) => (
         <section key={day} className="week-grid-day" aria-label={DAY_HEADINGS[day]}>
-          <h2 className="week-grid-day-heading">
-            {DAY_HEADINGS[day]}
-          </h2>
+          <h2 className="week-grid-day-heading">{DAY_HEADINGS[day]}</h2>
           {slots.map((slot, slotIndex) => {
             const meal = mealAt(meals, day, slot);
             const tags = useIngredients.filter(
@@ -124,14 +123,15 @@ export function WeekGrid({
                   meal ? `${day} ${slot}` : `empty ${day} ${slot}`
                 }
                 className={
-                  meal
-                    ? "week-cell"
-                    : "week-cell week-cell-empty"
+                  meal ? "week-cell" : "week-cell week-cell-empty"
                 }
-                style={{ gridColumn: dayIndex + 2, gridRow: slotIndex + 2 }}
+                style={{
+                  gridColumn: dayIndex + 1,
+                  gridRow: slotIndex * 2 + 3,
+                }}
               >
                 <span className="week-cell-slot-label">
-                  {SLOT_LABELS[slot]}
+                  {SLOT_HEADINGS[slot]}
                 </span>
                 {tags.length > 0 ? (
                   <ul className="use-ingredient-cell-tags">
@@ -143,6 +143,7 @@ export function WeekGrid({
                 {meal ? (
                   <MealCard
                     meal={meal}
+                    compact
                     onOpen={onSelectMeal}
                     onOpenExtra={
                       onSelectExtra
@@ -154,7 +155,6 @@ export function WeekGrid({
                         ? (kind) => onChooseExtra(meal, kind)
                         : undefined
                     }
-                    onReplace={meal.takeout ? undefined : onReplace}
                     onLeftover={
                       meal.takeout || meal.leftover ? undefined : onLeftover
                     }

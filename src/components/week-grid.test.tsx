@@ -66,11 +66,15 @@ describe("WeekGrid", () => {
     render(<WeekGrid plan={mondayDinnerPlan()} />);
 
     expect(screen.getAllByRole("gridcell")).toHaveLength(7);
+    expect(screen.getByRole("heading", { name: /^dinner$/i })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: /^breakfast$/i })).toBeNull();
     expect(screen.getByText("Lemon herb salmon")).toBeTruthy();
     expect(screen.getByText("Lemon herb salmon").className).toContain(
       "meal-card-title",
     );
     expect(screen.queryByRole("gridcell", { name: /breakfast/i })).toBeNull();
+    // No left-rail single-letter slot labels
+    expect(screen.queryByText(/^D$/)).toBeNull();
 
     const emptyTuesdayDinner = screen.getByRole("gridcell", {
       name: /empty tuesday dinner/i,
@@ -121,18 +125,21 @@ describe("WeekGrid", () => {
     expect(onTakeout).toHaveBeenCalledWith("tuesday", "dinner");
   });
 
-  it("shows a web-search star on meals generated with search", () => {
+  it("keeps week cards title-first without meta, badges, or swap chrome", () => {
     const plan = mondayDinnerPlan();
-    plan.meals[0] = { ...plan.meals[0]!, usedWebSearch: true };
-    render(<WeekGrid plan={plan} />);
-    expect(screen.getByText("Found with web search")).toBeTruthy();
-  });
-
-  it("shows an import icon when the meal has a source URL", () => {
-    const plan = mondayDinnerPlan();
-    plan.meals[0] = { ...plan.meals[0]!, sourceUrl: "https://example.com/salmon" };
-    render(<WeekGrid plan={plan} />);
-    expect(screen.getByText("Imported from a URL")).toBeTruthy();
+    plan.meals[0] = {
+      ...plan.meals[0]!,
+      usedWebSearch: true,
+      sourceUrl: "https://example.com/salmon",
+    };
+    render(<WeekGrid plan={plan} editable />);
+    expect(screen.getByText("Lemon herb salmon")).toBeTruthy();
+    expect(screen.queryByText("Found with web search")).toBeNull();
+    expect(screen.queryByText("Imported from a URL")).toBeNull();
+    expect(screen.queryByText(/sheet pan/i)).toBeNull();
+    expect(screen.queryByText(/high-protein mediterranean/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: /choose a past recipe/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /regenerate meal/i })).toBeNull();
   });
 
   it("opens a filled card through onSelectMeal", () => {

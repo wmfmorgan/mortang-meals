@@ -357,7 +357,8 @@ a.badge-link:hover {
 
 .week-grid {
   display: grid;
-  grid-template-columns: 3.25rem repeat(7, minmax(0, 1fr));
+  /* Seven day columns only — no left B/L/D rail (tablet/desktop). */
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   column-gap: 0.65rem;
   row-gap: 0.65rem;
 }
@@ -370,6 +371,14 @@ a.badge-link:hover {
   display: none;
 }
 
+.week-grid-slot-heading {
+  margin: 0.35rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+}
+
 .week-grid-desktop-label {
   font-family: var(--font-mono);
   font-size: 0.68rem;
@@ -377,6 +386,19 @@ a.badge-link:hover {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--color-herb);
+}
+
+.meal-card-compact .meal-card-title {
+  -webkit-line-clamp: 4;
+}
+
+.meal-card-compact .meal-card-open {
+  padding-bottom: 0.35rem;
+}
+
+.meal-card-compact .meal-card-actions {
+  justify-content: flex-end;
+  padding-top: 0.15rem;
 }
 
 .week-cell {
@@ -895,7 +917,8 @@ a.badge-link:hover {
   opacity: 0.6;
 }
 
-@media (max-width: 800px) {
+/* Phones + iPad portrait: stack by day (readable titles). */
+@media (max-width: 1023px) {
   .page-shell {
     width: min(100% - 1.25rem, 1280px);
     padding-top: 1.25rem;
@@ -907,7 +930,8 @@ a.badge-link:hover {
     gap: 1.75rem;
   }
 
-  .week-grid-desktop-label {
+  .week-grid-desktop-label,
+  .week-grid-slot-heading {
     display: none;
   }
 

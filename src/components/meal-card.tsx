@@ -278,6 +278,7 @@ export function MealCard({
   onLeftover,
   editable = false,
   canSwap = false,
+  compact = false,
 }: {
   meal: Meal;
   onOpen?: (meal: Meal) => void;
@@ -287,9 +288,15 @@ export function MealCard({
   onLeftover?: (meal: Meal) => void;
   editable?: boolean;
   canSwap?: boolean;
+  /** Week grid: title + extras + leftovers + delete only. */
+  compact?: boolean;
 }) {
   return (
-    <article className="meal-card" data-slot={meal.slot} data-pinned={meal.pinned}>
+    <article
+      className={compact ? "meal-card meal-card-compact" : "meal-card"}
+      data-slot={meal.slot}
+      data-pinned={meal.pinned}
+    >
       <div className="meal-card-top">
         <button
           type="button"
@@ -297,17 +304,23 @@ export function MealCard({
           onClick={() => onOpen?.(meal)}
         >
           <h3>
-            <MealBadges meal={meal} />
+            {compact ? null : <MealBadges meal={meal} />}
             <span className="meal-card-title">{meal.title}</span>
           </h3>
-          <p className="meal-meta">
-            {meal.takeout
-              ? "Takeout"
-              : meal.leftover
-                ? `Leftovers · ${meal.cookMinutes} min`
-                : `${meal.method} · ${meal.cookMinutes} min`}
-          </p>
-          {meal.takeout ? null : <p className="meal-why">{meal.whyItFits}</p>}
+          {compact ? null : (
+            <>
+              <p className="meal-meta">
+                {meal.takeout
+                  ? "Takeout"
+                  : meal.leftover
+                    ? `Leftovers · ${meal.cookMinutes} min`
+                    : `${meal.method} · ${meal.cookMinutes} min`}
+              </p>
+              {meal.takeout ? null : (
+                <p className="meal-why">{meal.whyItFits}</p>
+              )}
+            </>
+          )}
         </button>
         {editable ? (
           <div className="meal-card-tools">
@@ -323,31 +336,45 @@ export function MealCard({
           onChoosePast={onChooseExtra}
         />
       )}
-      <div className="meal-card-actions">
-        {editable && onReplace ? (
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Choose a past recipe"
-            title="Choose a past recipe"
-            onClick={() => onReplace(meal)}
-          >
-            <RecipeBoxIcon />
-          </button>
-        ) : (
-          <span />
-        )}
-        {editable && onLeftover ? (
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={() => onLeftover(meal)}
-          >
-            Leftovers
-          </button>
-        ) : null}
-        {canSwap ? <SwapButton meal={meal} /> : null}
-      </div>
+      {compact ? (
+        editable && onLeftover ? (
+          <div className="meal-card-actions">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => onLeftover(meal)}
+            >
+              Leftovers
+            </button>
+          </div>
+        ) : null
+      ) : (
+        <div className="meal-card-actions">
+          {editable && onReplace ? (
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Choose a past recipe"
+              title="Choose a past recipe"
+              onClick={() => onReplace(meal)}
+            >
+              <RecipeBoxIcon />
+            </button>
+          ) : (
+            <span />
+          )}
+          {editable && onLeftover ? (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => onLeftover(meal)}
+            >
+              Leftovers
+            </button>
+          ) : null}
+          {canSwap ? <SwapButton meal={meal} /> : null}
+        </div>
+      )}
     </article>
   );
 }
