@@ -14,27 +14,6 @@ function extraLine(kind: ExtraKind, title: string): string {
   return `${KIND_LABEL[kind]} · ${title}`;
 }
 
-function ExtraAdd({
-  kind,
-  onChoosePast,
-}: {
-  kind: ExtraKind;
-  onChoosePast?: (kind: ExtraKind) => void;
-}) {
-  if (!onChoosePast) return null;
-  return (
-    <div className="meal-extra-add" role="group" aria-label={`Add a ${kind}`}>
-      <button
-        type="button"
-        className="meal-extra-open"
-        onClick={() => onChoosePast(kind)}
-      >
-        {kind === "side" ? "Add side" : "Add dessert"}
-      </button>
-    </div>
-  );
-}
-
 function ExtraRow({
   mealId,
   extra,
@@ -108,11 +87,11 @@ function ExtraRow({
   );
 }
 
+/** Displays side/dessert titles only — add/replace actions live on card icons. */
 export function MealExtras({
   meal,
   editable = false,
   onOpenExtra,
-  onChoosePast,
 }: {
   meal: Meal;
   editable?: boolean;
@@ -121,7 +100,7 @@ export function MealExtras({
 }) {
   if (meal.slot === "breakfast") return null;
   const extras = meal.extras ?? EMPTY_EXTRAS;
-  if (!extras.side && !extras.dessert && !editable) return null;
+  if (!extras.side && !extras.dessert) return null;
 
   return (
     <div className="meal-extras">
@@ -132,8 +111,6 @@ export function MealExtras({
           editable={editable}
           onOpenExtra={onOpenExtra}
         />
-      ) : editable ? (
-        <ExtraAdd kind="side" onChoosePast={onChoosePast} />
       ) : null}
       {extras.dessert ? (
         <ExtraRow
@@ -142,8 +119,6 @@ export function MealExtras({
           editable={editable}
           onOpenExtra={onOpenExtra}
         />
-      ) : editable ? (
-        <ExtraAdd kind="dessert" onChoosePast={onChoosePast} />
       ) : null}
     </div>
   );

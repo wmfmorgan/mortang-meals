@@ -45,7 +45,7 @@ function meal(overrides: Partial<Meal> = {}): Meal {
 }
 
 describe("MealCard extras", () => {
-  it("lets an editable lunch add a side or dessert", () => {
+  it("uses bottom icons to choose a side or dessert", () => {
     const onChooseExtra = vi.fn();
     render(
       <MealCard
@@ -54,22 +54,60 @@ describe("MealCard extras", () => {
         onChooseExtra={onChooseExtra}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Add side" }));
+    const side = screen.getByRole("button", { name: "Choose a side" });
+    expect(side.getAttribute("title")).toBe("Choose a side");
+    fireEvent.click(side);
     expect(onChooseExtra).toHaveBeenCalledWith("side");
-    fireEvent.click(screen.getByRole("button", { name: "Add dessert" }));
+
+    const dessert = screen.getByRole("button", { name: "Choose a dessert" });
+    expect(dessert.getAttribute("title")).toBe("Choose a dessert");
+    fireEvent.click(dessert);
     expect(onChooseExtra).toHaveBeenCalledWith("dessert");
-    expect(screen.queryByRole("button", { name: "Suggestion" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Recipe" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Choose a past side" })).toBeNull();
+
+    expect(screen.queryByRole("button", { name: "Add side" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add dessert" })).toBeNull();
+  });
+
+  it("keeps side/dessert icons when filled so they can replace", () => {
+    const onChooseExtra = vi.fn();
+    render(
+      <MealCard
+        meal={meal({
+          extras: {
+            side: suggestionExtra({
+              id: "side-1",
+              kind: "side",
+              title: "Baked potato",
+            }),
+            dessert: null,
+          },
+        })}
+        editable
+        onChooseExtra={onChooseExtra}
+      />,
+    );
+    expect(screen.getByText("Side · Baked potato")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Replace side" }));
+    expect(onChooseExtra).toHaveBeenCalledWith("side");
     expect(
-      screen.queryByRole("button", { name: "Choose a past dessert" }),
-    ).toBeNull();
+      screen.getByRole("button", { name: "Choose a dessert" }),
+    ).toBeTruthy();
   });
 
   it("does not show extras on breakfast", () => {
-    render(<MealCard meal={meal({ slot: "breakfast" })} editable />);
-    expect(screen.queryByRole("button", { name: "Add side" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Add dessert" })).toBeNull();
+    render(
+      <MealCard
+        meal={meal({ slot: "breakfast" })}
+        editable
+        onChooseExtra={vi.fn()}
+        onLeftover={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: /side/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /dessert/i })).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Place leftovers on another meal" }),
+    ).toBeTruthy();
   });
 
   it("shows a suggestion as text, not a flyout button", () => {
@@ -86,12 +124,12 @@ describe("MealCard extras", () => {
           },
         })}
         editable
+        onChooseExtra={vi.fn()}
       />,
     );
     expect(screen.getByText("Side · Baked potato")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /baked potato/i })).toBeNull();
     expect(screen.queryByRole("button", { name: "Get recipe" })).toBeNull();
-    expect(screen.queryByRole("button", { name: /^remove$/i })).toBeNull();
     const clear = screen.getByRole("button", { name: "Remove side" });
     expect(clear.textContent).toBe("×");
   });
@@ -120,10 +158,30 @@ describe("MealCard extras", () => {
         onOpen={onOpen}
         onOpenExtra={onOpenExtra}
         editable
+        onChooseExtra={vi.fn()}
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Side · Garlic green beans" }));
     expect(onOpenExtra).toHaveBeenCalledWith(extra);
     expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("puts leftovers on an icon with a tooltip", () => {
+    const onLeftover = vi.fn();
+    render(
+      <MealCard
+        meal={meal()}
+        editable
+        compact
+        onChooseExtra={vi.fn()}
+        onLeftover={onLeftover}
+      />,
+    );
+    const btn = screen.getByRole("button", {
+      name: "Place leftovers on another meal",
+    });
+    expect(btn.getAttribute("title")).toBe("Place leftovers on another meal");
+    fireEvent.click(btn);
+    expect(onLeftover).toHaveBeenCalled();
   });
 });

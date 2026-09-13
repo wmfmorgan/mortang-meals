@@ -269,6 +269,66 @@ export function CloseIcon() {
   );
 }
 
+export function SideIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <ellipse cx="10" cy="13.5" rx="6.5" ry="2.2" />
+      <path d="M3.5 13.5V11c0-2 2.9-3.6 6.5-3.6s6.5 1.6 6.5 3.6v2.5" />
+      <path d="M7.2 9.2c.6-1.8 1.6-3.2 2.8-3.2s2.2 1.4 2.8 3.2" />
+    </svg>
+  );
+}
+
+export function DessertIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4.5 16.2h11" />
+      <path d="M5.2 16.2 6.4 9.5h7.2l1.2 6.7" />
+      <path d="M7 9.5c0-2 1.3-3.6 3-3.6s3 1.6 3 3.6" />
+      <circle cx="10" cy="4.2" r="1.1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function LeftoversIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4.2 10a5.8 5.8 0 0 1 9.7-4.2L15.5 7.2V4.2" />
+      <path d="M15.8 10a5.8 5.8 0 0 1-9.7 4.2L4.5 12.8v3" />
+    </svg>
+  );
+}
+
 export function MealCard({
   meal,
   onOpen,
@@ -333,23 +393,58 @@ export function MealCard({
           meal={meal}
           editable={editable}
           onOpenExtra={onOpenExtra}
-          onChoosePast={onChooseExtra}
         />
       )}
       {compact ? (
-        editable && onLeftover ? (
-          <div className="meal-card-actions">
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => onLeftover(meal)}
-            >
-              Leftovers
-            </button>
+        editable && !meal.takeout ? (
+          <div className="meal-card-actions meal-card-action-icons">
+            {meal.slot !== "breakfast" && onChooseExtra ? (
+              <>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label={
+                    meal.extras?.side ? "Replace side" : "Choose a side"
+                  }
+                  title={meal.extras?.side ? "Replace side" : "Choose a side"}
+                  onClick={() => onChooseExtra("side")}
+                >
+                  <SideIcon />
+                </button>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label={
+                    meal.extras?.dessert
+                      ? "Replace dessert"
+                      : "Choose a dessert"
+                  }
+                  title={
+                    meal.extras?.dessert
+                      ? "Replace dessert"
+                      : "Choose a dessert"
+                  }
+                  onClick={() => onChooseExtra("dessert")}
+                >
+                  <DessertIcon />
+                </button>
+              </>
+            ) : null}
+            {onLeftover && !meal.leftover ? (
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Place leftovers on another meal"
+                title="Place leftovers on another meal"
+                onClick={() => onLeftover(meal)}
+              >
+                <LeftoversIcon />
+              </button>
+            ) : null}
           </div>
         ) : null
       ) : (
-        <div className="meal-card-actions">
+        <div className="meal-card-actions meal-card-action-icons">
           {editable && onReplace ? (
             <button
               type="button"
@@ -360,16 +455,48 @@ export function MealCard({
             >
               <RecipeBoxIcon />
             </button>
-          ) : (
-            <span />
-          )}
-          {editable && onLeftover ? (
+          ) : null}
+          {editable && !meal.takeout && meal.slot !== "breakfast" && onChooseExtra ? (
+            <>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label={
+                  meal.extras?.side ? "Replace side" : "Choose a side"
+                }
+                title={meal.extras?.side ? "Replace side" : "Choose a side"}
+                onClick={() => onChooseExtra("side")}
+              >
+                <SideIcon />
+              </button>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label={
+                  meal.extras?.dessert
+                    ? "Replace dessert"
+                    : "Choose a dessert"
+                }
+                title={
+                  meal.extras?.dessert
+                    ? "Replace dessert"
+                    : "Choose a dessert"
+                }
+                onClick={() => onChooseExtra("dessert")}
+              >
+                <DessertIcon />
+              </button>
+            </>
+          ) : null}
+          {editable && onLeftover && !meal.leftover ? (
             <button
               type="button"
-              className="btn btn-ghost"
+              className="icon-button"
+              aria-label="Place leftovers on another meal"
+              title="Place leftovers on another meal"
               onClick={() => onLeftover(meal)}
             >
-              Leftovers
+              <LeftoversIcon />
             </button>
           ) : null}
           {canSwap ? <SwapButton meal={meal} /> : null}

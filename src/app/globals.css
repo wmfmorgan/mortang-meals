@@ -401,6 +401,24 @@ a.badge-link:hover {
   padding-top: 0.15rem;
 }
 
+.meal-card-action-icons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.15rem;
+  margin-top: auto;
+  padding-top: 0.25rem;
+}
+
+.meal-card-action-icons .icon-button {
+  color: var(--color-herb);
+}
+
+.meal-card-action-icons .icon-button:hover {
+  color: var(--color-olive);
+}
+
 .week-cell {
   display: flex;
   min-height: 8.5rem;
