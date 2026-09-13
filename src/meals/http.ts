@@ -537,6 +537,7 @@ export async function handleImportRecipe(
       slot: parsed.data.slot,
       sourceUrl: parsed.data.url,
       usedWebSearch: true,
+      servings: session.household.servings,
     });
     return { status: 200, body: { meal } };
   } catch (error) {
@@ -567,11 +568,12 @@ export async function handleCreateMeal(
   if (!parsed.success) {
     return jsonError(400, "Title, ingredients, and steps are required.");
   }
-  const { slot, ...fields } = parsed.data;
+  const { slot, servings, ...fields } = parsed.data;
   try {
     const meal = await saveStandaloneMeal(session.householdId, {
       meal: { ...fields, day: "monday", slot },
       slot,
+      servings: servings ?? undefined,
     });
     return { status: 200, body: { meal } };
   } catch (error) {

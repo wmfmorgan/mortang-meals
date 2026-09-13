@@ -114,7 +114,8 @@ export function RecipeFlyout({
           </div>
         ) : null}
         <p className="mb-6 font-mono text-[0.72rem] uppercase tracking-[0.12em] text-herb">
-          Serves {servings} · {meal.cookMinutes} min · {meal.method}
+          Serves {meal.servings ?? servings} · {meal.cookMinutes} min ·{" "}
+          {meal.method}
         </p>
         {meal.sourceUrl ? <SourceLink href={meal.sourceUrl} /> : null}
 

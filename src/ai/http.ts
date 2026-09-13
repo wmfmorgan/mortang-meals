@@ -298,6 +298,7 @@ export async function handleGenerate(
     slotMask: parsed.data.slotMask,
     meals: result.meals,
     usedWebSearch: grokWebSearchEnabled(settings),
+    servings: household.servings,
   });
   return { status: 200, body: { plan } };
 }
@@ -554,12 +555,14 @@ export async function handleGenerateLibrary(
   if (deps?.signal?.aborted) return jsonError(422, "Generate cancelled.");
 
   deps?.onProgress?.({ phase: "saving", message: "Saving drafts" });
+  const draftServings = parsed.data.servings ?? household.servings;
   const meals = await saveDraftMeals(
     householdId,
     result.meals.map((meal) => ({
       meal,
       slot: meal.slot,
       usedWebSearch: grokWebSearchEnabled(settings),
+      servings: draftServings,
     })),
   );
   return { status: 200, body: { meals } };

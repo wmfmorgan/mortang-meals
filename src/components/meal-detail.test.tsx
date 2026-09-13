@@ -42,6 +42,7 @@ const meal: Meal = {
   stars: 0,
   takeout: false,
   leftover: false,
+  servings: 2,
 };
 
 function renderDetail(overrides: Partial<ComponentProps<typeof MealDetail>> = {}) {

@@ -52,6 +52,7 @@ const meal: Meal = {
   stars: 0,
   takeout: false,
   leftover: false,
+  servings: 2,
 };
 
 describe("MealsCatalog", () => {

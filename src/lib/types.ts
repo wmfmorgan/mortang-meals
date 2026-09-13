@@ -100,6 +100,8 @@ export type Meal = GeneratedMeal & {
   stars: number;
   takeout: boolean;
   leftover: boolean;
+  /** Recipe yield; set at generate / import / create. */
+  servings: number;
 };
 
 export type LibraryMeal = {

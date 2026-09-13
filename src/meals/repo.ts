@@ -46,6 +46,7 @@ function mapMeal(row: MealRow): Meal {
     stars: row.stars,
     takeout: row.takeout,
     leftover: row.leftover,
+    servings: row.servings,
   };
 }
 
@@ -107,6 +108,7 @@ function mealInsertValues(
     stars?: number;
     takeout?: boolean;
     leftover?: boolean;
+    servings?: number;
   },
 ) {
   return {
@@ -131,6 +133,7 @@ function mealInsertValues(
     stars: extras.stars ?? 0,
     takeout: extras.takeout ?? false,
     leftover: extras.leftover ?? false,
+    servings: Math.max(1, extras.servings ?? 2),
   };
 }
 
@@ -239,6 +242,7 @@ export async function saveStandaloneMeal(
     sourceUrl?: string | null;
     usedWebSearch?: boolean;
     draft?: boolean;
+    servings?: number;
   },
 ): Promise<Meal> {
   if (input.draft !== true && (await titleTaken(householdId, input.meal.title))) {
@@ -256,6 +260,7 @@ export async function saveStandaloneMeal(
       weekStart,
       sourceUrl: input.sourceUrl ?? null,
       draft: input.draft === true,
+      servings: input.servings,
     },
   );
   const [row] = await db.insert(meals).values(values).returning();
@@ -269,6 +274,7 @@ export async function saveDraftMeals(
     meal: GeneratedMeal;
     slot: MealSlot;
     usedWebSearch?: boolean;
+    servings?: number;
   }>,
 ): Promise<Meal[]> {
   const saved: Meal[] = [];
@@ -334,6 +340,7 @@ export async function saveImportedMeal(
     slot: MealSlot;
     sourceUrl: string;
     usedWebSearch?: boolean;
+    servings?: number;
   },
 ): Promise<Meal> {
   return saveStandaloneMeal(householdId, input);
@@ -422,6 +429,7 @@ export async function updateMeal(
     method: string;
     ingredients: Ingredient[];
     steps: string[];
+    servings?: number;
   },
 ): Promise<Meal> {
   const existing = await loadMealRow(householdId, id);
@@ -438,6 +446,9 @@ export async function updateMeal(
       method: fields.method,
       ingredients: fields.ingredients,
       steps: fields.steps,
+      ...(fields.servings !== undefined
+        ? { servings: Math.max(1, fields.servings) }
+        : {}),
     })
     .where(and(eq(meals.householdId, householdId), eq(meals.id, id)))
     .returning();
@@ -452,6 +463,7 @@ export async function saveGeneratedPlan(
     slotMask: SlotMask;
     meals: GeneratedMeal[];
     usedWebSearch?: boolean;
+    servings?: number;
   },
 ): Promise<WeekPlan> {
   const db = getDb();
@@ -462,6 +474,7 @@ export async function saveGeneratedPlan(
       usedWebSearch,
       pinned: false,
       weekStart: input.weekStart,
+      servings: input.servings,
     }),
   );
 
@@ -494,6 +507,7 @@ export async function mergeGeneratedPlan(
     slotMask: SlotMask;
     meals: GeneratedMeal[];
     usedWebSearch?: boolean;
+    servings?: number;
   },
 ): Promise<WeekPlan> {
   const current = await getCurrentPlan(householdId);
@@ -531,6 +545,7 @@ export async function mergeGeneratedPlan(
           usedWebSearch,
           pinned: false,
           weekStart: current.weekStart,
+          servings: input.servings,
         }),
       );
     }
@@ -561,6 +576,7 @@ export async function replaceMeal(
     extras: parseMealExtras(existing.extras),
     draft: existing.draft,
     stars: existing.stars,
+    servings: existing.servings,
   });
   const [row] = await getDb()
     .update(meals)
@@ -707,6 +723,7 @@ export async function placeMeal(
       pinned: occupant.pinned,
       weekStart: plan.weekStart,
       sourceUrl: source.sourceUrl,
+      servings: source.servings,
     });
     const [row] = await getDb()
       .update(meals)
@@ -722,6 +739,7 @@ export async function placeMeal(
     pinned: false,
     weekStart: plan.weekStart,
     sourceUrl: source.sourceUrl,
+    servings: source.servings,
   });
   const [row] = await getDb().insert(meals).values(values).returning();
   if (!row) throw new Error("Meal insert failed");
@@ -763,6 +781,7 @@ async function copyOntoPlan(
     sourceUrl: input.source.sourceUrl,
     leftover: input.leftover,
     takeout: false,
+    servings: input.source.servings,
   };
   if (occupant) {
     const values = mealInsertValues(householdId, plan.id, copy, {
@@ -814,6 +833,7 @@ export async function saveTakeoutMeal(
     sourceUrl: null as string | null,
     takeout: true,
     leftover: false,
+    servings: 2,
     extras: EMPTY_EXTRAS,
   };
   if (occupant) {

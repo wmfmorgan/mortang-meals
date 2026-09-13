@@ -43,6 +43,7 @@ function extraAsMeal(parent: Meal, extra: MealExtra): Meal {
     stars: 0,
     takeout: false,
     leftover: false,
+    servings: parent.servings,
   };
 }
 

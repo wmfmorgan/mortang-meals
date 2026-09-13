@@ -996,6 +996,7 @@ describe("meals repo", () => {
       stars: 0,
       takeout: false,
       leftover: false,
+  servings: 2,
     });
     expect(await dedupeLibraryMeals(ident.householdId)).toBeGreaterThanOrEqual(1);
     expect(

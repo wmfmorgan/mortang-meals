@@ -37,7 +37,13 @@ const EMPTY_DRAFT: Meal = {
   stars: 0,
   takeout: false,
   leftover: false,
+  servings: 2,
 };
+
+function servingsFromLabel(label: string): number {
+  const match = label.match(/(\d+)/);
+  return match ? Math.max(1, Number(match[1]) || 2) : 2;
+}
 
 export function MealDetail({
   meal,
@@ -63,6 +69,9 @@ export function MealDetail({
   const [cookMinutes, setCookMinutes] = useState(String(source.cookMinutes));
   const [method, setMethod] = useState(source.method);
   const [slot, setSlot] = useState<MealSlot>(source.slot);
+  const [mealServings, setMealServings] = useState(
+    source.servings || servingsFromLabel(servings),
+  );
   const [ingredients, setIngredients] = useState<Ingredient[]>(source.ingredients);
   const [steps, setSteps] = useState<string[]>(source.steps);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
@@ -158,6 +167,7 @@ export function MealDetail({
       whyItFits: whyItFits.trim(),
       cookMinutes: Number(cookMinutes),
       method: method.trim(),
+      servings: Math.max(1, mealServings || 1),
       ingredients: ingredients.map((item) => ({
         ...item,
         name: item.name.trim(),
@@ -328,6 +338,20 @@ export function MealDetail({
                 min={1}
                 value={cookMinutes}
                 onChange={(event) => setCookMinutes(event.target.value)}
+                required
+              />
+            </label>
+            <label className="field">
+              Servings
+              <input
+                className="input"
+                type="number"
+                min={1}
+                max={24}
+                value={mealServings}
+                onChange={(event) =>
+                  setMealServings(Math.max(1, Number(event.target.value) || 1))
+                }
                 required
               />
             </label>
@@ -562,8 +586,7 @@ export function MealDetail({
             </div>
           ) : null}
           <p className="mb-4 font-mono text-[0.72rem] uppercase tracking-[0.12em] text-herb">
-            {servings}
-            {` · ${source.cookMinutes} min · ${source.method}`}
+            {`Serves ${source.servings} · ${source.cookMinutes} min · ${source.method}`}
           </p>
           {source.sourceUrl ? <SourceLink href={source.sourceUrl} /> : null}
 

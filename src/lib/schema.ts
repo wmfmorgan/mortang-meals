@@ -86,6 +86,7 @@ export const meals = pgTable("meals", {
   stars: smallint("stars").notNull().default(0),
   takeout: boolean("takeout").notNull().default(false),
   leftover: boolean("leftover").notNull().default(false),
+  servings: integer("servings").notNull().default(2),
 });
 
 export const libraryGeneratePrefs = pgTable("library_generate_prefs", {

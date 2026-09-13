@@ -37,6 +37,7 @@ function recipe(
     stars,
     takeout: false,
     leftover: false,
+  servings: 2,
   };
 }
 

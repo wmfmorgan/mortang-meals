@@ -56,6 +56,7 @@ function mondayDinnerPlan(): WeekPlan {
         stars: 0,
         takeout: false,
         leftover: false,
+  servings: 2,
       },
     ],
   };

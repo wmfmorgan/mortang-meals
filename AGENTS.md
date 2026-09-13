@@ -103,7 +103,7 @@ Generation UX is global (`GenerationProvider` in `AppShell`): NDJSON stream in t
 
 **Week plan** — `weekStart` (Monday `YYYY-MM-DD`), `isCurrent`, `slotMask` JSON. UI names plans with a Monday–Sunday range (`weekRangeLabel`). History stays readable from Plans / shopping list. If `isCurrent` is a past week, `resolveOpenPlan` opens this calendar week.
 
-**Meal** — belongs to a plan **or** stands alone. Fields: day, slot, title, whyItFits, cookMinutes, method, ingredients[], steps[], `usedWebSearch`, `pinned`, `weekStart`, `createdAt`, optional `sourceUrl`, `extras`, `draft` (0/1), `stars` (0–5, 0 = unrated). Imported and typed meals are saved with `planId = ""`. Library generate writes `draft = 1` until approve. Deleting a plan deletes the plan row only; meals stay so the library keeps the recipes. `listAllMeals` / `listLibraryMeals` / place exclude drafts.
+**Meal** — belongs to a plan **or** stands alone. Fields: day, slot, title, whyItFits, cookMinutes, method, ingredients[], steps[], `usedWebSearch`, `pinned`, `weekStart`, `createdAt`, optional `sourceUrl`, `extras`, `draft` (0/1), `stars` (0–5, 0 = unrated), `servings` (set at library generate / import / create; shown on cards and flyouts). Imported and typed meals are saved with `planId = ""`. Library generate writes `draft = 1` until approve. Deleting a plan deletes the plan row only; meals stay so the library keeps the recipes. `listAllMeals` / `listLibraryMeals` / place exclude drafts.
 
 **Library generate prefs** — one row (`id = default`) of JSON for the Meals generate form (mode, people, per-slot on/count/diet/avoidances). Not used as an AI input.
 

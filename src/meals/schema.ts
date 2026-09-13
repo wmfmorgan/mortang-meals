@@ -21,6 +21,7 @@ export const mealEditSchema = z.object({
   method: z.string().min(1),
   ingredients: z.array(ingredientSchema).min(1),
   steps: z.array(z.string().min(1)).min(1),
+  servings: z.number().int().min(1).max(24).optional(),
 });
 
 export const mealSchema = mealEditSchema.extend({

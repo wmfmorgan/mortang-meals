@@ -28,6 +28,7 @@ function meal(overrides: Partial<Meal> = {}): Meal {
     stars: 0,
     takeout: false,
     leftover: false,
+  servings: 2,
     ...overrides,
   };
 }
