@@ -128,7 +128,7 @@ export function SetupWizard({
           <h2 className="text-xl font-medium tracking-[-0.03em]">Kitchen</h2>
           <p className="m-0 text-sm text-herb">
             Turn on the appliances and methods you use. Library generate only
-            sees what’s enabled.
+            sees what’s enabled. You can add additional appliances later.
           </p>
           {kitchen.length === 0 ? (
             <p className="alert">
