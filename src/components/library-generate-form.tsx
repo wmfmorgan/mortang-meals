@@ -22,6 +22,7 @@ type SlotFields = {
 type FormState = {
   mode: "batch" | "one";
   personIds: string[];
+  servings: number;
   requestText: string;
   requestSlot: MealSlot;
   breakfast: SlotFields;
@@ -127,6 +128,7 @@ function defaultForm(people: Person[]): FormState {
   return {
     mode: "batch",
     personIds: people.map((person) => person.id),
+    servings: Math.max(1, people.length || 1),
     requestText: "",
     requestSlot: "dinner",
     breakfast: emptySlot(),
@@ -153,10 +155,15 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
           const personIds = (prefs.personIds ?? current.personIds).filter((id) =>
             people.some((person) => person.id === id),
           );
+          const servings =
+            typeof prefs.servings === "number" && prefs.servings >= 1
+              ? prefs.servings
+              : current.servings;
           return {
             ...current,
             ...prefs,
             personIds: personIds.length > 0 ? personIds : current.personIds,
+            servings,
             breakfast: mergeSlot(current.breakfast, prefs.breakfast),
             lunch: mergeSlot(current.lunch, prefs.lunch),
             dinner: mergeSlot(current.dinner, prefs.dinner, { on: true }),
@@ -192,7 +199,10 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
-    const body: Record<string, unknown> = { personIds: form.personIds };
+    const body: Record<string, unknown> = {
+      personIds: form.personIds,
+      servings: form.servings,
+    };
     if (form.mode === "one") {
       const fields = slotFields(form.requestSlot);
       body.request = {
@@ -247,22 +257,44 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
         {people.length === 0 ? (
           <p className="m-0 text-sm text-herb">Add people on Household first.</p>
         ) : (
-          <div className="flex flex-wrap gap-3">
-            {people.map((person) => (
-              <label key={person.id} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={form.personIds.includes(person.id)}
-                  onChange={(event) => {
-                    const next = event.target.checked
-                      ? [...form.personIds, person.id]
-                      : form.personIds.filter((id) => id !== person.id);
-                    persist({ ...form, personIds: next });
-                  }}
-                />
-                {person.name}
-              </label>
-            ))}
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex flex-wrap gap-3">
+              {people.map((person) => (
+                <label
+                  key={person.id}
+                  className="flex items-center gap-2 text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    checked={form.personIds.includes(person.id)}
+                    onChange={(event) => {
+                      const next = event.target.checked
+                        ? [...form.personIds, person.id]
+                        : form.personIds.filter((id) => id !== person.id);
+                      persist({ ...form, personIds: next });
+                    }}
+                  />
+                  {person.name}
+                </label>
+              ))}
+            </div>
+            <label className="field fill-toolbar-protein">
+              <input
+                className="input fill-toolbar-protein-input"
+                type="number"
+                min={1}
+                max={24}
+                aria-label="Servings"
+                value={form.servings}
+                onChange={(event) =>
+                  persist({
+                    ...form,
+                    servings: Math.max(1, Number(event.target.value) || 1),
+                  })
+                }
+              />
+              <span className="text-sm">Servings</span>
+            </label>
           </div>
         )}
       </fieldset>

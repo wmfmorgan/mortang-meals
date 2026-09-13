@@ -10,7 +10,7 @@ export default async function HouseholdPage() {
       <PageHeader
         eyebrow="Profiles"
         title="Household"
-        lede="Who you cook for: names, allergies, avoidances, and servings."
+        lede="Who you cook for: names, allergies, avoidances, and notes."
       />
       <HouseholdForm household={household} />
     </div>

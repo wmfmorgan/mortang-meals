@@ -47,6 +47,7 @@ describe("LibraryGenerateForm", () => {
     fireEvent.submit(screen.getByRole("button", { name: "Generate Meal Drafts" }).closest("form")!);
     expect(startLibrary).toHaveBeenCalledWith({
       personIds: ["p1"],
+      servings: 1,
       dinner: { count: 4, diet: "italian", avoidances: "" },
     });
   });
@@ -57,6 +58,7 @@ describe("LibraryGenerateForm", () => {
     fireEvent.submit(screen.getByRole("button", { name: "Generate Meal Drafts" }).closest("form")!);
     expect(startLibrary).toHaveBeenCalledWith({
       personIds: ["p1"],
+      servings: 1,
       dinner: { count: 4, diet: "keto", avoidances: "" },
     });
   });
@@ -70,6 +72,7 @@ describe("LibraryGenerateForm", () => {
     fireEvent.submit(screen.getByRole("button", { name: "Generate Meal Drafts" }).closest("form")!);
     expect(startLibrary).toHaveBeenCalledWith({
       personIds: ["p1"],
+      servings: 1,
       side: { count: 4, diet: "keto", avoidances: "" },
       dessert: {
         count: 4,
@@ -97,12 +100,31 @@ describe("LibraryGenerateForm", () => {
     fireEvent.submit(screen.getByRole("button", { name: "Generate Meal Drafts" }).closest("form")!);
     expect(startLibrary).toHaveBeenCalledWith({
       personIds: ["p1"],
+      servings: 1,
       request: {
         slot: "dinner",
         text: "spaghetti sauce",
         diet: "italian",
         avoidances: "",
       },
+    });
+  });
+
+  it("lets you override servings next to people", async () => {
+    render(<LibraryGenerateForm people={[alex]} />);
+    fireEvent.change(screen.getByLabelText("Servings"), {
+      target: { value: "4" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("or type your own"), {
+      target: { value: "italian" },
+    });
+    fireEvent.submit(
+      screen.getByRole("button", { name: "Generate Meal Drafts" }).closest("form")!,
+    );
+    expect(startLibrary).toHaveBeenCalledWith({
+      personIds: ["p1"],
+      servings: 4,
+      dinner: { count: 4, diet: "italian", avoidances: "" },
     });
   });
 });

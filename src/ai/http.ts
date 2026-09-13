@@ -114,6 +114,7 @@ const librarySlotGroupSchema = z.object({
 const libraryGenerateBodySchema = z
   .object({
     personIds: z.array(z.string().min(1)).min(1),
+    servings: z.number().int().min(1).max(24).optional(),
     request: z
       .object({
         slot: z.enum(["breakfast", "lunch", "dinner", "side", "dessert"]),
@@ -530,7 +531,11 @@ export async function handleGenerateLibrary(
     groups.map((group) => group.slot),
   );
   const result = await generateLibraryMeals({
-    household: { ...household, people: selected },
+    household: {
+      ...household,
+      people: selected,
+      servings: parsed.data.servings ?? household.servings,
+    },
     kitchen: await listKitchen(householdId),
     prefs: await getKitchenPrefs(householdId),
     groups,

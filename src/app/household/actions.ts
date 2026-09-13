@@ -29,13 +29,13 @@ export async function saveHouseholdAction(input: HouseholdSaveInput) {
   const userId = await requirePageUser();
   const people = normalizePeople(input.people);
 
+  const existing = await getHouseholdForUser(userId);
   const servingsRaw = input.servings.trim();
   const servings =
     servingsRaw === ""
-      ? people.length
-      : Number.parseInt(servingsRaw, 10) || people.length;
+      ? (existing?.servings ?? Math.max(1, people.length))
+      : Number.parseInt(servingsRaw, 10) || Math.max(1, people.length);
 
-  const existing = await getHouseholdForUser(userId);
   const household = await upsertHousehold({
     ...(existing ? { id: existing.id } : {}),
     ownerId: userId,

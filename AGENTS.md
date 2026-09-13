@@ -82,7 +82,7 @@ Thin `src/app/api/*/route.ts` files parse JSON, resolve the session household, a
 | `/meals/new` | Redirects to `/meals` (manual add is an inline collapsible card there). |
 | `/meals/[id]` | Full recipe editor (title, why, time, method, ingredients, steps). Swap only if the meal is on the current plan. |
 | `/shopping-list` | Derived list for the open plan (`?plan=` supported). Not stored. |
-| `/household` | People, notes, servings. |
+| `/household` | People, notes. Servings for AI drafts are set on Meals. |
 | `/kitchen` | Cook prefs + appliance/method checklist. |
 | `/settings` | Provider mode, base URL, model, optional custom key, web search toggle, developer tools. |
 | `/developer` | Last 25 AI traces. Hidden unless the toggle is on. |

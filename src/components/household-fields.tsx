@@ -103,17 +103,6 @@ export function HouseholdFields({
           onChange={(event) => update("notes", event.target.value)}
         />
       </label>
-      <label className="field">
-        Servings
-        <input
-          className={inputClass}
-          type="number"
-          min={1}
-          value={value.servings}
-          placeholder="defaults to number of people"
-          onChange={(event) => update("servings", event.target.value)}
-        />
-      </label>
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">

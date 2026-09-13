@@ -22,7 +22,7 @@ export function HouseholdForm({ household }: { household: Household | null }) {
       name: draft.name,
       dietStyle: "",
       notes: draft.notes,
-      servings: draft.servings,
+      servings: "",
       people: draft.people.map((person) => ({
         name: person.name,
         age: person.age,
