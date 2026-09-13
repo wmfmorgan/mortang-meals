@@ -130,7 +130,24 @@ export function KitchenForm({
         {status ? <p className="text-sm text-herb">{status}</p> : null}
       </form>
 
-      <KitchenChecklist items={items} onToggle={toggle} />
+      <section className="space-y-3">
+        <div>
+          <h2 className="mt-0 text-xl font-medium tracking-[-0.03em]">
+            Appliances & methods
+          </h2>
+          <p className="mt-1 mb-0 text-sm text-herb">
+            Library generate only uses items that are turned on.
+          </p>
+        </div>
+        {items.length === 0 ? (
+          <p className="alert">
+            No kitchen items yet. Refresh this page to load the defaults, or add
+            a custom item below.
+          </p>
+        ) : (
+          <KitchenChecklist items={items} onToggle={toggle} />
+        )}
+      </section>
       <form className="surface max-w-xl space-y-4 p-5" onSubmit={onAdd}>
         <h2 className="text-xl font-medium tracking-[-0.03em]">Add custom item</h2>
         <label className="field">

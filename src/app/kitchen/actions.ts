@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { saveKitchenPrefs } from "@/kitchen/prefs-repo";
 import {
   addCustomKitchenItem as persistCustomItem,
+  listKitchen,
+  seedKitchenIfEmpty,
   setKitchenEnabled as persistEnabled,
 } from "@/kitchen/repo";
 import { requirePageHousehold } from "@/lib/request-auth";
@@ -12,6 +14,14 @@ import type { KitchenItem, KitchenPrefs } from "@/lib/types";
 function revalidateKitchen() {
   revalidatePath("/kitchen");
   revalidatePath("/setup");
+}
+
+/** Ensure builtins exist and return them (used by setup after household save). */
+export async function seedAndListKitchenAction(): Promise<KitchenItem[]> {
+  const { householdId } = await requirePageHousehold();
+  await seedKitchenIfEmpty(householdId);
+  revalidateKitchen();
+  return listKitchen(householdId);
 }
 
 export async function setKitchenEnabled(id: string, enabled: boolean) {
