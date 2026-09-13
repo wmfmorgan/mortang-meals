@@ -71,7 +71,7 @@ export function SlotPicker({
             </p>
             <p className="m-0 text-sm text-herb">
               Check the meals to fill. Day and meal labels toggle a whole row
-              or column. Pinned meals stay off.
+              or column.
             </p>
           </div>
         </div>
@@ -81,7 +81,7 @@ export function SlotPicker({
           {collapsible ? (
             <p className="mb-3 mt-3 text-sm text-herb">
               Check the meals to fill. Day and meal labels toggle a whole row
-              or column. Pinned meals stay off.
+              or column.
             </p>
           ) : null}
           <table id="slot-picker-grid" className="w-full border-collapse">
