@@ -270,6 +270,7 @@ export function CloseIcon() {
 }
 
 export function SideIcon() {
+  // Baked potato with split top and a pat of butter.
   return (
     <svg
       aria-hidden="true"
@@ -278,18 +279,29 @@ export function SideIcon() {
       height="18"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.6"
+      strokeWidth="1.55"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <ellipse cx="10" cy="13.5" rx="6.5" ry="2.2" />
-      <path d="M3.5 13.5V11c0-2 2.9-3.6 6.5-3.6s6.5 1.6 6.5 3.6v2.5" />
-      <path d="M7.2 9.2c.6-1.8 1.6-3.2 2.8-3.2s2.2 1.4 2.8 3.2" />
+      <ellipse cx="10" cy="11.2" rx="6.4" ry="4.6" />
+      <path d="M5.2 10.2c1.1-1.4 2.8-2.2 4.8-2.2s3.7.8 4.8 2.2" />
+      <path d="M7.4 9.4 10 6.6l2.6 2.8" />
+      <rect
+        x="8.35"
+        y="7.35"
+        width="3.3"
+        height="2.1"
+        rx="0.45"
+        fill="currentColor"
+        stroke="none"
+        opacity="0.85"
+      />
     </svg>
   );
 }
 
 export function DessertIcon() {
+  // Wedge of pie on a plate.
   return (
     <svg
       aria-hidden="true"
@@ -298,19 +310,21 @@ export function DessertIcon() {
       height="18"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.6"
+      strokeWidth="1.55"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <path d="M4.5 16.2h11" />
-      <path d="M5.2 16.2 6.4 9.5h7.2l1.2 6.7" />
-      <path d="M7 9.5c0-2 1.3-3.6 3-3.6s3 1.6 3 3.6" />
-      <circle cx="10" cy="4.2" r="1.1" fill="currentColor" stroke="none" />
+      <path d="M3.8 15.6c1.6.9 3.7 1.4 6.2 1.4s4.6-.5 6.2-1.4" />
+      <path d="M10 4.2 4.6 14.4h10.8L10 4.2z" />
+      <path d="M10 4.2v10.2" />
+      <path d="M6.6 10.8c.7-.4 1.5-.6 2.2-.6" />
+      <circle cx="8.2" cy="9.1" r="0.55" fill="currentColor" stroke="none" />
     </svg>
   );
 }
 
 export function LeftoversIcon() {
+  // Chinese takeout box with wire handle.
   return (
     <svg
       aria-hidden="true"
@@ -319,12 +333,15 @@ export function LeftoversIcon() {
       height="18"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.6"
+      strokeWidth="1.55"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <path d="M4.2 10a5.8 5.8 0 0 1 9.7-4.2L15.5 7.2V4.2" />
-      <path d="M15.8 10a5.8 5.8 0 0 1-9.7 4.2L4.5 12.8v3" />
+      <path d="M5.2 7.4 4 16.2h12L14.8 7.4z" />
+      <path d="M4.6 7.4h10.8" />
+      <path d="M6.4 7.4 8.1 4.6h3.8L13.6 7.4" />
+      <path d="M7.6 4.6c0-1.5 1.1-2.4 2.4-2.4s2.4.9 2.4 2.4" />
+      <path d="M7.2 10.2h5.6M6.8 12.8h6.4" />
     </svg>
   );
 }
