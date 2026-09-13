@@ -42,14 +42,15 @@ const kitchen: KitchenItem[] = [
 ];
 
 describe("buildHouseholdBrief", () => {
-  it("describes people, diet, hard allergies, soft avoidances, enabled kitchen, slots, servings", () => {
+  it("describes people, hard allergies, soft avoidances, enabled kitchen, slots, servings", () => {
     const mask = emptyMask();
     mask.monday.dinner = true;
     mask.tuesday.dinner = true;
     const brief = buildHouseholdBrief({ household, kitchen, slotMask: mask });
     expect(brief).toContain("53-year-old man");
     expect(brief).toContain("53-year-old woman");
-    expect(brief).toContain("high-protein Mediterranean");
+    expect(brief).not.toContain("Focusing on a");
+    expect(brief).not.toContain("high-protein Mediterranean");
     expect(brief).toContain("Never use shellfish (Alex)");
     expect(brief).toContain("Prefer to avoid cilantro (Sam)");
     expect(brief).toContain("sheet pan");
@@ -60,7 +61,7 @@ describe("buildHouseholdBrief", () => {
     expect(brief).toContain("Weeknight dinners under 45 minutes");
   });
 
-  it("adds kitchen prefs, slot diet overrides, time, and involvement", () => {
+  it("adds kitchen prefs, time, and involvement without diet lines", () => {
     const mask = emptyMask();
     mask.monday.breakfast = true;
     mask.monday.dinner = true;
@@ -81,9 +82,9 @@ describe("buildHouseholdBrief", () => {
     expect(brief).toContain("Cook for a newbie");
     expect(brief).toContain("How involved: low");
     expect(brief).toContain("Keep cookMinutes at or under 30");
-    expect(brief).toContain("breakfast diet: high-protein");
-    expect(brief).toContain("dinner diet: vegetarian");
-    expect(brief).not.toContain("lunch diet");
+    expect(brief).not.toContain("breakfast diet");
+    expect(brief).not.toContain("dinner diet");
+    expect(brief).not.toContain("Focusing on a");
   });
 
   it("asks for a featured ingredient on the assigned slot only", () => {
@@ -105,7 +106,7 @@ describe("buildHouseholdBrief", () => {
     expect(brief).not.toContain("wednesday lunch");
   });
 
-  it("library mode drops household diet, slot diets, avoidances, and week slots", () => {
+  it("library mode drops avoidances and week slots; diet comes from extraRules", () => {
     const mask = emptyMask();
     mask.monday.dinner = true;
     const brief = buildHouseholdBrief({
@@ -130,7 +131,6 @@ describe("buildHouseholdBrief", () => {
     expect(brief).toContain("Keep cookMinutes at or under 30");
     expect(brief).toContain("dinner: 2 recipes. Diet: keto.");
     expect(brief).not.toContain("Focusing on a");
-    expect(brief).not.toContain("high-protein Mediterranean");
     expect(brief).not.toContain("Prefer to avoid cilantro");
     expect(brief).not.toContain("dinner diet: vegetarian");
     expect(brief).not.toContain("Fill only these slots");

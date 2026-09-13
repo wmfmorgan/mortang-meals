@@ -95,14 +95,6 @@ export function HouseholdFields({
         />
       </label>
       <label className="field">
-        Diet style
-        <input
-          className={inputClass}
-          value={value.dietStyle}
-          onChange={(event) => update("dietStyle", event.target.value)}
-        />
-      </label>
-      <label className="field">
         Notes
         <textarea
           className={inputClass}

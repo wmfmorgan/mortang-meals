@@ -1,4 +1,3 @@
-import { resolvedDiet } from "@/kitchen/prefs-repo";
 import type {
   Household,
   KitchenItem,
@@ -61,13 +60,8 @@ export function buildHouseholdBrief(input: {
     people.length > 0
       ? people.charAt(0).toUpperCase() + people.slice(1)
       : "";
-  if (forLibrary) {
-    if (peopleSentence) lines.push(`${peopleSentence}.`);
-  } else {
-    const overallDiet =
-      prefs?.overallDiet.trim() || household.dietStyle.trim() || "household";
-    const diet = `Focusing on a ${overallDiet} diet.`;
-    lines.push(peopleSentence ? `${peopleSentence}. ${diet}` : diet);
+  if (peopleSentence) {
+    lines.push(`${peopleSentence}.`);
   }
 
   if (household.notes.trim()) {
@@ -97,17 +91,6 @@ export function buildHouseholdBrief(input: {
     lines.push(EXPERTISE_LINES[prefs.expertise]);
     lines.push(INVOLVED_LINES[prefs.involved]);
     lines.push(`Keep cookMinutes at or under ${prefs.maxCookMinutes}.`);
-    if (!forLibrary) {
-      const usedSlots = SLOTS.filter((slot) =>
-        DAYS.some((day) => slotMask[day][slot]),
-      );
-      for (const slot of usedSlots) {
-        const dietForSlot = resolvedDiet(prefs, slot, household.dietStyle);
-        if (dietForSlot) {
-          lines.push(`${slot} diet: ${dietForSlot}.`);
-        }
-      }
-    }
   }
 
   if (!forLibrary) {

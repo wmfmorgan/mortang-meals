@@ -41,7 +41,7 @@ export function SetupWizard({
     try {
       await saveHouseholdAction({
         name: draft.name,
-        dietStyle: draft.dietStyle,
+        dietStyle: "",
         notes: draft.notes,
         servings: draft.servings,
         people: draft.people.map((person) => ({

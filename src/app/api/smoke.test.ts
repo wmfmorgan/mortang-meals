@@ -381,45 +381,6 @@ describe("API smoke path", () => {
     expect(called).toBe(false);
   });
 
-  it("rejects generate with an empty diet style without calling the adapter", async () => {
-    const household = await getHouseholdForUser(ident.userId);
-    expect(household).not.toBeNull();
-    await upsertHousehold({
-      ownerId: ident.userId,
-      id: household!.id,
-      name: household!.name,
-      dietStyle: "",
-      notes: household!.notes,
-      servings: household!.servings,
-    });
-
-    try {
-      let called = false;
-      const complete = async (): Promise<AdapterResult> => {
-        called = true;
-        return { ok: true, text: "{}" };
-      };
-
-      const result = await handleGenerate(
-        { slotMask: weekdayDinnerMask() },
-        deps({ complete }),
-      );
-
-      expect(result.status).toBe(400);
-      expect((result.body as { message: string }).message).toMatch(/diet style/i);
-      expect(called).toBe(false);
-    } finally {
-      await upsertHousehold({
-        ownerId: ident.userId,
-        id: household!.id,
-        name: household!.name,
-        dietStyle: "high-protein Mediterranean",
-        notes: household!.notes,
-        servings: household!.servings,
-      });
-    }
-  });
-
   it("adds a lunch side suggestion and deletes it", async () => {
     const mask = emptyMask();
     mask.monday.lunch = true;

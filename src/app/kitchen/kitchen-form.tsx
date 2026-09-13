@@ -51,7 +51,13 @@ export function KitchenForm({
   async function onSavePrefs(event: FormEvent) {
     event.preventDefault();
     setStatus(null);
-    const saved = await saveKitchenPrefsAction(prefs);
+    const saved = await saveKitchenPrefsAction({
+      ...prefs,
+      overallDiet: "",
+      breakfastDiet: "",
+      lunchDiet: "",
+      dinnerDiet: "",
+    });
     setPrefs(saved);
     setStatus("Saved cook settings.");
   }
@@ -64,8 +70,7 @@ export function KitchenForm({
             How we cook
           </h2>
           <p className="mt-1 mb-0 text-sm text-herb">
-            These shape library generate and swap. Leave a meal-type diet blank
-            to use the overall diet.
+            These shape library generate and swap. Diet styles live on Meals.
           </p>
         </div>
         <label className="field">
@@ -86,64 +91,6 @@ export function KitchenForm({
             <option value="expert">expert</option>
           </select>
         </label>
-        <label className="field">
-          Overall diet style
-          <input
-            className={inputClass}
-            value={prefs.overallDiet}
-            onChange={(event) =>
-              setPrefs((current) => ({
-                ...current,
-                overallDiet: event.target.value,
-              }))
-            }
-            placeholder="high-protein Mediterranean"
-          />
-        </label>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <label className="field">
-            Breakfast diet
-            <input
-              className={inputClass}
-              value={prefs.breakfastDiet}
-              onChange={(event) =>
-                setPrefs((current) => ({
-                  ...current,
-                  breakfastDiet: event.target.value,
-                }))
-              }
-              placeholder="use overall"
-            />
-          </label>
-          <label className="field">
-            Lunch diet
-            <input
-              className={inputClass}
-              value={prefs.lunchDiet}
-              onChange={(event) =>
-                setPrefs((current) => ({
-                  ...current,
-                  lunchDiet: event.target.value,
-                }))
-              }
-              placeholder="use overall"
-            />
-          </label>
-          <label className="field">
-            Dinner diet
-            <input
-              className={inputClass}
-              value={prefs.dinnerDiet}
-              onChange={(event) =>
-                setPrefs((current) => ({
-                  ...current,
-                  dinnerDiet: event.target.value,
-                }))
-              }
-              placeholder="use overall"
-            />
-          </label>
-        </div>
         <label className="field">
           Max cook time (minutes)
           <input

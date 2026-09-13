@@ -230,13 +230,6 @@ async function loadReadyHousehold(
       result: jsonError(400, "Add people before generating."),
     };
   }
-  const prefs = await getKitchenPrefs(authed.householdId);
-  if (!authed.household.dietStyle.trim() && !prefs.overallDiet.trim()) {
-    return {
-      ok: false,
-      result: jsonError(400, "Add a diet style before generating."),
-    };
-  }
   return authed;
 }
 

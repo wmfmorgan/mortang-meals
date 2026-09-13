@@ -82,7 +82,7 @@ Thin `src/app/api/*/route.ts` files parse JSON, resolve the session household, a
 | `/meals/new` | Type a recipe into the library (same editor as `/meals/[id]`, create mode). |
 | `/meals/[id]` | Full recipe editor (title, why, time, method, ingredients, steps). Swap only if the meal is on the current plan. |
 | `/shopping-list` | Derived list for the open plan (`?plan=` supported). Not stored. |
-| `/household` | People, leftovers of diet style/notes/servings. |
+| `/household` | People, notes, servings. |
 | `/kitchen` | Cook prefs + appliance/method checklist. |
 | `/settings` | Provider mode, base URL, model, optional custom key, web search toggle, developer tools. |
 | `/developer` | Last 25 AI traces. Hidden unless the toggle is on. |
@@ -99,7 +99,7 @@ Generation UX is global (`GenerationProvider` in `AppShell`): NDJSON stream in t
 
 **Kitchen item** — appliance or method. Built-ins in `src/kitchen/defaults.ts` (crockpot, air fryer, Instant Pot, oven, stovetop, sheet pan, grill). Only `enabled` items go into the brief. Seeded on first generate if empty.
 
-**Kitchen prefs** — one row (`id = default`). Expertise `newbie | novice | intermediate | expert`, involved `low | medium | high`, `maxCookMinutes` (floor 5, default 45), `overallDiet`, plus per-slot diets. Slot diet resolution (`resolvedDiet`): slot field → overall kitchen diet → household `dietStyle`. Generate is allowed if **either** household diet **or** kitchen overall diet is non-empty.
+**Kitchen prefs** — one row (`id = default`). Expertise `newbie | novice | intermediate | expert`, involved `low | medium | high`, `maxCookMinutes` (floor 5, default 45). Diet style is **not** set on Household or Kitchen; library generate on Meals supplies diet/criteria per run. Legacy `dietStyle` / kitchen diet columns may still exist in the DB but are cleared on save and ignored in the AI brief.
 
 **Week plan** — `weekStart` (Monday `YYYY-MM-DD`), `isCurrent`, `slotMask` JSON. UI names plans with a Monday–Sunday range (`weekRangeLabel`). History stays readable from Plans / shopping list. If `isCurrent` is a past week, `resolveOpenPlan` opens this calendar week.
 
@@ -194,7 +194,7 @@ Lunch and dinner cards on the **current** plan can add one side and one dessert 
 
 JSON shapes (`src/meals/schema.ts`): generate `{ meals: Meal[] }`, swap/import `{ meal: Meal }`, extra suggestion `{ title }`, extra recipe `{ title, whyItFits, cookMinutes, method, ingredients, steps, sourceUrl }`. Each meal: `day`, `slot`, `title`, `whyItFits`, `cookMinutes`, `method`, `ingredients[]` (`name`, `quantity` string, `unit`, `aisle`), `steps[]`, `sourceUrl` (`string | null`). Generate/swap/extra-recipe persist `sourceUrl` only when web search is on and the value is a real `http(s)` URL; otherwise it is stored as null. Import still stores the URL the user typed. Extra recipes do not count against parent `maxCookMinutes`.
 
-Brief (`src/household/brief.ts`) includes people, diet, notes, allergies, avoidances, enabled kitchen items, expertise/involved/time, per-slot diets, requested slots, use-ingredients, servings, extra rules (do-not-repeat).
+Brief (`src/household/brief.ts`) includes people, notes, allergies, avoidances, enabled kitchen items, expertise/involved/time, requested slots, use-ingredients, servings, extra rules (do-not-repeat). Diet lines come from Meals library-generate extraRules, not Household/Kitchen.
 
 ## Module map
 
