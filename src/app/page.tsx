@@ -26,8 +26,8 @@ export default async function HomePage({
     <div>
       <PageHeader
         eyebrow={weekRangeLabel(weekStart)}
-        title={plan.name.trim() || "Plans"}
-        lede="Build the week from your library. Mark takeout, copy leftovers, or fill empty slots."
+        title="Plans"
+        lede="Build the week from your library. Mark takeout, copy leftovers, or generate a meal plan."
       />
 
       <WeekSwitcher weekStart={weekStart} />

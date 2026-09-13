@@ -68,7 +68,7 @@ export function PlanSwitcher({
 
   async function onDelete() {
     if (!selected || !allowDelete) return;
-    if (!window.confirm("Delete this week? Recipes stay in the library.")) return;
+    if (!window.confirm("Delete this plan? Recipes stay in the library.")) return;
     setPending(true);
     try {
       const res = await fetch("/api/plans/delete", {
@@ -170,7 +170,7 @@ export function PlanSwitcher({
             disabled={pending}
             onClick={() => void onDelete()}
           >
-            Delete this week
+            Delete Plan
           </button>
         ) : null}
       </div>

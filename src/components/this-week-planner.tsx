@@ -75,7 +75,6 @@ export function ThisWeekPlanner({
   >(null);
   const [fillPending, setFillPending] = useState(false);
   const [allowRepeats, setAllowRepeats] = useState(false);
-  const [leftoverLunches, setLeftoverLunches] = useState(false);
   const [maxProtein, setMaxProtein] = useState(2);
   const [leftoverFrom, setLeftoverFrom] = useState<Meal | null>(null);
   const [pickerOpen, setPickerOpen] = useState(() => !plan);
@@ -131,7 +130,7 @@ export function ThisWeekPlanner({
           weekStart,
           planId: plan?.id,
           allowRepeats,
-          leftoverLunches,
+          leftoverLunches: false,
           maxProtein,
         }),
       });
@@ -199,7 +198,7 @@ export function ThisWeekPlanner({
             disabled={fillPending || fillRemaining === 0}
             onClick={() => void onFill()}
           >
-            {fillPending ? "Filling…" : "Fill empty slots"}
+            {fillPending ? "Generating…" : "Generate Meal Plan"}
           </button>
           {fillRemaining === 0 ? (
             <p className="m-0 text-sm text-herb">All selected slots are filled.</p>
@@ -210,28 +209,23 @@ export function ThisWeekPlanner({
               checked={allowRepeats}
               onChange={(event) => setAllowRepeats(event.target.checked)}
             />
-            Allow repeats
+            Allow Repeat Meals
           </label>
-          <label className="flex items-center gap-2 text-sm">
+          <label className="fill-toolbar-protein">
             <input
-              type="checkbox"
-              checked={leftoverLunches}
-              onChange={(event) => setLeftoverLunches(event.target.checked)}
-            />
-            Leftover lunches
-          </label>
-          <label className="field fill-toolbar-protein">
-            Repeat a Protein
-            <input
-              className="input"
+              className="input fill-toolbar-protein-input"
               type="number"
               min={0}
               max={21}
+              aria-label="Number of times to repeat a protein per week"
               value={maxProtein}
               onChange={(event) =>
                 setMaxProtein(Number(event.target.value) || 0)
               }
             />
+            <span className="text-sm">
+              Number of Times to Repeat a Protein per Week
+            </span>
           </label>
         </div>
       ) : (

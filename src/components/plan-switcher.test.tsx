@@ -35,7 +35,7 @@ describe("PlanSwitcher", () => {
     expect(screen.getByText(/aug 31–sep 6, 2026/i)).toBeTruthy();
     expect(screen.queryByRole("link", { name: /aug 10–16, 2026/i })).toBeNull();
     expect(
-      screen.getByRole("button", { name: "Delete this week" }),
+      screen.getByRole("button", { name: "Delete Plan" }),
     ).toBeTruthy();
   });
 
@@ -56,6 +56,6 @@ describe("PlanSwitcher", () => {
         homeHref="/shopping-list"
       />,
     );
-    expect(screen.queryByRole("button", { name: "Delete this week" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Delete Plan" })).toBeNull();
   });
 });

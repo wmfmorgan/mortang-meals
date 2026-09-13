@@ -512,18 +512,24 @@ a.badge-link:hover {
 }
 
 .fill-toolbar-protein {
-  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: auto;
+  max-width: 100%;
+}
+
+.fill-toolbar-protein-input {
+  width: 3.25rem;
+  flex-shrink: 0;
+  text-align: center;
 }
 
 @media (min-width: 640px) {
   .fill-toolbar {
     flex-direction: row;
     flex-wrap: wrap;
-    align-items: flex-end;
-  }
-
-  .fill-toolbar-protein {
-    width: 11rem;
+    align-items: center;
   }
 }
 

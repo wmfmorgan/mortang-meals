@@ -121,7 +121,7 @@ Generation UX is global (`GenerationProvider` in `AppShell`): NDJSON stream in t
 
 ### Plans (library planner)
 
-Plans **does not** call the model. Empty cell → library flyout (`POST /api/place`) or **Takeout** (`POST /api/takeout`). **Leftovers** copies a cooked cell onto another (`POST /api/leftover`, shopping list skips leftover and takeout rows). Lunch/dinner cards **Add side** / **Add dessert** open the library flyout for that type. **Fill empty slots** (`POST /api/fill`) picks from the saved library: slot match, allergen skip, unique titles unless allow-repeats, protein cap per breakfast/lunch/dinner row (default 2, from ingredient names), leftover-lunches optional. Pins lock a cell against fill. Week switcher (`POST /api/plans/open`) is one plan per Monday; edits save immediately.
+Plans **does not** call the model. Empty cell → library flyout (`POST /api/place`) or **Takeout** (`POST /api/takeout`). **Leftovers** copies a cooked cell onto another (`POST /api/leftover`, shopping list skips leftover and takeout rows). Lunch/dinner cards **Add side** / **Add dessert** open the library flyout for that type. **Generate Meal Plan** (`POST /api/fill`) picks from the saved library: slot match, allergen skip, unique titles unless allow-repeat-meals, protein cap per breakfast/lunch/dinner row (default 2, from ingredient names). Pins lock a cell against fill. Week switcher (`POST /api/plans/open`) is one plan per Monday; edits save immediately.
 
 ### Generate
 
