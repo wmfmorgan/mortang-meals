@@ -55,16 +55,17 @@ const meal: Meal = {
 };
 
 describe("MealsCatalog", () => {
-  it("shows the catalog first and parks generate behind Add to library", () => {
+  it("puts Add to library above search and parks generate behind it", () => {
     render(
       <MealsCatalog meals={[meal]} servings={2} currentPlanId={null} />,
     );
-    expect(screen.getByRole("button", { name: /lemon herb salmon/i })).toBeTruthy();
-    expect(screen.getByLabelText("Search")).toBeTruthy();
+    const add = screen.getByRole("button", { name: "Add to library" });
+    const search = screen.getByLabelText("Search");
+    expect(add.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(
       screen.queryByRole("heading", { name: "Generate library" }),
     ).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Add to library" }));
+    fireEvent.click(add);
     expect(screen.getByRole("heading", { name: "Generate library" })).toBeTruthy();
     expect(
       screen.getByRole("link", { name: "Add recipe" }).getAttribute("href"),
@@ -94,7 +95,7 @@ describe("MealsCatalog", () => {
     expect(screen.getByRole("option", { name: "none" })).toBeTruthy();
   });
 
-  it("shows drafts above the catalog when they exist", () => {
+  it("shows drafts below Add to library and above search", () => {
     const draft: Meal = {
       ...meal,
       id: "draft-chili",
@@ -120,7 +121,16 @@ describe("MealsCatalog", () => {
         currentPlanId={null}
       />,
     );
-    expect(screen.getByText("Review before they join the library")).toBeTruthy();
+    const add = screen.getByRole("button", { name: "Add to library" });
+    const draftsHeading = screen.getByText("Review before they join the library");
+    const search = screen.getByLabelText("Search");
+    expect(
+      add.compareDocumentPosition(draftsHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      draftsHeading.compareDocumentPosition(search) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(screen.getByRole("button", { name: "Approve" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Reject" })).toBeTruthy();
     expect(screen.getByText("Draft chili")).toBeTruthy();
