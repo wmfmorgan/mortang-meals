@@ -98,19 +98,18 @@ describe("MealsCatalog", () => {
     expect(screen.queryByText("Add recipe")).toBeNull();
   });
 
-  it("keeps catalog meal-type sections expanded and collapsible with a clear control", () => {
+  it("keeps catalog meal-type sections expanded and collapsible with a chevron control", () => {
     render(
       <MealsCatalog meals={[meal]} servings={2} currentPlanId={null} />,
     );
-    const dinner = screen.getByRole("button", { name: /collapse dinner/i });
+    const dinner = screen.getByRole("button", { name: /^dinner$/i });
     expect(dinner.getAttribute("aria-expanded")).toBe("true");
+    expect(dinner.querySelector(".collapsible-chevron.is-open")).toBeTruthy();
     expect(screen.getByRole("button", { name: /lemon herb salmon/i })).toBeTruthy();
     fireEvent.click(dinner);
-    expect(
-      screen.getByRole("button", { name: /expand dinner/i }).getAttribute(
-        "aria-expanded",
-      ),
-    ).toBe("false");
+    expect(dinner.getAttribute("aria-expanded")).toBe("false");
+    expect(dinner.querySelector(".collapsible-chevron.is-open")).toBeNull();
+    expect(dinner.querySelector(".collapsible-chevron")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /lemon herb salmon/i })).toBeNull();
   });
 

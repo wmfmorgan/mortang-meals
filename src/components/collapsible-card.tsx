@@ -57,7 +57,6 @@ export function CollapsibleCard({
         }
         aria-expanded={open}
         aria-controls={panelId}
-        aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
         onClick={() => setOpen((current) => !current)}
       >
         <span className="collapsible-toggle-label">
