@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import { sql } from "drizzle-orm";
 import postgres from "postgres";
+import { resolveDatabaseUrl } from "./db-url";
 import * as schema from "./schema";
 
 export type AppDb = ReturnType<typeof drizzle<typeof schema>>;
@@ -8,23 +9,10 @@ export type AppDb = ReturnType<typeof drizzle<typeof schema>>;
 let client: ReturnType<typeof postgres> | null = null;
 let db: AppDb | null = null;
 
-function resolveDatabaseUrl(): string {
-  // Vercel + Supabase Marketplace injects POSTGRES_URL / POSTGRES_PRISMA_URL.
-  const url =
-    process.env.DATABASE_URL ||
-    process.env.POSTGRES_PRISMA_URL ||
-    process.env.POSTGRES_URL;
-  if (!url) {
-    throw new Error(
-      "DATABASE_URL is not set (also checked POSTGRES_PRISMA_URL / POSTGRES_URL)",
-    );
-  }
-  return url;
-}
-
 export function getDb(): AppDb {
   if (db) return db;
-  client = postgres(resolveDatabaseUrl(), { prepare: false, max: 5 });
+  // max: 1 — serverless; transaction pooler + few clients avoids EMAXCONNSESSION.
+  client = postgres(resolveDatabaseUrl(), { prepare: false, max: 1 });
   db = drizzle(client, { schema });
   return db;
 }
