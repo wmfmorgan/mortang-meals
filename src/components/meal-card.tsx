@@ -269,79 +269,66 @@ export function CloseIcon() {
   );
 }
 
+/** Lucide `salad` — https://lucide.dev/icons/salad */
 export function SideIcon() {
-  // Baked potato with split top and a pat of butter.
   return (
     <svg
       aria-hidden="true"
-      viewBox="0 0 20 20"
+      viewBox="0 0 24 24"
       width="18"
       height="18"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.55"
+      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <ellipse cx="10" cy="11.2" rx="6.4" ry="4.6" />
-      <path d="M5.2 10.2c1.1-1.4 2.8-2.2 4.8-2.2s3.7.8 4.8 2.2" />
-      <path d="M7.4 9.4 10 6.6l2.6 2.8" />
-      <rect
-        x="8.35"
-        y="7.35"
-        width="3.3"
-        height="2.1"
-        rx="0.45"
-        fill="currentColor"
-        stroke="none"
-        opacity="0.85"
-      />
+      <path d="M7 21h10" />
+      <path d="M12 21a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9Z" />
+      <path d="M11.38 12a2.4 2.4 0 0 1-.4-4.77 2.4 2.4 0 0 1 3.2-2.77 2.4 2.4 0 0 1 3.47-.63 2.4 2.4 0 0 1 3.37 3.37 2.4 2.4 0 0 1-1.1 3.7 2.51 2.51 0 0 1 .03 1.1" />
+      <path d="m13 12 4-4" />
+      <path d="M10.9 7.25A3.99 3.99 0 0 0 4 10c0 .73.2 1.41.54 2" />
     </svg>
   );
 }
 
+/** Lucide `ice-cream-cone` — https://lucide.dev/icons/ice-cream-cone */
 export function DessertIcon() {
-  // Wedge of pie on a plate.
   return (
     <svg
       aria-hidden="true"
-      viewBox="0 0 20 20"
+      viewBox="0 0 24 24"
       width="18"
       height="18"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.55"
+      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <path d="M3.8 15.6c1.6.9 3.7 1.4 6.2 1.4s4.6-.5 6.2-1.4" />
-      <path d="M10 4.2 4.6 14.4h10.8L10 4.2z" />
-      <path d="M10 4.2v10.2" />
-      <path d="M6.6 10.8c.7-.4 1.5-.6 2.2-.6" />
-      <circle cx="8.2" cy="9.1" r="0.55" fill="currentColor" stroke="none" />
+      <path d="m7 11 4.08 10.35a1 1 0 0 0 1.84 0L17 11" />
+      <path d="M17 7A5 5 0 0 0 7 7" />
+      <path d="M17 7a2 2 0 0 1 0 4H7a2 2 0 0 1 0-4" />
     </svg>
   );
 }
 
+/** Lucide `paper-bag` — https://lucide.dev/icons/paper-bag */
 export function LeftoversIcon() {
-  // Chinese takeout box with wire handle.
   return (
     <svg
       aria-hidden="true"
-      viewBox="0 0 20 20"
+      viewBox="0 0 24 24"
       width="18"
       height="18"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.55"
+      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <path d="M5.2 7.4 4 16.2h12L14.8 7.4z" />
-      <path d="M4.6 7.4h10.8" />
-      <path d="M6.4 7.4 8.1 4.6h3.8L13.6 7.4" />
-      <path d="M7.6 4.6c0-1.5 1.1-2.4 2.4-2.4s2.4.9 2.4 2.4" />
-      <path d="M7.2 10.2h5.6M6.8 12.8h6.4" />
+      <path d="M5.364 3.848C4 6 3 9.652 3 12.652V19a2 2 0 002 2h14a2 2 0 002-2v-5c0-2.334-1.816-4.668-2.622-7.002" />
+      <path d="M7 3h11.379a2 2 0 011.789 1.106l.723 1.447A1 1 0 0119.997 7h-8.525a2 2 0 01-1.789-1.106L8.79 4.105a2 2 0 10-3.579 1.789l2.261 4.522A5 5 0 018 12.652V21" />
     </svg>
   );
 }
