@@ -49,7 +49,7 @@ export function MealDetail({
   meal?: Meal;
   servings: string;
   canSwap: boolean;
-  eyebrow: string;
+  eyebrow?: string;
   mode?: "edit" | "create";
 }) {
   const creating = mode === "create";
@@ -268,17 +268,23 @@ export function MealDetail({
 
   return (
     <>
-      <PageHeader
-        eyebrow={eyebrow}
-        title={
-          <span className="inline-flex items-center gap-2">
-            {meal ? <MealBadges meal={meal} /> : null}
-            {creating ? "Add recipe" : editing ? "Edit recipe" : source.title}
-          </span>
-        }
-        lede={editing ? undefined : source.whyItFits}
-        action={actions}
-      />
+      {creating ? (
+        <div className="no-print mb-4 flex flex-wrap items-center justify-end gap-2">
+          {actions}
+        </div>
+      ) : (
+        <PageHeader
+          eyebrow={eyebrow}
+          title={
+            <span className="inline-flex items-center gap-2">
+              {meal ? <MealBadges meal={meal} /> : null}
+              {editing ? "Edit recipe" : source.title}
+            </span>
+          }
+          lede={editing ? undefined : source.whyItFits}
+          action={actions}
+        />
+      )}
       {error ? (
         <p role="alert" className="alert mb-6">
           {error}

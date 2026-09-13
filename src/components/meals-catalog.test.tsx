@@ -55,34 +55,59 @@ const meal: Meal = {
 };
 
 describe("MealsCatalog", () => {
-  it("shows generate always and keeps import/manual cards collapsed", () => {
+  it("collapses generate/import/manual by default and uses the new titles", () => {
     render(
       <MealsCatalog meals={[meal]} servings={2} currentPlanId={null} />,
     );
-    expect(screen.getByRole("heading", { name: "Generate library" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Generate Meals with AI" }).getAttribute(
+        "aria-expanded",
+      ),
+    ).toBe("false");
+    expect(
+      screen
+        .getByRole("button", { name: "Import Recipe from URL" })
+        .getAttribute("aria-expanded"),
+    ).toBe("false");
+    expect(
+      screen
+        .getByRole("button", { name: "Manually Add a Recipe" })
+        .getAttribute("aria-expanded"),
+    ).toBe("false");
+    expect(screen.queryByLabelText("Recipe URL")).toBeNull();
+    expect(screen.queryByText("New recipe")).toBeNull();
+    expect(screen.queryByText("Add recipe")).toBeNull();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Generate Meals with AI" }),
+    );
     expect(
       screen.getByRole("button", { name: "Generate Meal Drafts" }),
     ).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Import from URL" }).getAttribute(
-        "aria-expanded",
-      ),
-    ).toBe("false");
-    expect(
-      screen.getByRole("button", { name: "Manually Add a Recipe" }).getAttribute(
-        "aria-expanded",
-      ),
-    ).toBe("false");
-    expect(screen.queryByLabelText("Recipe URL")).toBeNull();
-    expect(screen.queryByRole("link", { name: "Add recipe" })).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Import from URL" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Import Recipe from URL" }),
+    );
     expect(screen.getByLabelText("Recipe URL")).toBeTruthy();
 
     fireEvent.click(
       screen.getByRole("button", { name: "Manually Add a Recipe" }),
     );
-    expect(screen.getByText("New recipe")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
+    expect(screen.queryByText("New recipe")).toBeNull();
+    expect(screen.queryByText("Add recipe")).toBeNull();
+  });
+
+  it("keeps catalog meal-type sections expanded and collapsible", () => {
+    render(
+      <MealsCatalog meals={[meal]} servings={2} currentPlanId={null} />,
+    );
+    const dinner = screen.getByRole("button", { name: /^dinner$/i });
+    expect(dinner.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: /lemon herb salmon/i })).toBeTruthy();
+    fireEvent.click(dinner);
+    expect(dinner.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("button", { name: /lemon herb salmon/i })).toBeNull();
   });
 
   it("opens the recipe flyout instead of linking the card to the detail page", () => {
@@ -134,7 +159,9 @@ describe("MealsCatalog", () => {
         currentPlanId={null}
       />,
     );
-    const generate = screen.getByRole("heading", { name: "Generate library" });
+    const generate = screen.getByRole("button", {
+      name: "Generate Meals with AI",
+    });
     const draftsHeading = screen.getByText("Review before they join the library");
     const search = screen.getByLabelText("Search");
     expect(

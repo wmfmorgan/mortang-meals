@@ -138,7 +138,7 @@ Do not revive “save a brand-new plan on every generate.” Pins and the librar
 
 ### Library generate
 
-Meals tab, not Plans. `LibraryGenerateForm` (Generate Meal Drafts + inline progress) → collapsible Import from URL → collapsible Manually Add a Recipe → Drafts queue → search/catalog.
+Meals tab, not Plans. Collapsible **Generate Meals with AI** (collapsed by default; Generate Meal Drafts + inline progress) → **Import Recipe from URL** → **Manually Add a Recipe** → Drafts → search/catalog. Slot/date catalog groups are collapsible (expanded by default).
 
 Two modes, XOR: **Batch** (per-type on, count 1–12, diet, extra avoidances) or **One recipe** (`I need a recipe for…` plus that type’s diet/avoidances). Types: breakfast, lunch, dinner, side, dessert. Cap 24 recipes per batch. People checkboxes required; selected people’s **allergies stay hard**. Form diet and avoidances **override** Household/Kitchen diet, per-slot kitchen diets, and people’s household avoidances for that run. Form avoidances are hard excludes (same allergen substring check). Dessert uses multi-select criteria (default low-sugar, gluten-free, dairy-free; also nut-free, egg-free, refined-sugar-free, keto) as prompt rules and hard ingredient excludes. Kitchen appliances, expertise, involved, and `maxCookMinutes` still apply. `buildHouseholdBrief({ forLibrary: true })`.
 

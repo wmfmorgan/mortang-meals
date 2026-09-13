@@ -208,17 +208,14 @@ describe("MealDetail steps", () => {
 });
 
 describe("MealDetail create", () => {
-  it("starts in the add-recipe form without print or delete", () => {
+  it("starts in the create form without print, delete, or Add/New recipe titles", () => {
     render(
-      <MealDetail
-        mode="create"
-        servings="Serves 2"
-        canSwap={false}
-        eyebrow="New recipe"
-      />,
+      <MealDetail mode="create" servings="Serves 2" canSwap={false} />,
     );
 
-    expect(screen.getByRole("heading", { name: /add recipe/i })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: /add recipe/i })).toBeNull();
+    expect(screen.queryByText("New recipe")).toBeNull();
+    expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
     expect(screen.getByLabelText(/^title$/i)).toBeTruthy();
     expect(screen.getByLabelText(/^meal$/i)).toBeTruthy();
     const mealSelect = screen.getByLabelText(/^meal$/i) as HTMLSelectElement;
@@ -248,12 +245,7 @@ describe("MealDetail create", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(
-      <MealDetail
-        mode="create"
-        servings="Serves 2"
-        canSwap={false}
-        eyebrow="New recipe"
-      />,
+      <MealDetail mode="create" servings="Serves 2" canSwap={false} />,
     );
 
     fireEvent.change(screen.getByLabelText(/^title$/i), {

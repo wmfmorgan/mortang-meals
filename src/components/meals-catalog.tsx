@@ -69,9 +69,11 @@ export function MealsCatalog({
 
   return (
     <div className="space-y-6">
-      <LibraryGenerateForm people={people} />
+      <CollapsibleCard title="Generate Meals with AI">
+        <LibraryGenerateForm people={people} />
+      </CollapsibleCard>
 
-      <CollapsibleCard title="Import from URL">
+      <CollapsibleCard title="Import Recipe from URL">
         <form className="space-y-3" onSubmit={onImport}>
           <p className="mt-0 text-sm text-herb">
             Grok reads the page and saves it as a normal meal, with a link back
@@ -113,12 +115,7 @@ export function MealsCatalog({
       </CollapsibleCard>
 
       <CollapsibleCard title="Manually Add a Recipe">
-        <MealDetail
-          mode="create"
-          servings={`Serves ${servings}`}
-          canSwap={false}
-          eyebrow="New recipe"
-        />
+        <MealDetail mode="create" servings={`Serves ${servings}`} canSwap={false} />
       </CollapsibleCard>
 
       {drafts.length > 0 ? (
@@ -184,9 +181,8 @@ export function MealsCatalog({
       {groups.length === 0 ? (
         <p className="text-sm text-herb">No meals match those filters.</p>
       ) : (
-        groups.map((group) => (
-          <section key={group.key} className="space-y-3">
-            {group.label ? <h2 className="page-eyebrow">{group.label}</h2> : null}
+        groups.map((group) => {
+          const grid = (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {group.meals.map((meal) => (
                 <article
@@ -220,8 +216,25 @@ export function MealsCatalog({
                 </article>
               ))}
             </div>
-          </section>
-        ))
+          );
+          if (!group.label) {
+            return (
+              <section key={group.key} className="space-y-3">
+                {grid}
+              </section>
+            );
+          }
+          return (
+            <CollapsibleCard
+              key={group.key}
+              title={group.label}
+              defaultOpen
+              tone="section"
+            >
+              {grid}
+            </CollapsibleCard>
+          );
+        })
       )}
 
       {openMeal ? (

@@ -216,13 +216,10 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
   }
 
   return (
-    <form className="surface space-y-4 p-5" onSubmit={(event) => void onSubmit(event)}>
-      <h2 className="mt-0 mb-1 text-xl font-medium tracking-[-0.03em]">
-        Generate library
-      </h2>
+    <form className="space-y-4" onSubmit={(event) => void onSubmit(event)}>
       <p className="mt-0 text-sm text-herb">
         Drafts land in a queue below. Approve to keep them; reject to delete.
-        Diet and avoidances here override Household and Kitchen for this run.
+        Diet and avoidances here apply only to this run.
       </p>
       <div className="meal-extra-toggle" role="group" aria-label="Generate mode">
         <button
