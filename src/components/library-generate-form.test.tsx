@@ -112,7 +112,7 @@ describe("LibraryGenerateForm", () => {
 
   it("lets you override servings next to people", async () => {
     render(<LibraryGenerateForm people={[alex]} />);
-    fireEvent.change(screen.getByLabelText("Servings"), {
+    fireEvent.change(screen.getByLabelText("Servings Override"), {
       target: { value: "4" },
     });
     fireEvent.change(screen.getByPlaceholderText("or type your own"), {

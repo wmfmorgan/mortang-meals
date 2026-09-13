@@ -1093,6 +1093,32 @@ a.badge-link:hover {
   gap: 0.75rem;
 }
 
+.library-people-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+}
+
+.library-people-checks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+
+.library-servings-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.library-servings-field .input {
+  width: 3.25rem;
+  text-align: center;
+}
+
 .nav-job-inline {
   position: relative;
 }

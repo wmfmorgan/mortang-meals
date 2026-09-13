@@ -113,11 +113,12 @@ describe("MealsCatalog", () => {
     expect(screen.queryByRole("button", { name: /lemon herb salmon/i })).toBeNull();
   });
 
-  it("opens the recipe flyout instead of linking the card to the detail page", () => {
+  it("shows servings on catalog cards and opens the recipe flyout", () => {
     render(
       <MealsCatalog meals={[meal]} servings={2} currentPlanId={null} />,
     );
 
+    expect(screen.getByText("Servings: 2")).toBeTruthy();
     expect(
       screen.queryByRole("link", { name: /lemon herb salmon/i }),
     ).toBeNull();

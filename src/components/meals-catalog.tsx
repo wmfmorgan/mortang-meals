@@ -202,6 +202,7 @@ export function MealsCatalog({
                     <p className="meal-meta">
                       {meal.slot} · {meal.cookMinutes} min · {meal.method}
                     </p>
+                    <p className="meal-meta">Servings: {servings}</p>
                     <p className="meal-why">{meal.whyItFits}</p>
                     <p className="meal-meta">{mealDate(meal)}</p>
                   </button>

@@ -257,8 +257,8 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
         {people.length === 0 ? (
           <p className="m-0 text-sm text-herb">Add people on Household first.</p>
         ) : (
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="flex flex-wrap gap-3">
+          <div className="library-people-row">
+            <div className="library-people-checks">
               {people.map((person) => (
                 <label
                   key={person.id}
@@ -278,13 +278,14 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
                 </label>
               ))}
             </div>
-            <label className="field fill-toolbar-protein">
+            <label className="library-servings-field">
+              <span className="text-sm">Servings Override</span>
               <input
-                className="input fill-toolbar-protein-input"
+                className="input"
                 type="number"
                 min={1}
                 max={24}
-                aria-label="Servings"
+                aria-label="Servings Override"
                 value={form.servings}
                 onChange={(event) =>
                   persist({
@@ -293,7 +294,6 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
                   })
                 }
               />
-              <span className="text-sm">Servings</span>
             </label>
           </div>
         )}
