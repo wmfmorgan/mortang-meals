@@ -113,7 +113,7 @@ Generation UX is global (`GenerationProvider` in `AppShell`): NDJSON stream in t
 
 **Slot mask** — which of the 21 cells are requested. Default: all dinners on (`defaultSlotMask`). Also session-backed (`mortang.slotMask`). Pinned slots are treated as locked in the picker (`maskMinusPinned`, `toggleSlot` / `toggleDay` / `toggleMealRow`).
 
-**Settings** — `mode: grok | custom`, `baseUrl` (default `https://api.x.ai/v1`), `model` (default `grok-4.6`), optional `customApiKey`, `developerTools`, `webSearch`. API responses expose `customApiKey` as a boolean only.
+**Settings** — Global provider config (`app_settings`): `mode: grok | custom`, `baseUrl` (default `https://api.x.ai/v1`), `model` (default `grok-4.6`), optional `customApiKey`, `webSearch`. Per-household: `developerTools` only. API responses expose `customApiKey` as a boolean only.
 
 **AI trace** — kind `generate | generate-retry | swap | swap-retry | extra | extra-retry | library | library-retry | test`, request/response text, validation `ok | invalid-json | schema | allergen | duplicate | transport`. Import is **not** traced today.
 
