@@ -33,7 +33,7 @@ afterAll(async () => {
 });
 
 describe("settings repo", () => {
-  it("defaults web search to off and persists the toggle", async () => {
+  it("defaults web search to off and persists the toggle globally", async () => {
     expect((await getSettings(ident.householdId)).webSearch).toBe(false);
     expect((await saveSettings(ident.householdId, { webSearch: true })).webSearch).toBe(
       true,
@@ -44,12 +44,23 @@ describe("settings repo", () => {
     );
   });
 
-  it("two households have independent model", async () => {
+  it("shares provider settings across households but keeps developer tools local", async () => {
     const other = await createTestIdentity();
     extraUsers.push(other.userId);
-    await saveSettings(ident.householdId, { model: "grok-a" });
-    await saveSettings(other.householdId, { model: "grok-b" });
-    expect((await getSettings(ident.householdId)).model).toBe("grok-a");
-    expect((await getSettings(other.householdId)).model).toBe("grok-b");
+    await saveSettings(ident.householdId, {
+      model: "grok-shared",
+      webSearch: true,
+      developerTools: true,
+    });
+    await saveSettings(other.householdId, { developerTools: false });
+
+    const mine = await getSettings(ident.householdId);
+    const theirs = await getSettings(other.householdId);
+    expect(mine.model).toBe("grok-shared");
+    expect(theirs.model).toBe("grok-shared");
+    expect(mine.webSearch).toBe(true);
+    expect(theirs.webSearch).toBe(true);
+    expect(mine.developerTools).toBe(true);
+    expect(theirs.developerTools).toBe(false);
   });
 });

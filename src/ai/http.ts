@@ -585,6 +585,10 @@ export async function handlePutSettings(
 ): Promise<HttpResult> {
   const authed = await resolveHandlerAuth(deps?.auth);
   if (!authed.ok) return authed.result;
+  const { isAdminEmail } = await import("@/lib/admin");
+  if (!isAdminEmail(authed.email ?? null)) {
+    return jsonError(403, "Only the owner can change settings.");
+  }
   const parsed = settingsPatchSchema.safeParse(body);
   if (!parsed.success) {
     return jsonError(400, "Invalid settings.");

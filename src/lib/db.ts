@@ -24,6 +24,7 @@ export async function resetDbForTests(): Promise<void> {
       public.ai_usage,
       public.ai_traces,
       public.ai_settings,
+      public.app_settings,
       public.library_generate_prefs,
       public.meals,
       public.week_plans,

@@ -22,7 +22,7 @@ export default async function SettingsPage() {
       <PageHeader
         eyebrow="Provider"
         title="Settings"
-        lede="Grok by default. Point at any OpenAI-compatible local server when you want the kitchen offline."
+        lede="Provider settings apply to every household. Developer tools stay on for your account only."
       />
       <SettingsForm
         settings={{

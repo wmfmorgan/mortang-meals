@@ -84,7 +84,7 @@ Thin `src/app/api/*/route.ts` files parse JSON, resolve the session household, a
 | `/shopping-list` | Derived list for the open plan (`?plan=` supported). Not stored. |
 | `/household` | People, notes. Servings for AI drafts are set on Meals. |
 | `/kitchen` | Cook prefs + appliance/method checklist. |
-| `/settings` | Provider mode, base URL, model, optional custom key, web search toggle, developer tools. Nav + route limited to admin email. |
+| `/settings` | Global provider mode/URL/model/key/web search (all households). Developer tools is per-admin household. Nav + route limited to admin email. |
 | `/developer` | Last 25 AI traces. Admin email only, and only when developer tools is on. |
 
 Nav: Plans, Meals, Shopping list, Household, Kitchen, Settings, optional Developer (`src/components/nav.tsx`).

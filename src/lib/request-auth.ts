@@ -3,7 +3,11 @@ import { getHouseholdForUser } from "@/household/repo";
 import { createClient } from "@/lib/supabase/server";
 import type { Household } from "@/lib/types";
 
-export type Authed = { userId: string; householdId: string };
+export type Authed = {
+  userId: string;
+  householdId: string;
+  email?: string | null;
+};
 
 export type HttpResult = { status: number; body: unknown };
 
@@ -15,7 +19,8 @@ function jsonError(status: number, message: string): HttpResult {
 }
 
 export async function requireUser(): Promise<
-  { ok: true; userId: string } | { ok: false; result: HttpResult }
+  | { ok: true; userId: string; email: string | null }
+  | { ok: false; result: HttpResult }
 > {
   try {
     const supabase = await createClient();
@@ -24,14 +29,22 @@ export async function requireUser(): Promise<
     if (typeof userId !== "string" || userId.length === 0) {
       return { ok: false, result: jsonError(401, SIGN_IN) };
     }
-    return { ok: true, userId };
+    const email =
+      typeof data?.claims?.email === "string" ? data.claims.email : null;
+    return { ok: true, userId, email };
   } catch {
     return { ok: false, result: jsonError(401, SIGN_IN) };
   }
 }
 
 export async function requireHousehold(): Promise<
-  | { ok: true; userId: string; householdId: string; household: Household }
+  | {
+      ok: true;
+      userId: string;
+      householdId: string;
+      household: Household;
+      email: string | null;
+    }
   | { ok: false; result: HttpResult }
 > {
   const user = await requireUser();
@@ -45,13 +58,20 @@ export async function requireHousehold(): Promise<
     userId: user.userId,
     householdId: household.id,
     household,
+    email: user.email,
   };
 }
 
 export async function resolveHandlerAuth(
   auth?: Authed,
 ): Promise<
-  | { ok: true; userId: string; householdId: string; household: Household }
+  | {
+      ok: true;
+      userId: string;
+      householdId: string;
+      household: Household;
+      email: string | null;
+    }
   | { ok: false; result: HttpResult }
 > {
   if (auth) {
@@ -64,6 +84,7 @@ export async function resolveHandlerAuth(
       userId: auth.userId,
       householdId: household.id,
       household,
+      email: auth.email ?? null,
     };
   }
   return requireHousehold();

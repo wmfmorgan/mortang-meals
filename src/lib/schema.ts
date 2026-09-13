@@ -95,6 +95,7 @@ export const libraryGeneratePrefs = pgTable("library_generate_prefs", {
   json: jsonb("json").notNull(),
 });
 
+/** Per-household: developer tools only (provider config is global). */
 export const aiSettings = pgTable("ai_settings", {
   id: uuid("id").primaryKey().defaultRandom(),
   householdId: uuid("household_id").notNull().unique(),
@@ -103,6 +104,16 @@ export const aiSettings = pgTable("ai_settings", {
   model: text("model").notNull(),
   customApiKey: text("custom_api_key"),
   developerTools: boolean("developer_tools").notNull(),
+  webSearch: boolean("web_search").notNull(),
+});
+
+/** Singleton provider settings shared by every household. */
+export const appSettings = pgTable("app_settings", {
+  id: text("id").primaryKey(),
+  mode: text("mode").notNull(),
+  baseUrl: text("base_url").notNull(),
+  model: text("model").notNull(),
+  customApiKey: text("custom_api_key"),
   webSearch: boolean("web_search").notNull(),
 });
 
