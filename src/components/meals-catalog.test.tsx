@@ -98,15 +98,19 @@ describe("MealsCatalog", () => {
     expect(screen.queryByText("Add recipe")).toBeNull();
   });
 
-  it("keeps catalog meal-type sections expanded and collapsible", () => {
+  it("keeps catalog meal-type sections expanded and collapsible with a clear control", () => {
     render(
       <MealsCatalog meals={[meal]} servings={2} currentPlanId={null} />,
     );
-    const dinner = screen.getByRole("button", { name: /^dinner$/i });
+    const dinner = screen.getByRole("button", { name: /collapse dinner/i });
     expect(dinner.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("button", { name: /lemon herb salmon/i })).toBeTruthy();
     fireEvent.click(dinner);
-    expect(dinner.getAttribute("aria-expanded")).toBe("false");
+    expect(
+      screen.getByRole("button", { name: /expand dinner/i }).getAttribute(
+        "aria-expanded",
+      ),
+    ).toBe("false");
     expect(screen.queryByRole("button", { name: /lemon herb salmon/i })).toBeNull();
   });
 

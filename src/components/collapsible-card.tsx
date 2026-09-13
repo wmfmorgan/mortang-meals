@@ -2,6 +2,27 @@
 
 import { useId, useState, type ReactNode } from "react";
 
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      className={
+        open ? "collapsible-chevron is-open" : "collapsible-chevron"
+      }
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
 export function CollapsibleCard({
   title,
   children,
@@ -20,7 +41,11 @@ export function CollapsibleCard({
   return (
     <div
       className={
-        tone === "card" ? "surface overflow-hidden" : "space-y-3"
+        tone === "card"
+          ? "surface overflow-hidden"
+          : open
+            ? "space-y-3"
+            : "collapsible-section is-collapsed space-y-3"
       }
     >
       <button
@@ -32,20 +57,21 @@ export function CollapsibleCard({
         }
         aria-expanded={open}
         aria-controls={panelId}
+        aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
         onClick={() => setOpen((current) => !current)}
       >
-        <span
-          className={
-            tone === "card"
-              ? "text-xl font-medium tracking-[-0.03em]"
-              : "page-eyebrow"
-          }
-          style={tone === "section" ? { margin: 0 } : undefined}
-        >
-          {title}
-        </span>
-        <span className="collapsible-card-chevron" aria-hidden="true">
-          {open ? "▾" : "▸"}
+        <span className="collapsible-toggle-label">
+          <ChevronIcon open={open} />
+          <span
+            className={
+              tone === "card"
+                ? "text-xl font-medium tracking-[-0.03em]"
+                : "page-eyebrow"
+            }
+            style={tone === "section" ? { margin: 0 } : undefined}
+          >
+            {title}
+          </span>
         </span>
       </button>
       {open ? (

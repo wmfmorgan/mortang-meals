@@ -1043,24 +1043,47 @@ a.badge-link:hover {
   background: color-mix(in srgb, var(--color-linen) 55%, transparent);
 }
 
-.collapsible-card-chevron {
-  color: var(--color-herb);
-  font-size: 0.95rem;
+.collapsible-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.collapsible-chevron {
+  flex-shrink: 0;
+  color: var(--color-olive);
+  transition: transform 0.15s ease;
+  transform: rotate(-90deg);
+}
+
+.collapsible-chevron.is-open {
+  transform: rotate(0deg);
 }
 
 .collapsible-section-toggle {
   display: flex;
   width: 100%;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 0.5rem;
-  padding: 0;
+  padding: 0.35rem 0.15rem;
   border: 0;
+  border-radius: 0.4rem;
   background: transparent;
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.collapsible-section-toggle:hover {
+  background: color-mix(in srgb, var(--color-linen) 70%, transparent);
+}
+
+.collapsible-section.is-collapsed .collapsible-section-toggle {
+  border-bottom: 1px dashed var(--color-wheat);
+  padding-bottom: 0.55rem;
 }
 
 .library-generate-actions {
