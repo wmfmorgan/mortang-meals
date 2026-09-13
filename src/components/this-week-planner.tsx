@@ -100,7 +100,7 @@ export function ThisWeekPlanner({
     setPickerOpen(stored ?? !plan);
   }, [plan]);
 
-  const editable = !plan || plan.isCurrent;
+  const editable = true;
   const selectedMeal =
     selected && plan
       ? (plan.meals.find((meal) => meal.id === selected.mealId) ?? null)
@@ -166,17 +166,6 @@ export function ThisWeekPlanner({
     router.refresh();
   }
 
-  async function onEditThisWeek() {
-    if (!plan) return;
-    await fetch("/api/plans/open", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ weekStart: plan.weekStart }),
-    });
-    router.push("/");
-    router.refresh();
-  }
-
   return (
     <div className="space-y-6">
       <SlotPicker
@@ -190,58 +179,43 @@ export function ThisWeekPlanner({
           writeSlotPickerOpen(open);
         }}
       />
-      {editable ? (
-        <div className="fill-toolbar">
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={fillPending || fillRemaining === 0}
-            onClick={() => void onFill()}
-          >
-            {fillPending ? "Generating…" : "Generate Meal Plan"}
-          </button>
-          {fillRemaining === 0 ? (
-            <p className="m-0 text-sm text-herb">All selected slots are filled.</p>
-          ) : null}
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={allowRepeats}
-              onChange={(event) => setAllowRepeats(event.target.checked)}
-            />
-            Allow Repeat Meals
-          </label>
-          <label className="fill-toolbar-protein">
-            <input
-              className="input fill-toolbar-protein-input"
-              type="number"
-              min={0}
-              max={21}
-              aria-label="Number of times to repeat a protein per week"
-              value={maxProtein}
-              onChange={(event) =>
-                setMaxProtein(Number(event.target.value) || 0)
-              }
-            />
-            <span className="text-sm">
-              Number of Times to Repeat a Protein per Week
-            </span>
-          </label>
-        </div>
-      ) : (
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="m-0 text-sm text-herb">
-            This is an older plan. Open it to edit.
-          </p>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => void onEditThisWeek()}
-          >
-            Edit this plan
-          </button>
-        </div>
-      )}
+      <div className="fill-toolbar">
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={fillPending || fillRemaining === 0}
+          onClick={() => void onFill()}
+        >
+          {fillPending ? "Generating…" : "Generate Meal Plan"}
+        </button>
+        {fillRemaining === 0 ? (
+          <p className="m-0 text-sm text-herb">All selected slots are filled.</p>
+        ) : null}
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={allowRepeats}
+            onChange={(event) => setAllowRepeats(event.target.checked)}
+          />
+          Allow Repeat Meals
+        </label>
+        <label className="fill-toolbar-protein">
+          <input
+            className="input fill-toolbar-protein-input"
+            type="number"
+            min={0}
+            max={21}
+            aria-label="Number of times to repeat a protein per week"
+            value={maxProtein}
+            onChange={(event) =>
+              setMaxProtein(Number(event.target.value) || 0)
+            }
+          />
+          <span className="text-sm">
+            Number of Times to Repeat a Protein per Week
+          </span>
+        </label>
+      </div>
       {leftoverFrom ? (
         <p className="m-0 text-sm text-herb">
           Place leftovers of {leftoverFrom.title} on an empty cell.{" "}

@@ -154,7 +154,7 @@ Swap is not streamed. `SwapButton` (card, flyout, full recipe) opens a popover: 
 
 ### Pin
 
-`POST /api/pin` `{ pinned, mealId }` or `{ pinned, planId }` (exactly one id). Pinned meals survive generate. The slot picker locks those cells. Pin/replace/use-ingredient UI is only offered when the open plan is current (`editable = !plan || plan.isCurrent`).
+`POST /api/pin` `{ pinned, mealId }` or `{ pinned, planId }` (exactly one id). Pinned meals survive generate. The slot picker locks those cells. Any open plan is editable (pin / place / leftovers / extras / fill).
 
 ### Place from library
 
@@ -269,7 +269,7 @@ Household and kitchen writes are server actions (`src/app/household/actions.ts`,
 - Desktop Plans is a 7-column grid (days as columns, B/L/D as rows). Narrow viewports stack by day. Empty cells are dashed; on the current plan they open the library flyout.
 - Recipe cards are a flyout, not a navigation, except “Open full recipe”.
 - Star badge = web search. Arrow badge = stored `sourceUrl` (import or a cited generate/swap). “Source recipe” in the flyout and full recipe is the clickable link.
-- Historical plans are view-only for pin/place/use-ingredient/add-extra. Recipe extras stay clickable. Generate still targets the current plan.
+- Any open plan is editable. Week switcher includes Previous / Current week / Next. Library generate still targets drafts; AI week generate (if used) still merges onto the current plan.
 - Lunch/dinner cards show side and dessert lines. Only a full extra recipe is a flyout control.
 - Session slot mask, slot-picker open/closed, and use-ingredients survive in-tab navigation. On Plans the slot picker collapses to a summary when a plan exists (or after the user collapses it); setup wizard keeps the full table.
 

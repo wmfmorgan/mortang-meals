@@ -380,9 +380,8 @@ export async function placeExtra(
   if (source.draft) throw new Error("Meal not found");
   const parent = await getMeal(householdId, input.mealId);
   if (!parent) throw new Error("Meal not found");
-  const current = await getCurrentPlan(householdId);
-  if (!current || parent.planId !== current.id) {
-    throw new Error("Sides and desserts can only be added on this week.");
+  if (!parent.planId) {
+    throw new Error("Sides and desserts can only be added on a week plan.");
   }
   if (parent.slot !== "lunch" && parent.slot !== "dinner") {
     throw new Error("Breakfasts don’t have sides or desserts.");
@@ -847,16 +846,18 @@ export async function saveLeftoverMeal(
   const source = await getMeal(householdId, input.sourceMealId);
   if (!source) throw new Error("Meal not found");
   if (source.takeout) throw new Error("Takeout cannot be leftovers.");
-  const current = await getCurrentPlan(householdId);
-  if (!current || source.planId !== current.id) {
-    throw new Error("Leftovers can only be copied from this week.");
+  if (!source.planId) {
+    throw new Error("Leftovers can only be copied on a week plan.");
   }
+  const plan = await getPlan(householdId, source.planId);
+  if (!plan) throw new Error("Plan not found");
   return copyOntoPlan(householdId, {
     source,
     day: input.day,
     slot: input.slot,
     leftover: true,
-    weekStart: current.weekStart,
+    weekStart: plan.weekStart,
+    planId: plan.id,
   });
 }
 

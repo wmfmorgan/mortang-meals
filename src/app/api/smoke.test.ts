@@ -462,7 +462,7 @@ describe("API smoke path", () => {
     expect((deleted.body as { meal: Meal }).meal.extras.side).toBeNull();
   });
 
-  it("rejects extras on breakfast and on a historical plan", async () => {
+  it("rejects extras on breakfast and allows them on a historical plan", async () => {
     const breakfastMask = emptyMask();
     breakfastMask.monday.breakfast = true;
     const { complete: breakfastComplete } = fakeComplete([
@@ -517,10 +517,11 @@ describe("API smoke path", () => {
         }),
       }),
     );
-    expect(historicalResult.status).toBe(400);
-    expect((historicalResult.body as { message: string }).message).toMatch(
-      /this week/i,
-    );
+    expect(historicalResult.status).toBe(200);
+    expect(
+      (historicalResult.body as { meal: { extras: { dessert: { title: string } } } })
+        .meal.extras.dessert?.title,
+    ).toBe("Pie");
   });
 
   it("leaves a suggestion in place when upgrading the extra recipe fails", async () => {

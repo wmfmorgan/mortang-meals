@@ -380,9 +380,8 @@ export async function handleDeleteExtra(
   }
   const meal = await getMeal(session.householdId, parsed.data.mealId);
   if (!meal) return jsonError(404, "Meal not found.");
-  const current = await getCurrentPlan(session.householdId);
-  if (!current || meal.planId !== current.id) {
-    return jsonError(400, "Sides and desserts can only be changed on this week.");
+  if (!meal.planId) {
+    return jsonError(400, "Sides and desserts can only be changed on a week plan.");
   }
   return {
     status: 200,

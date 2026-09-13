@@ -386,9 +386,8 @@ export async function handleGenerateExtra(
   const meal = await getMeal(householdId, parsed.data.mealId);
   if (!meal) return jsonError(404, "Meal not found.");
 
-  const current = await getCurrentPlan(householdId);
-  if (!current || meal.planId !== current.id) {
-    return jsonError(400, "Sides and desserts can only be added on this week.");
+  if (!meal.planId) {
+    return jsonError(400, "Sides and desserts can only be added on a week plan.");
   }
   if (meal.slot === "breakfast") {
     return jsonError(400, "Breakfasts don’t have sides or desserts.");
@@ -410,8 +409,12 @@ export async function handleGenerateExtra(
   if (!quota.ok) return quota.result;
 
   await seedKitchenIfEmpty(householdId);
+  const plan = await getPlan(householdId, meal.planId);
+  if (!plan) {
+    return jsonError(400, "Sides and desserts can only be added on a week plan.");
+  }
   const reservedTitles = extraReservedTitles(
-    current.meals,
+    plan.meals,
     meal.id,
     parsed.data.kind,
   );
@@ -419,7 +422,7 @@ export async function handleGenerateExtra(
     household,
     kitchen: await listKitchen(householdId),
     prefs: await getKitchenPrefs(householdId),
-    slotMask: current.slotMask,
+    slotMask: plan.slotMask,
     parent: meal,
     kind: parsed.data.kind,
     mode: parsed.data.mode,

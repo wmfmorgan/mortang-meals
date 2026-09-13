@@ -2,11 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { shiftMonday } from "@/lib/week";
+import { mondayOf, shiftMonday } from "@/lib/week";
 
 export function WeekSwitcher({ weekStart }: { weekStart: string }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  const thisMonday = mondayOf(new Date());
+  const onCurrentWeek = weekStart === thisMonday;
 
   async function open(next: string) {
     setPending(true);
@@ -33,6 +35,14 @@ export function WeekSwitcher({ weekStart }: { weekStart: string }) {
         onClick={() => void open(shiftMonday(weekStart, -1))}
       >
         Previous week
+      </button>
+      <button
+        type="button"
+        className="btn btn-ghost"
+        disabled={pending || onCurrentWeek}
+        onClick={() => void open(thisMonday)}
+      >
+        Current week
       </button>
       <button
         type="button"
