@@ -107,7 +107,7 @@ Generation UX is global (`GenerationProvider` in `AppShell`): NDJSON stream in t
 
 **Library generate prefs** — one row (`id = default`) of JSON for the Meals generate form (mode, people, per-slot on/count/diet/avoidances). Not used as an AI input.
 
-**Meal extra** — nested on a lunch or dinner (`extras_json`). At most one `side` and one `dessert`, each a full library recipe attached with **Add side** / **Add dessert** (`POST /api/place-extra`). Breakfast never has extras. Generate sides and desserts on Meals like other recipes; Plans does not call the model for extras. Existing suggestion-only extras can still display until removed.
+**Meal extra** — nested on a lunch or dinner (`extras_json`). At most one `side` and one `dessert`, each a full library recipe attached via card icons / library flyout (`POST /api/place-extra`). Breakfast never has extras. Generate sides and desserts on Meals like other recipes; Plans does not call the model for extras. Existing suggestion-only extras can still display until removed.
 
 **UseIngredient** — `{ name, day, slot }`. Session-only (`sessionStorage` key `mortang.useIngredients`). Instructs generate/swap that that slot must feature that ingredient. Cleared after a successful generate.
 
@@ -121,7 +121,7 @@ Generation UX is global (`GenerationProvider` in `AppShell`): NDJSON stream in t
 
 ### Plans (library planner)
 
-Plans **does not** call the model. Empty cell → library flyout (`POST /api/place`) or **Takeout** (`POST /api/takeout`). **Leftovers** copies a cooked cell onto another (`POST /api/leftover`, shopping list skips leftover and takeout rows). Lunch/dinner cards **Add side** / **Add dessert** open the library flyout for that type. **Generate Meal Plan** (`POST /api/fill`) picks from the saved library: slot match, allergen skip, unique titles unless allow-repeat-meals, protein cap per breakfast/lunch/dinner row (default 2, from ingredient names). Pins lock a cell against fill. Week switcher (`POST /api/plans/open`) is one plan per Monday; edits save immediately.
+Plans **does not** call the model. Empty cell → library flyout (`POST /api/place`) or **Takeout** (`POST /api/takeout`). **Leftovers** (card icon) copies a cooked cell onto another (`POST /api/leftover`, shopping list skips leftover and takeout rows). Lunch/dinner cards show side/dessert titles in the body and bottom icons to choose/replace them. **Generate Meal Plan** (`POST /api/fill`) picks from the saved library: slot match, allergen skip, unique titles unless allow-repeat-meals, protein cap per breakfast/lunch/dinner row (default 2, from ingredient names). Pins lock a cell against fill. Week switcher (`POST /api/plans/open`) is one plan per Monday; edits save immediately.
 
 ### Generate
 
