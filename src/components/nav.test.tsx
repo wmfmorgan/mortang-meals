@@ -18,8 +18,9 @@ vi.mock("./generation-provider", () => ({
 describe("Nav", () => {
   afterEach(cleanup);
 
-  it("hides Developer when developerTools is false", () => {
-    render(<Nav developerTools={false} userEmail="alex@example.com" />);
+  it("hides Settings and Developer for non-admin users", () => {
+    render(<Nav developerTools={true} userEmail="alex@example.com" />);
+    expect(screen.queryByRole("link", { name: "Settings" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Developer" })).toBeNull();
     expect(screen.getByRole("link", { name: "Plans" }).getAttribute("href")).toBe(
       "/",
@@ -29,8 +30,20 @@ describe("Nav", () => {
     );
   });
 
-  it("shows a Developer link to /developer when developerTools is true", () => {
-    render(<Nav developerTools={true} userEmail="alex@example.com" />);
+  it("shows Settings for the admin email", () => {
+    render(
+      <Nav developerTools={false} userEmail="wfmorgan73@gmail.com" />,
+    );
+    expect(screen.getByRole("link", { name: "Settings" }).getAttribute("href")).toBe(
+      "/settings",
+    );
+    expect(screen.queryByRole("link", { name: "Developer" })).toBeNull();
+  });
+
+  it("shows Developer for the admin when developerTools is on", () => {
+    render(
+      <Nav developerTools={true} userEmail="wfmorgan73@gmail.com" />,
+    );
     const link = screen.getByRole("link", { name: "Developer" });
     expect(link.getAttribute("href")).toBe("/developer");
   });

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { isAdminEmail } from "@/lib/admin";
 import { GenerationStatus } from "./generation-status";
 
 type NavProps = {
@@ -9,13 +10,12 @@ type NavProps = {
   userEmail?: string | null;
 };
 
-const LINKS = [
+const BASE_LINKS = [
   { href: "/", label: "Plans" },
   { href: "/meals", label: "Meals" },
   { href: "/shopping-list", label: "Shopping list" },
   { href: "/household", label: "Household" },
   { href: "/kitchen", label: "Kitchen" },
-  { href: "/settings", label: "Settings" },
 ] as const;
 
 function isCurrent(pathname: string, href: string) {
@@ -32,6 +32,10 @@ function navClass(current: boolean) {
 export function Nav({ developerTools, userEmail }: NavProps) {
   const pathname = usePathname() ?? "/";
   const isLogin = pathname === "/login" || pathname.startsWith("/login/");
+  const admin = isAdminEmail(userEmail);
+  const links = admin
+    ? [...BASE_LINKS, { href: "/settings", label: "Settings" } as const]
+    : [...BASE_LINKS];
 
   return (
     <header className="no-print sticky top-0 z-50 border-b border-wheat bg-paper/90 backdrop-blur-md">
@@ -45,7 +49,7 @@ export function Nav({ developerTools, userEmail }: NavProps) {
         {isLogin ? null : (
           <div className="flex flex-wrap items-center justify-end gap-x-5 gap-y-2">
             <nav className="flex flex-wrap items-center gap-x-5 gap-y-2">
-              {LINKS.map((link) => {
+              {links.map((link) => {
                 const current = isCurrent(pathname, link.href);
                 return (
                   <Link
@@ -58,7 +62,7 @@ export function Nav({ developerTools, userEmail }: NavProps) {
                   </Link>
                 );
               })}
-              {developerTools ? (
+              {admin && developerTools ? (
                 <Link
                   href="/developer"
                   aria-current={pathname === "/developer" ? "page" : undefined}

@@ -1,10 +1,20 @@
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { getSettings } from "@/ai/settings-repo";
+import { isAdminEmail } from "@/lib/admin";
 import { requirePageHousehold } from "@/lib/request-auth";
+import { createClient } from "@/lib/supabase/server";
 import { SettingsForm } from "./settings-form";
 
 export default async function SettingsPage() {
   const { householdId } = await requirePageHousehold();
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const email =
+    typeof data?.claims?.email === "string" ? data.claims.email : null;
+  if (!isAdminEmail(email)) {
+    redirect("/");
+  }
   const settings = await getSettings(householdId);
 
   return (

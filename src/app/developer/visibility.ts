@@ -1,3 +1,8 @@
-export function canViewDeveloper(developerTools: boolean): boolean {
-  return developerTools;
+import { isAdminEmail } from "@/lib/admin";
+
+export function canViewDeveloper(
+  developerTools: boolean,
+  email?: string | null,
+): boolean {
+  return developerTools && isAdminEmail(email);
 }
