@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import {
   elapsedLabel,
   jobTitle,
@@ -31,11 +31,16 @@ function Spinner() {
   return <span className="nav-job-spinner" aria-hidden="true" />;
 }
 
-export function GenerationStatus() {
+export function GenerationStatus({
+  variant = "nav",
+}: {
+  variant?: "nav" | "inline";
+}) {
   const { state, cancel, dismiss } = useGeneration();
   const [now, setNow] = useState(() => Date.now());
   const [hovered, setHovered] = useState(false);
   const [pinned, setPinned] = useState(false);
+  const panelId = useId();
 
   useEffect(() => {
     if (state.status !== "running" || !state.startedAt) return;
@@ -75,7 +80,9 @@ export function GenerationStatus() {
 
   return (
     <div
-      className="nav-job no-print"
+      className={
+        variant === "inline" ? "nav-job nav-job-inline no-print" : "nav-job no-print"
+      }
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -90,7 +97,7 @@ export function GenerationStatus() {
           type="button"
           className="nav-job-toggle"
           aria-expanded={open}
-          aria-controls="nav-job-panel"
+          aria-controls={panelId}
           onClick={() => setPinned((current) => !current)}
         >
           {state.status === "running" ? <Spinner /> : null}
@@ -112,7 +119,7 @@ export function GenerationStatus() {
       </div>
       {open ? (
         <div
-          id="nav-job-panel"
+          id={panelId}
           className="nav-job-panel"
           role="region"
           aria-label={title}

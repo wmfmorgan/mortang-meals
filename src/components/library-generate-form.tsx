@@ -9,6 +9,7 @@ import {
   parseDessertCriteria,
   toggleDessertCriterion,
 } from "@/meals/dessert-criteria";
+import { GenerationStatus } from "./generation-status";
 import { useGeneration } from "./generation-provider";
 
 type SlotFields = {
@@ -364,20 +365,25 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
         );
       })}
 
-      <button
-        type="submit"
-        className="btn btn-primary"
-        disabled={
-          pending ||
-          people.length === 0 ||
-          form.personIds.length === 0 ||
-          (form.mode === "one"
-            ? !form.requestText.trim()
-            : !RECIPE_SLOTS.some((slot) => form[slot].on))
-        }
-      >
-        {pending && state.kind === "library" ? "Generating…" : "Generate drafts"}
-      </button>
+      <div className="library-generate-actions">
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={
+            pending ||
+            people.length === 0 ||
+            form.personIds.length === 0 ||
+            (form.mode === "one"
+              ? !form.requestText.trim()
+              : !RECIPE_SLOTS.some((slot) => form[slot].on))
+          }
+        >
+          {pending && state.kind === "library"
+            ? "Generating…"
+            : "Generate Meal Drafts"}
+        </button>
+        <GenerationStatus variant="inline" />
+      </div>
     </form>
   );
 }

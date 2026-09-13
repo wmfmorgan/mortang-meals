@@ -44,7 +44,7 @@ describe("LibraryGenerateForm", () => {
     fireEvent.change(screen.getByPlaceholderText("or type your own"), {
       target: { value: "italian" },
     });
-    fireEvent.submit(screen.getByRole("button", { name: "Generate drafts" }).closest("form")!);
+    fireEvent.submit(screen.getByRole("button", { name: "Generate Meal Drafts" }).closest("form")!);
     expect(startLibrary).toHaveBeenCalledWith({
       personIds: ["p1"],
       dinner: { count: 4, diet: "italian", avoidances: "" },
@@ -54,7 +54,7 @@ describe("LibraryGenerateForm", () => {
   it("fills diet from a preset choice", async () => {
     render(<LibraryGenerateForm people={[alex]} />);
     fireEvent.click(screen.getByRole("button", { name: "keto" }));
-    fireEvent.submit(screen.getByRole("button", { name: "Generate drafts" }).closest("form")!);
+    fireEvent.submit(screen.getByRole("button", { name: "Generate Meal Drafts" }).closest("form")!);
     expect(startLibrary).toHaveBeenCalledWith({
       personIds: ["p1"],
       dinner: { count: 4, diet: "keto", avoidances: "" },
@@ -67,7 +67,7 @@ describe("LibraryGenerateForm", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "side" }));
     fireEvent.click(screen.getByRole("button", { name: "keto" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "dessert" }));
-    fireEvent.submit(screen.getByRole("button", { name: "Generate drafts" }).closest("form")!);
+    fireEvent.submit(screen.getByRole("button", { name: "Generate Meal Drafts" }).closest("form")!);
     expect(startLibrary).toHaveBeenCalledWith({
       personIds: ["p1"],
       side: { count: 4, diet: "keto", avoidances: "" },
@@ -94,7 +94,7 @@ describe("LibraryGenerateForm", () => {
     fireEvent.change(screen.getByPlaceholderText("or type your own"), {
       target: { value: "italian" },
     });
-    fireEvent.submit(screen.getByRole("button", { name: "Generate drafts" }).closest("form")!);
+    fireEvent.submit(screen.getByRole("button", { name: "Generate Meal Drafts" }).closest("form")!);
     expect(startLibrary).toHaveBeenCalledWith({
       personIds: ["p1"],
       request: {

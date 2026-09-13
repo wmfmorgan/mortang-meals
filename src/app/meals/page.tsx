@@ -13,7 +13,7 @@ export default async function MealsPage() {
       <PageHeader
         eyebrow="Library"
         title="Meals"
-        lede="Add meals, approve drafts, then search the saved library."
+        lede="Generate or import drafts, type a recipe by hand, approve, then search the library."
       />
       <MealsCatalog
         meals={meals}

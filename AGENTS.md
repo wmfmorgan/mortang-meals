@@ -79,7 +79,7 @@ Thin `src/app/api/*/route.ts` files parse JSON, resolve the session household, a
 | `/setup` | First-run wizard: household → kitchen checklist → slot mask. Redirect target when there is no household or no named people. |
 | `/` Plans | Home. Week switcher, slot picker (cells to fill), fill-empty-slots from the library, takeout, leftovers, week grid, recipe flyout, library flyout. Labels are Monday–Sunday ranges. Visiting `/` with no `?plan=` opens this calendar week if the current plan is in the past. `?plan=` opens a historical plan. |
 | `/meals` | Library: generate drafts (batch or one recipe), approve/reject queue, then search / filter / group, import-from-URL, add-recipe. Catalog is unique by title. Saved meals can be rated 1–5 stars. |
-| `/meals/new` | Type a recipe into the library (same editor as `/meals/[id]`, create mode). |
+| `/meals/new` | Redirects to `/meals` (manual add is an inline collapsible card there). |
 | `/meals/[id]` | Full recipe editor (title, why, time, method, ingredients, steps). Swap only if the meal is on the current plan. |
 | `/shopping-list` | Derived list for the open plan (`?plan=` supported). Not stored. |
 | `/household` | People, notes, servings. |
@@ -138,7 +138,7 @@ Do not revive “save a brand-new plan on every generate.” Pins and the librar
 
 ### Library generate
 
-Meals tab, not Plans. `LibraryGenerateForm` at the top of `/meals` → Drafts queue → Add recipe / Import → saved catalog.
+Meals tab, not Plans. `LibraryGenerateForm` (Generate Meal Drafts + inline progress) → collapsible Import from URL → collapsible Manually Add a Recipe → Drafts queue → search/catalog.
 
 Two modes, XOR: **Batch** (per-type on, count 1–12, diet, extra avoidances) or **One recipe** (`I need a recipe for…` plus that type’s diet/avoidances). Types: breakfast, lunch, dinner, side, dessert. Cap 24 recipes per batch. People checkboxes required; selected people’s **allergies stay hard**. Form diet and avoidances **override** Household/Kitchen diet, per-slot kitchen diets, and people’s household avoidances for that run. Form avoidances are hard excludes (same allergen substring check). Dessert uses multi-select criteria (default low-sugar, gluten-free, dairy-free; also nut-free, egg-free, refined-sugar-free, keto) as prompt rules and hard ingredient excludes. Kitchen appliances, expertise, involved, and `maxCookMinutes` still apply. `buildHouseholdBrief({ forLibrary: true })`.
 
@@ -166,7 +166,7 @@ Meals page form → `POST /api/import` NDJSON stream. Always uses the Grok adapt
 
 ### Manual recipe
 
-Meals → Add recipe → `/meals/new` → `POST /api/create`. Same fields as edit plus a slot. Saved via `saveStandaloneMeal` (`planId ""`, no `sourceUrl`, `usedWebSearch false`). Not placed on the week until the user places it.
+Meals → Manually Add a Recipe (collapsible) → `POST /api/create`. Same fields as edit plus a slot. Saved via `saveStandaloneMeal` (`planId ""`, no `sourceUrl`, `usedWebSearch false`). Not placed on the week until the user places it. `/meals/new` redirects here.
 
 ### Edit / delete
 

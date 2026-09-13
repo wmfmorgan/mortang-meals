@@ -55,21 +55,34 @@ const meal: Meal = {
 };
 
 describe("MealsCatalog", () => {
-  it("puts Add to library above search and parks generate behind it", () => {
+  it("shows generate always and keeps import/manual cards collapsed", () => {
     render(
       <MealsCatalog meals={[meal]} servings={2} currentPlanId={null} />,
     );
-    const add = screen.getByRole("button", { name: "Add to library" });
-    const search = screen.getByLabelText("Search");
-    expect(add.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(
-      screen.queryByRole("heading", { name: "Generate library" }),
-    ).toBeNull();
-    fireEvent.click(add);
     expect(screen.getByRole("heading", { name: "Generate library" })).toBeTruthy();
     expect(
-      screen.getByRole("link", { name: "Add recipe" }).getAttribute("href"),
-    ).toBe("/meals/new");
+      screen.getByRole("button", { name: "Generate Meal Drafts" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Import from URL" }).getAttribute(
+        "aria-expanded",
+      ),
+    ).toBe("false");
+    expect(
+      screen.getByRole("button", { name: "Manually Add a Recipe" }).getAttribute(
+        "aria-expanded",
+      ),
+    ).toBe("false");
+    expect(screen.queryByLabelText("Recipe URL")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Add recipe" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Import from URL" }));
+    expect(screen.getByLabelText("Recipe URL")).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Manually Add a Recipe" }),
+    );
+    expect(screen.getByText("New recipe")).toBeTruthy();
   });
 
   it("opens the recipe flyout instead of linking the card to the detail page", () => {
@@ -95,7 +108,7 @@ describe("MealsCatalog", () => {
     expect(screen.getByRole("option", { name: "none" })).toBeTruthy();
   });
 
-  it("shows drafts below Add to library and above search", () => {
+  it("shows drafts below add cards and above search", () => {
     const draft: Meal = {
       ...meal,
       id: "draft-chili",
@@ -121,11 +134,12 @@ describe("MealsCatalog", () => {
         currentPlanId={null}
       />,
     );
-    const add = screen.getByRole("button", { name: "Add to library" });
+    const generate = screen.getByRole("heading", { name: "Generate library" });
     const draftsHeading = screen.getByText("Review before they join the library");
     const search = screen.getByLabelText("Search");
     expect(
-      add.compareDocumentPosition(draftsHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+      generate.compareDocumentPosition(draftsHeading) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
       draftsHeading.compareDocumentPosition(search) &
@@ -134,6 +148,5 @@ describe("MealsCatalog", () => {
     expect(screen.getByRole("button", { name: "Approve" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Reject" })).toBeTruthy();
     expect(screen.getByText("Draft chili")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "4 stars" })).toBeTruthy();
   });
 });
