@@ -26,7 +26,7 @@ export default async function HomePage({
     <div>
       <PageHeader
         eyebrow={weekRangeLabel(weekStart)}
-        title="Plans"
+        title="Weekly Plan"
         lede="Build the week from your library. Mark takeout, copy leftovers, or generate a meal plan."
       />
 

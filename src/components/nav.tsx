@@ -25,8 +25,8 @@ function isCurrent(pathname: string, href: string) {
 
 function navClass(current: boolean) {
   return current
-    ? "text-[0.95rem] font-medium text-ink no-underline shadow-[inset_0_-1px_0_0_var(--color-olive)]"
-    : "text-[0.95rem] text-herb no-underline hover:text-ink";
+    ? "rounded-lg bg-paper px-3 py-1.5 text-[0.8125rem] font-semibold text-primary no-underline shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
+    : "rounded-lg px-3 py-1.5 text-[0.8125rem] text-herb no-underline hover:bg-paper/70 hover:text-ink";
 }
 
 export function Nav({ developerTools, userEmail }: NavProps) {
@@ -38,17 +38,17 @@ export function Nav({ developerTools, userEmail }: NavProps) {
     : [...BASE_LINKS];
 
   return (
-    <header className="no-print sticky top-0 z-50 border-b border-wheat bg-paper/90 backdrop-blur-md">
-      <div className="mx-auto flex w-[min(1280px,calc(100%-2rem))] flex-wrap items-center justify-between gap-x-8 gap-y-3 py-3.5">
+    <header className="no-print sticky top-0 z-50 border-b border-wheat bg-paper">
+      <div className="mx-auto flex h-16 w-[min(1360px,calc(100%-2rem))] flex-wrap items-center justify-between gap-x-6 gap-y-2">
         <Link
           href={isLogin ? "/login" : "/"}
-          className="text-[1.15rem] font-medium tracking-[-0.04em] text-ink no-underline"
+          className="font-display text-[1.25rem] font-bold tracking-tight text-primary no-underline"
         >
-          Mortang <span className="text-olive">Meals</span>
+          Mortang Meals
         </Link>
         {isLogin ? null : (
-          <div className="flex flex-wrap items-center justify-end gap-x-5 gap-y-2">
-            <nav className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
+            <nav className="flex flex-wrap items-center gap-1 rounded-xl border border-wheat/60 bg-surface-low p-1">
               {links.map((link) => {
                 const current = isCurrent(pathname, link.href);
                 return (
@@ -75,11 +75,13 @@ export function Nav({ developerTools, userEmail }: NavProps) {
             <GenerationStatus />
             {userEmail ? (
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span className="text-sm text-herb">{userEmail}</span>
+                <span className="text-[0.65rem] font-medium tracking-wide text-herb">
+                  {userEmail}
+                </span>
                 <form action="/logout" method="post">
                   <button
                     type="submit"
-                    className="text-[0.95rem] text-herb hover:text-ink"
+                    className="text-[0.8125rem] text-herb hover:text-ink"
                   >
                     Log out
                   </button>

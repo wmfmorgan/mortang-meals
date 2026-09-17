@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Geist_Mono, Outfit } from "next/font/google";
+import { Geist, Space_Grotesk } from "next/font/google";
 import { getSettings } from "@/ai/settings-repo";
 import { AppShell } from "@/components/app-shell";
 import { getHouseholdForUser } from "@/household/repo";
@@ -8,14 +8,14 @@ import "./globals.css";
 
 export const dynamic = "force-dynamic";
 
-const outfit = Outfit({
+const geist = Geist({
   subsets: ["latin"],
-  variable: "--font-outfit",
+  variable: "--font-geist",
 });
 
-const geistMono = Geist_Mono({
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
-  variable: "--font-geist-mono",
+  variable: "--font-space",
 });
 
 export const metadata = {
@@ -46,7 +46,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   }
 
   return (
-    <html lang="en" className={`${outfit.variable} ${geistMono.variable}`}>
+    <html lang="en" className={`${geist.variable} ${spaceGrotesk.variable}`}>
       <body className="min-h-dvh bg-linen font-sans text-ink">
         <AppShell developerTools={developerTools} userEmail={userEmail}>
           {children}

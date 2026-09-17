@@ -28,30 +28,32 @@ export function WeekSwitcher({ weekStart }: { weekStart: string }) {
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2">
-      <button
-        type="button"
-        className="btn btn-ghost"
-        disabled={pending}
-        onClick={() => void open(shiftMonday(weekStart, -1))}
-      >
-        Previous week
-      </button>
-      <button
-        type="button"
-        className="btn btn-ghost"
-        disabled={pending || onCurrentWeek}
-        onClick={() => void open(thisMonday)}
-      >
-        Current week
-      </button>
-      <button
-        type="button"
-        className="btn btn-ghost"
-        disabled={pending}
-        onClick={() => void open(shiftMonday(weekStart, 1))}
-      >
-        Next week
-      </button>
+      <div className="flex items-center gap-1 rounded-xl border border-wheat/70 bg-surface-low p-1">
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={pending}
+          onClick={() => void open(shiftMonday(weekStart, -1))}
+        >
+          Previous week
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={pending || onCurrentWeek}
+          onClick={() => void open(thisMonday)}
+        >
+          Current week
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={pending}
+          onClick={() => void open(shiftMonday(weekStart, 1))}
+        >
+          Next week
+        </button>
+      </div>
     </div>
   );
 }
