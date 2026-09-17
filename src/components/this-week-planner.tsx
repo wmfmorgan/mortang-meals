@@ -180,7 +180,7 @@ export function ThisWeekPlanner({
           writeSlotPickerOpen(open);
         }}
       />
-      <div className="fill-toolbar">
+      <div className="fill-toolbar plans-command-deck">
         <button
           type="button"
           className="btn btn-primary"

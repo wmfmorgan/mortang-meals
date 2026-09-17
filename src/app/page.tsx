@@ -23,21 +23,22 @@ export default async function HomePage({
   const weekStart = plan.weekStart;
 
   return (
-    <div>
+    <div className="space-y-5">
       <PageHeader
         eyebrow={weekRangeLabel(weekStart)}
         title="Weekly Plan"
         lede="Build the week from your library. Mark takeout, copy leftovers, or generate a meal plan."
       />
 
-      <WeekSwitcher weekStart={weekStart} />
-
-      <PlanSwitcher
-        plans={plans}
-        selectedId={plan.id}
-        hrefPrefix="/?plan="
-        allowDelete
-      />
+      <section className="plans-command-deck surface space-y-3 p-4">
+        <WeekSwitcher weekStart={weekStart} />
+        <PlanSwitcher
+          plans={plans}
+          selectedId={plan.id}
+          hrefPrefix="/?plan="
+          allowDelete
+        />
+      </section>
 
       <ThisWeekPlanner
         plan={plan}

@@ -27,7 +27,7 @@ export function WeekSwitcher({ weekStart }: { weekStart: string }) {
   }
 
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <div className="flex items-center gap-1 rounded-xl border border-wheat/70 bg-surface-low p-1">
         <button
           type="button"

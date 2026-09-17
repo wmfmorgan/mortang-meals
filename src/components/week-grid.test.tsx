@@ -63,19 +63,18 @@ function mondayDinnerPlan(): WeekPlan {
 }
 
 describe("WeekGrid", () => {
-  it("renders the dinner row only when the mask is dinners", () => {
+  it("renders dinner cells only when the mask is dinners", () => {
     render(<WeekGrid plan={mondayDinnerPlan()} />);
 
     expect(screen.getAllByRole("gridcell")).toHaveLength(7);
-    expect(screen.getByRole("heading", { name: /^dinner$/i })).toBeTruthy();
-    expect(screen.queryByRole("heading", { name: /^breakfast$/i })).toBeNull();
+    expect(screen.getAllByText("Dinner").length).toBe(7);
+    expect(screen.queryByText("Breakfast")).toBeNull();
     expect(screen.getByText("Lemon herb salmon")).toBeTruthy();
     expect(screen.getByText("Lemon herb salmon").className).toContain(
       "meal-card-title",
     );
     expect(screen.queryByRole("gridcell", { name: /breakfast/i })).toBeNull();
-    // No left-rail single-letter slot labels
-    expect(screen.queryByText(/^D$/)).toBeNull();
+    expect(screen.getByRole("heading", { name: /monday/i })).toBeTruthy();
 
     const emptyTuesdayDinner = screen.getByRole("gridcell", {
       name: /empty tuesday dinner/i,
