@@ -32,7 +32,9 @@ import {
   setPlanPinned,
   updateMeal,
 } from "./repo";
+import { enrichMealImageUrl } from "./page-image";
 import {
+  applyWebSearchUrls,
   mealEditSchema,
   parseSingleMealResponse,
   singleMealJsonSchema,
@@ -498,7 +500,7 @@ export async function handleImportRecipe(
     {
       role: "system" as const,
       content:
-        "Read the recipe at the given URL. Return one meal as JSON only. Copy title, ingredients with string quantities, cook time, method, and steps from the page. Do not invent amounts when the page lists them.",
+        "Read the recipe at the given URL. Return one meal as JSON only. Copy title, ingredients with string quantities, cook time, method, and steps from the page. Do not invent amounts when the page lists them. Set imageUrl to a direct https URL of a photo of the finished dish from the page (hero / og:image), or null if none.",
     },
     {
       role: "user" as const,
@@ -532,8 +534,13 @@ export async function handleImportRecipe(
   deps?.onProgress?.({ phase: "saving", message: "Saving the meal" });
 
   try {
+    const imported = await enrichMealImageUrl(
+      applyWebSearchUrls(parsedMeal.meal, true),
+      true,
+      deps?.signal,
+    );
     const meal = await saveImportedMeal(session.householdId, {
-      meal: { ...parsedMeal.meal, slot: parsed.data.slot },
+      meal: { ...imported, slot: parsed.data.slot },
       slot: parsed.data.slot,
       sourceUrl: parsed.data.url,
       usedWebSearch: true,

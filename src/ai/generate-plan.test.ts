@@ -383,10 +383,11 @@ describe("generateWeekPlan", () => {
     ]);
   });
 
-  it("keeps an https sourceUrl when web search is on", async () => {
+  it("keeps https sourceUrl and imageUrl when web search is on", async () => {
     const cited = {
       ...validMondayDinner,
       sourceUrl: "https://example.com/salmon",
+      imageUrl: "https://cdn.example.com/salmon.jpg",
     };
     const adapter = fakeAdapter([{ ok: true, text: mealsText([cited]) }]);
 
@@ -402,6 +403,9 @@ describe("generateWeekPlan", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.meals[0]?.sourceUrl).toBe("https://example.com/salmon");
+      expect(result.meals[0]?.imageUrl).toBe(
+        "https://cdn.example.com/salmon.jpg",
+      );
     }
     expect(adapter.requests).toHaveLength(1);
   });
@@ -410,6 +414,7 @@ describe("generateWeekPlan", () => {
     const invented = {
       ...validMondayDinner,
       sourceUrl: "https://example.com/invented",
+      imageUrl: null,
     };
     const adapter = fakeAdapter([{ ok: true, text: mealsText([invented]) }]);
 

@@ -10,13 +10,30 @@ const DEFAULT_SETTINGS: AiSettings = {
   customApiKey: null,
   developerTools: false,
   webSearch: false,
+  reasoningEffort: "high",
 };
 
 const APP_SETTINGS_ID = "default";
 
+const REASONING_EFFORTS = new Set(["low", "medium", "high", "xhigh"]);
+
+function parseReasoningEffort(
+  raw: string | null | undefined,
+): AiSettings["reasoningEffort"] {
+  if (raw && REASONING_EFFORTS.has(raw)) {
+    return raw as AiSettings["reasoningEffort"];
+  }
+  return DEFAULT_SETTINGS.reasoningEffort;
+}
+
 type GlobalFields = Pick<
   AiSettings,
-  "mode" | "baseUrl" | "model" | "customApiKey" | "webSearch"
+  | "mode"
+  | "baseUrl"
+  | "model"
+  | "customApiKey"
+  | "webSearch"
+  | "reasoningEffort"
 >;
 
 function globalValues(settings: GlobalFields) {
@@ -26,6 +43,7 @@ function globalValues(settings: GlobalFields) {
     model: settings.model,
     customApiKey: settings.customApiKey,
     webSearch: settings.webSearch,
+    reasoningEffort: settings.reasoningEffort,
   };
 }
 
@@ -43,11 +61,19 @@ async function ensureGlobalSettings(): Promise<GlobalFields> {
       model: row.model,
       customApiKey: row.customApiKey,
       webSearch: row.webSearch,
+      reasoningEffort: parseReasoningEffort(row.reasoningEffort),
     };
   }
   const seed = globalValues(DEFAULT_SETTINGS);
   await db.insert(appSettings).values({ id: APP_SETTINGS_ID, ...seed });
-  return { ...DEFAULT_SETTINGS };
+  return {
+    mode: DEFAULT_SETTINGS.mode,
+    baseUrl: DEFAULT_SETTINGS.baseUrl,
+    model: DEFAULT_SETTINGS.model,
+    customApiKey: DEFAULT_SETTINGS.customApiKey,
+    webSearch: DEFAULT_SETTINGS.webSearch,
+    reasoningEffort: DEFAULT_SETTINGS.reasoningEffort,
+  };
 }
 
 async function ensureHouseholdSettings(

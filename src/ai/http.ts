@@ -18,17 +18,26 @@ import type {
 import { DAYS, SLOTS } from "@/lib/types";
 import { hasAnySlot as maskHasAny, maskMinusPinned } from "@/lib/slot-mask";
 import {
+  countMealsMissingImages,
   getCurrentPlan,
   getMeal,
   getPlan,
   listAllMeals,
   listDraftMeals,
+  listMealsMissingImages,
   mergeGeneratedPlan,
   replaceMeal,
   saveDraftMeals,
   saveStandaloneMeal,
   setMealExtra,
+  setMealImageUrl,
 } from "@/meals/repo";
+import { fetchPageImageUrl } from "@/meals/page-image";
+import {
+  imageBackfillJsonSchema,
+  imageBackfillResponseSchema,
+  normalizeImageUrl,
+} from "@/meals/schema";
 import { mergeShoppingList } from "@/meals/shopping-list";
 import { createAdapter, grokWebSearchEnabled } from "./adapter";
 import { generateWeekPlan, type GenerateProgressEvent } from "./generate-plan";
@@ -171,6 +180,7 @@ const settingsPatchSchema = z.object({
   customApiKey: z.string().nullable().optional(),
   developerTools: z.boolean().optional(),
   webSearch: z.boolean().optional(),
+  reasoningEffort: z.enum(["low", "medium", "high", "xhigh"]).optional(),
 });
 
 const TEST_JSON_SCHEMA = {
@@ -450,6 +460,7 @@ export async function handleGenerateExtra(
           ingredients: extra.ingredients,
           steps: extra.steps,
           sourceUrl: extra.sourceUrl,
+          imageUrl: null,
         },
         slot: parsed.data.kind,
         sourceUrl: extra.sourceUrl,
@@ -647,6 +658,182 @@ export async function handleTestConnection(
     body: {
       ok: result.ok,
       message: result.ok ? "Connection succeeded." : result.error,
+    },
+  };
+}
+
+const BACKFILL_BATCH = 5;
+
+export async function handleBackfillMealImages(
+  deps?: HandlerDeps,
+): Promise<HttpResult> {
+  const authed = await resolveHandlerAuth(deps?.auth);
+  if (!authed.ok) return authed.result;
+  const { userId, householdId } = authed;
+
+  const settings = await getSettings(householdId);
+  if (grokKeyMissing({ ...settings, mode: "grok" }) && !deps?.complete) {
+    return jsonError(400, GROK_KEY_MESSAGE);
+  }
+
+  const missing = await listMealsMissingImages(householdId, BACKFILL_BATCH);
+  if (missing.length === 0) {
+    return {
+      status: 200,
+      body: { filled: 0, remaining: 0, message: "Every library meal already has a picture." },
+    };
+  }
+
+  const adapter = deps?.complete
+    ? { complete: deps.complete }
+    : createAdapter({ ...settings, mode: "grok", webSearch: true });
+
+  let filled = 0;
+  for (const meal of missing) {
+    // Prefer og:image from the cited recipe page — no AI quota.
+    if (meal.sourceUrl) {
+      const fromPage = await fetchPageImageUrl(meal.sourceUrl, deps?.signal);
+      if (fromPage) {
+        await setMealImageUrl(householdId, meal.id, fromPage);
+        filled += 1;
+        continue;
+      }
+    }
+
+    const quota = await consumeAiQuota({
+      userId,
+      settings: { ...settings, mode: "grok", customApiKey: null },
+    });
+    if (!quota.ok) {
+      const remaining = await countMealsMissingImages(householdId);
+      return {
+        status: 429,
+        body: {
+          filled,
+          remaining,
+          message:
+            "Daily generate limit reached. Try again tomorrow, or switch to a custom key.",
+        },
+      };
+    }
+
+    const messages = [
+      {
+        role: "system" as const,
+        content:
+          "Find one direct https URL of a photograph of the finished dish. Prefer a recipe page hero or og:image. Respond with JSON only: { \"imageUrl\": string | null }. Do not invent URLs.",
+      },
+      {
+        role: "user" as const,
+        content: meal.sourceUrl
+          ? `Dish: ${meal.title}\nRecipe page: ${meal.sourceUrl}`
+          : `Dish: ${meal.title}`,
+      },
+    ];
+
+    let attempt = 0;
+    let imageUrl: string | null = null;
+    let responseText = "";
+    let validation: AiTrace["validation"] = "transport";
+    while (attempt < 2) {
+      const kind = attempt === 0 ? "image-backfill" : "image-backfill-retry";
+      const result = await adapter.complete({
+        messages,
+        jsonSchema: imageBackfillJsonSchema as unknown as Record<string, unknown>,
+        schemaName: "image_backfill",
+      });
+      responseText = result.ok ? result.text : result.error;
+      if (!result.ok) {
+        validation = "transport";
+        await recordTrace({
+          householdId,
+          kind,
+          mode: "grok",
+          baseUrl: settings.baseUrl,
+          model: settings.model,
+          requestText: JSON.stringify(messages),
+          responseText,
+          validation,
+        });
+        if (attempt === 0) {
+          attempt += 1;
+          continue;
+        }
+        break;
+      }
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(result.text);
+      } catch {
+        validation = "invalid-json";
+        await recordTrace({
+          householdId,
+          kind,
+          mode: "grok",
+          baseUrl: settings.baseUrl,
+          model: settings.model,
+          requestText: JSON.stringify(messages),
+          responseText,
+          validation,
+        });
+        if (attempt === 0) {
+          attempt += 1;
+          continue;
+        }
+        break;
+      }
+      const checked = imageBackfillResponseSchema.safeParse(parsed);
+      if (!checked.success) {
+        validation = "schema";
+        await recordTrace({
+          householdId,
+          kind,
+          mode: "grok",
+          baseUrl: settings.baseUrl,
+          model: settings.model,
+          requestText: JSON.stringify(messages),
+          responseText,
+          validation,
+        });
+        if (attempt === 0) {
+          attempt += 1;
+          continue;
+        }
+        break;
+      }
+      imageUrl = normalizeImageUrl(checked.data.imageUrl, true);
+      validation = "ok";
+      await recordTrace({
+        householdId,
+        kind,
+        mode: "grok",
+        baseUrl: settings.baseUrl,
+        model: settings.model,
+        requestText: JSON.stringify(messages),
+        responseText,
+        validation,
+      });
+      break;
+    }
+
+    if (imageUrl) {
+      await setMealImageUrl(householdId, meal.id, imageUrl);
+      filled += 1;
+    }
+  }
+
+  const remaining = await countMealsMissingImages(householdId);
+  return {
+    status: 200,
+    body: {
+      filled,
+      remaining,
+      message:
+        filled === 0
+          ? remaining > 0
+            ? "Couldn’t find pictures for this batch. Try again."
+            : "Every library meal already has a picture."
+          : `Added pictures to ${filled} meal${filled === 1 ? "" : "s"}. ${remaining} still empty.`,
     },
   };
 }

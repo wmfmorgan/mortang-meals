@@ -82,12 +82,12 @@ Thin `src/app/api/*/route.ts` files parse JSON, resolve the session household, a
 | `/meals/new` | Redirects to `/meals` (manual add is an inline collapsible card there). |
 | `/meals/[id]` | Full recipe editor (title, why, time, method, ingredients, steps). Swap only if the meal is on the current plan. |
 | `/shopping-list` | Derived list for the open plan (`?plan=` supported). Not stored. |
-| `/household` | People, notes. Servings for AI drafts are set on Meals. |
-| `/kitchen` | Cook prefs + appliance/method checklist. |
-| `/settings` | Global provider mode/URL/model/key/web search (all households). Developer tools is per-admin household. Nav + route limited to admin email. |
+| `/household` | Household & Dietary: people, notes, cook prefs (expertise / involved / max cook time), and appliance/method checklist. Servings for AI drafts are set on Meals. |
+| `/kitchen` | Redirects to `/household` (kitchen content lives on Household). |
+| `/settings` | Global provider mode/URL/model/key/web search/reasoning effort (all households). Developer tools is per-admin household. Nav + route limited to admin email. |
 | `/developer` | Last 25 AI traces. Admin email only, and only when developer tools is on. |
 
-Nav: Plans, Meals, Shopping list, Household, Kitchen, Settings, optional Developer (`src/components/nav.tsx`).
+Nav: Plans, Meals, Shopping list, Household, Settings, optional Developer (`src/components/nav.tsx`).
 
 Generation UX is global (`GenerationProvider` in `AppShell`): NDJSON stream in the tab. A compact chip in the sticky nav shows progress (spinner, percent, elapsed, Cancel). Hover the chip for steps and the current message; click it to pin the panel (required for failure details). No blocking modal. Refresh or closing the tab aborts the fetch. One job at a time.
 
@@ -103,7 +103,7 @@ Generation UX is global (`GenerationProvider` in `AppShell`): NDJSON stream in t
 
 **Week plan** — `weekStart` (Monday `YYYY-MM-DD`), `isCurrent`, `slotMask` JSON. UI names plans with a Monday–Sunday range (`weekRangeLabel`). History stays readable from Plans / shopping list. If `isCurrent` is a past week, `resolveOpenPlan` opens this calendar week.
 
-**Meal** — belongs to a plan **or** stands alone. Fields: day, slot, title, whyItFits, cookMinutes, method, ingredients[], steps[], `usedWebSearch`, `pinned`, `weekStart`, `createdAt`, optional `sourceUrl`, `extras`, `draft` (0/1), `stars` (0–5, 0 = unrated), `servings` (set at library generate / import / create; shown on cards and flyouts). Imported and typed meals are saved with `planId = ""`. Library generate writes `draft = 1` until approve. Deleting a plan deletes the plan row only; meals stay so the library keeps the recipes. `listAllMeals` / `listLibraryMeals` / place exclude drafts.
+**Meal** — belongs to a plan **or** stands alone. Fields: day, slot, title, whyItFits, cookMinutes, method, ingredients[], steps[], `usedWebSearch`, `pinned`, `weekStart`, `createdAt`, optional `sourceUrl`, optional `imageUrl` (https photo from web search; shown on library + Plans cards), `extras`, `draft` (0/1), `stars` (0–5, 0 = unrated), `servings` (set at library generate / import / create; shown on cards and flyouts). Imported and typed meals are saved with `planId = ""`. Library generate writes `draft = 1` until approve. Deleting a plan deletes the plan row only; meals stay so the library keeps the recipes. `listAllMeals` / `listLibraryMeals` / place exclude drafts. Developer can backfill empty `imageUrl`s via `/api/library/backfill-images`.
 
 **Library generate prefs** — one row (`id = default`) of JSON for the Meals generate form (mode, people, per-slot on/count/diet/avoidances). Not used as an AI input.
 
@@ -113,9 +113,9 @@ Generation UX is global (`GenerationProvider` in `AppShell`): NDJSON stream in t
 
 **Slot mask** — which of the 21 cells are requested. Default: all dinners on (`defaultSlotMask`). Also session-backed (`mortang.slotMask`). Pinned slots are treated as locked in the picker (`maskMinusPinned`, `toggleSlot` / `toggleDay` / `toggleMealRow`).
 
-**Settings** — Global provider config (`app_settings`): `mode: grok | custom`, `baseUrl` (default `https://api.x.ai/v1`), `model` (default `grok-4.6`), optional `customApiKey`, `webSearch`. Per-household: `developerTools` only. API responses expose `customApiKey` as a boolean only.
+**Settings** — Global provider config (`app_settings`): `mode: grok | custom`, `baseUrl` (default `https://api.x.ai/v1`), `model` (default `grok-4.6`), optional `customApiKey`, `webSearch`, `reasoningEffort` (`low | medium | high | xhigh`, default `high`). Per-household: `developerTools` only. API responses expose `customApiKey` as a boolean only. Grok adapter sends `reasoning.effort` (Responses / web search) or `reasoning_effort` (chat completions).
 
-**AI trace** — kind `generate | generate-retry | swap | swap-retry | extra | extra-retry | library | library-retry | test`, request/response text, validation `ok | invalid-json | schema | allergen | duplicate | transport`. Import is **not** traced today.
+**AI trace** — kind `generate | generate-retry | swap | swap-retry | extra | extra-retry | library | library-retry | image-backfill | image-backfill-retry | test`, request/response text, validation `ok | invalid-json | schema | allergen | duplicate | transport`. Import is **not** traced today.
 
 ## Core flows
 

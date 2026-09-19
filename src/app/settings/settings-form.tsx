@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import type { ProviderMode } from "@/lib/types";
+import type { ProviderMode, ReasoningEffort } from "@/lib/types";
 
 export type SafeSettings = {
   mode: ProviderMode;
@@ -11,7 +11,15 @@ export type SafeSettings = {
   customApiKey: boolean;
   developerTools: boolean;
   webSearch: boolean;
+  reasoningEffort: ReasoningEffort;
 };
+
+const REASONING_OPTIONS: { value: ReasoningEffort; label: string }[] = [
+  { value: "low", label: "low — faster, lighter thinking" },
+  { value: "medium", label: "medium — balanced" },
+  { value: "high", label: "high — deeper thinking (default)" },
+  { value: "xhigh", label: "xhigh — maximum depth (grok-4.6+)" },
+];
 
 const inputClass = "input";
 
@@ -24,6 +32,9 @@ export function SettingsForm({ settings }: { settings: SafeSettings }) {
   const [hasCustomKey, setHasCustomKey] = useState(settings.customApiKey);
   const [developerTools, setDeveloperTools] = useState(settings.developerTools);
   const [webSearch, setWebSearch] = useState(settings.webSearch);
+  const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>(
+    settings.reasoningEffort,
+  );
   const [status, setStatus] = useState<string | null>(null);
   const [testMessage, setTestMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -96,6 +107,19 @@ export function SettingsForm({ settings }: { settings: SafeSettings }) {
       await putSettings({ webSearch: checked });
     } catch (error) {
       setWebSearch(!checked);
+      setStatus(
+        error instanceof Error ? error.message : "Couldn’t save settings.",
+      );
+    }
+  }
+
+  async function onChangeReasoningEffort(next: ReasoningEffort) {
+    const previous = reasoningEffort;
+    setReasoningEffort(next);
+    try {
+      await putSettings({ reasoningEffort: next });
+    } catch (error) {
+      setReasoningEffort(previous);
       setStatus(
         error instanceof Error ? error.message : "Couldn’t save settings.",
       );
@@ -208,6 +232,29 @@ export function SettingsForm({ settings }: { settings: SafeSettings }) {
             Let Grok look up real recipes. Slower and uses more credits. Grok
             mode only.
           </span>
+        </span>
+      </label>
+      <label className="field">
+        Reasoning level
+        <select
+          className={inputClass}
+          value={reasoningEffort}
+          disabled={mode !== "grok"}
+          onChange={(event) => {
+            void onChangeReasoningEffort(
+              event.target.value as ReasoningEffort,
+            );
+          }}
+        >
+          {REASONING_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <span className="mt-1 block text-sm font-normal text-herb">
+          How hard Grok thinks before answering. Higher is slower and uses more
+          tokens. Grok mode only.
         </span>
       </label>
       {status ? <p className="text-sm text-herb">{status}</p> : null}

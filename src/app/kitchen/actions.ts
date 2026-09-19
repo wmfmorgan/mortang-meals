@@ -12,6 +12,7 @@ import { requirePageHousehold } from "@/lib/request-auth";
 import type { KitchenItem, KitchenPrefs } from "@/lib/types";
 
 function revalidateKitchen() {
+  revalidatePath("/household");
   revalidatePath("/kitchen");
   revalidatePath("/setup");
 }

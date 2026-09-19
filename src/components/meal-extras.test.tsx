@@ -35,7 +35,8 @@ function meal(overrides: Partial<Meal> = {}): Meal {
     pinned: false,
     createdAt: "2026-08-10T12:00:00.000Z",
     sourceUrl: null,
-    extras: EMPTY_EXTRAS,
+        imageUrl: null,
+        extras: EMPTY_EXTRAS,
     draft: false,
     stars: 0,
     takeout: false,
@@ -152,6 +153,7 @@ describe("MealCard extras", () => {
       steps: ["Saute"],
       usedWebSearch: false,
       sourceUrl: null,
+      imageUrl: null,
     };
     render(
       <MealCard
@@ -184,5 +186,41 @@ describe("MealCard extras", () => {
     expect(btn.getAttribute("title")).toBe("Place leftovers on another meal");
     fireEvent.click(btn);
     expect(onLeftover).toHaveBeenCalled();
+  });
+
+  it("puts compact actions in an even bottom row with trash delete", () => {
+    render(
+      <MealCard
+        meal={meal({
+          title:
+            "Sheet-pan miso-glazed salmon with roasted broccoli and sesame",
+        })}
+        editable
+        compact
+        onChooseExtra={vi.fn()}
+        onLeftover={vi.fn()}
+      />,
+    );
+
+    const actions = document.querySelector(
+      ".meal-card-compact .meal-card-action-icons",
+    );
+    expect(actions).toBeTruthy();
+    expect(document.querySelector(".meal-card-tools")).toBeNull();
+
+    const labels = [...actions!.querySelectorAll("button")].map((button) =>
+      button.getAttribute("aria-label"),
+    );
+    expect(labels).toEqual([
+      "Choose a side",
+      "Choose a dessert",
+      "Place leftovers on another meal",
+      "Delete meal",
+    ]);
+    expect(
+      screen.getByText(
+        "Sheet-pan miso-glazed salmon with roasted broccoli and sesame",
+      ),
+    ).toBeTruthy();
   });
 });

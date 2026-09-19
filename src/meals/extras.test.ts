@@ -39,6 +39,7 @@ describe("parseMealExtras", () => {
       steps: ["Mix", "Chill"],
       usedWebSearch: false,
       sourceUrl: null,
+      imageUrl: null,
     };
 
     expect(
@@ -65,7 +66,8 @@ describe("parseMealExtras", () => {
         steps: ["Bake"],
         usedWebSearch: true,
         sourceUrl: "https://example.com/potato",
-      },
+        imageUrl: null,
+        },
       "side",
     );
     expect(extra).toMatchObject({
@@ -76,6 +78,7 @@ describe("parseMealExtras", () => {
       cookMinutes: 45,
       usedWebSearch: true,
       sourceUrl: "https://example.com/potato",
+      imageUrl: null,
     });
   });
 

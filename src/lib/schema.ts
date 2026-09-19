@@ -81,6 +81,7 @@ export const meals = pgTable("meals", {
     .notNull()
     .defaultNow(),
   sourceUrl: text("source_url"),
+  imageUrl: text("image_url"),
   extras: jsonb("extras").$type<MealExtras>().notNull(),
   draft: boolean("draft").notNull().default(false),
   stars: smallint("stars").notNull().default(0),
@@ -115,6 +116,7 @@ export const appSettings = pgTable("app_settings", {
   model: text("model").notNull(),
   customApiKey: text("custom_api_key"),
   webSearch: boolean("web_search").notNull(),
+  reasoningEffort: text("reasoning_effort").notNull().default("high"),
 });
 
 export const aiTraces = pgTable("ai_traces", {

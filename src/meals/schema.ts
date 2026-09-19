@@ -28,6 +28,7 @@ export const mealSchema = mealEditSchema.extend({
   day: dayEnum,
   slot: slotEnum,
   sourceUrl: z.union([z.string(), z.null()]).optional(),
+  imageUrl: z.union([z.string(), z.null()]).optional(),
 });
 
 const recipeSlotEnum = z.enum(RECIPE_SLOTS as [MealSlot, ...MealSlot[]]);
@@ -36,9 +37,27 @@ export const libraryMealSchema = mealEditSchema.extend({
   day: dayEnum,
   slot: recipeSlotEnum,
   sourceUrl: z.union([z.string(), z.null()]).optional(),
+  imageUrl: z.union([z.string(), z.null()]).optional(),
 });
 
 export function normalizeSourceUrl(
+  raw: unknown,
+  webSearch: boolean,
+): string | null {
+  if (!webSearch) return null;
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+export function normalizeImageUrl(
   raw: unknown,
   webSearch: boolean,
 ): string | null {
@@ -65,6 +84,25 @@ export function applySourceUrl<T extends { sourceUrl?: string | null }>(
     return rest as T;
   }
   return { ...meal, sourceUrl };
+}
+
+export function applyImageUrl<T extends { imageUrl?: string | null }>(
+  meal: T,
+  webSearch: boolean,
+): T {
+  const imageUrl = normalizeImageUrl(meal.imageUrl, webSearch);
+  if (!imageUrl) {
+    const { imageUrl: _dropped, ...rest } = meal;
+    return rest as T;
+  }
+  return { ...meal, imageUrl };
+}
+
+/** Apply source + image URL rules used after model parse. */
+export function applyWebSearchUrls<
+  T extends { sourceUrl?: string | null; imageUrl?: string | null },
+>(meal: T, webSearch: boolean): T {
+  return applyImageUrl(applySourceUrl(meal, webSearch), webSearch);
 }
 
 export const mealsResponseSchema = z.object({
@@ -124,6 +162,7 @@ export const extraSuggestionResponseSchema = z.object({
 
 export const extraRecipeSchema = mealEditSchema.extend({
   sourceUrl: z.union([z.string(), z.null()]).optional(),
+  imageUrl: z.union([z.string(), z.null()]).optional(),
 });
 
 export function parseExtraSuggestionResponse(
@@ -163,6 +202,7 @@ const mealJsonSchema = {
     "ingredients",
     "steps",
     "sourceUrl",
+    "imageUrl",
   ],
   properties: {
     day: { type: "string", enum: [...DAYS] },
@@ -172,6 +212,11 @@ const mealJsonSchema = {
     cookMinutes: { type: "integer", exclusiveMinimum: 0 },
     method: { type: "string", minLength: 1 },
     sourceUrl: { type: ["string", "null"] },
+    imageUrl: {
+      type: ["string", "null"],
+      description:
+        "Direct https URL of a photo of the finished dish, or null if none.",
+    },
     ingredients: {
       type: "array",
       minItems: 1,
@@ -261,6 +306,7 @@ export const extraRecipeJsonSchema = {
     "ingredients",
     "steps",
     "sourceUrl",
+    "imageUrl",
   ],
   properties: {
     title: { type: "string", minLength: 1 },
@@ -268,7 +314,30 @@ export const extraRecipeJsonSchema = {
     cookMinutes: { type: "integer", exclusiveMinimum: 0 },
     method: { type: "string", minLength: 1 },
     sourceUrl: { type: ["string", "null"] },
+    imageUrl: {
+      type: ["string", "null"],
+      description:
+        "Direct https URL of a photo of the finished dish, or null if none.",
+    },
     ingredients: mealJsonSchema.properties.ingredients,
     steps: mealJsonSchema.properties.steps,
   },
 } as const;
+
+/** Tiny schema for developer image backfill. */
+export const imageBackfillJsonSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["imageUrl"],
+  properties: {
+    imageUrl: {
+      type: ["string", "null"],
+      description:
+        "Direct https URL of a photo of the finished dish, or null if none.",
+    },
+  },
+} as const;
+
+export const imageBackfillResponseSchema = z.object({
+  imageUrl: z.union([z.string(), z.null()]),
+});

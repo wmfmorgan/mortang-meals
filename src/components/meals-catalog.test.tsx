@@ -47,7 +47,8 @@ const meal: Meal = {
   pinned: false,
   createdAt: "2026-08-10T12:00:00.000Z",
   sourceUrl: "https://example.com/salmon",
-  extras: EMPTY_EXTRAS,
+        imageUrl: null,
+        extras: EMPTY_EXTRAS,
   draft: false,
   stars: 0,
   takeout: false,
@@ -144,7 +145,8 @@ describe("MealsCatalog", () => {
       id: "draft-chili",
       title: "Draft chili",
       sourceUrl: null,
-      draft: true,
+        imageUrl: null,
+        draft: true,
     };
     render(
       <MealsCatalog

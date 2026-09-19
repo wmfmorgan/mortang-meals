@@ -64,9 +64,11 @@ export function householdToDraft(household: Household | null): HouseholdDraft {
 export function HouseholdFields({
   value,
   onChange,
+  showAddPerson = true,
 }: {
   value: HouseholdDraft;
   onChange: (next: HouseholdDraft) => void;
+  showAddPerson?: boolean;
 }) {
   function update<K extends keyof HouseholdDraft>(
     key: K,
@@ -107,13 +109,15 @@ export function HouseholdFields({
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-medium tracking-[-0.03em]">People</h2>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => update("people", [...value.people, emptyPerson()])}
-          >
-            Add person
-          </button>
+          {showAddPerson ? (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => update("people", [...value.people, emptyPerson()])}
+            >
+              Add person
+            </button>
+          ) : null}
         </div>
         {value.people.map((person, index) => (
           <fieldset
@@ -186,7 +190,7 @@ export function HouseholdFields({
             </label>
             <button
               type="button"
-              className="btn btn-ghost"
+              className="btn btn-secondary"
               onClick={() =>
                 update(
                   "people",

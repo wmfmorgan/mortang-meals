@@ -12,6 +12,7 @@ const grok = {
   customApiKey: null,
   developerTools: false,
   webSearch: false,
+  reasoningEffort: "high",
 };
 
 describe("consumeAiQuota", () => {

@@ -155,7 +155,8 @@ describe("mergeShoppingList", () => {
             steps: ["Bake"],
             usedWebSearch: false,
             sourceUrl: null,
-          },
+        imageUrl: null,
+        },
           dessert: {
             id: "dessert-1",
             kind: "dessert",
@@ -170,7 +171,8 @@ describe("mergeShoppingList", () => {
             steps: [],
             usedWebSearch: false,
             sourceUrl: null,
-          },
+        imageUrl: null,
+        },
         },
       },
     ]);

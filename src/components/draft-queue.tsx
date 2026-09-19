@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Meal } from "@/lib/types";
+import { MealImage } from "./meal-image";
 import { RecipeFlyout, recipeEyebrow } from "./recipe-flyout";
 
 export function DraftQueue({
@@ -54,9 +55,10 @@ export function DraftQueue({
           >
             <button
               type="button"
-              className="meal-card-open w-full"
+              className="meal-card-open w-full text-left"
               onClick={() => setSelected(meal)}
             >
+              <MealImage imageUrl={meal.imageUrl} />
               <h3 className="mt-0 mb-0">
                 <span className="meal-card-title">{meal.title}</span>
               </h3>

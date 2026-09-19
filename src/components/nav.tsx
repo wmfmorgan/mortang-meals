@@ -15,7 +15,6 @@ const BASE_LINKS = [
   { href: "/meals", label: "Meals" },
   { href: "/shopping-list", label: "Shopping list" },
   { href: "/household", label: "Household" },
-  { href: "/kitchen", label: "Kitchen" },
 ] as const;
 
 function isCurrent(pathname: string, href: string) {

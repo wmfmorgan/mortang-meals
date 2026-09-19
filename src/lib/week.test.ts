@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  dayHeadingLabel,
   mondayOf,
   planDisplayName,
   shiftMonday,
@@ -30,6 +31,20 @@ describe("weekRangeLabel", () => {
   it("names a plan by Monday through Sunday", () => {
     expect(weekRangeLabel("2026-08-24")).toBe("Aug 24–30, 2026");
     expect(weekRangeLabel("2026-08-31")).toBe("Aug 31–Sep 6, 2026");
+  });
+});
+
+describe("dayHeadingLabel", () => {
+  it("labels Monday of the week", () => {
+    expect(dayHeadingLabel("2026-01-05", "monday")).toBe("Mon 5");
+  });
+
+  it("labels mid-week days", () => {
+    expect(dayHeadingLabel("2026-01-05", "wednesday")).toBe("Wed 7");
+  });
+
+  it("crosses a month boundary", () => {
+    expect(dayHeadingLabel("2026-08-31", "sunday")).toBe("Sun 6");
   });
 });
 

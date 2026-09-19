@@ -1,8 +1,9 @@
 import { buildHouseholdBrief } from "@/household/brief";
 import { findAllergen } from "@/meals/allergen";
 import { isDuplicateTitle, normalizeTitle } from "@/meals/duplicates";
+import { enrichMealImageUrl } from "@/meals/page-image";
 import {
-  applySourceUrl,
+  applyWebSearchUrls,
   parseSingleMealResponse,
   singleMealJsonSchema,
 } from "@/meals/schema";
@@ -40,13 +41,15 @@ const HARD_RULES = [
   'Ingredient quantity must be a string such as "1", "1/2", or "1/4". Never use 0 for an ingredient that is used.',
 ].join("\n");
 
-const NO_URL_RULE = "sourceUrl must be null. Do not invent URLs.";
+const NO_URL_RULE =
+  "sourceUrl and imageUrl must be null. Do not invent URLs.";
 
 const WEB_SEARCH_RULES = [
   "Use web_search to find a real published recipe for this slot.",
   "Copy accurate quantities, units, cook times, and steps from the source.",
   "Do not invent amounts when a source lists them.",
   "Set sourceUrl to the cited page URL, or null if you cannot cite a real page.",
+  "When you set sourceUrl, also set imageUrl to that page’s direct photo URL (og:image or hero image of the finished dish). Prefer https image CDN links ending in .jpg/.jpeg/.png/.webp. Only use null for imageUrl if the page truly has no dish photo.",
 ].join("\n");
 
 export async function swapMeal(input: {
@@ -174,7 +177,13 @@ export async function swapMeal(input: {
     }
 
     log("ok", result.text);
-    return { ok: true, meal: applySourceUrl(meal, searchOn) };
+    return {
+      ok: true,
+      meal: await enrichMealImageUrl(
+        applyWebSearchUrls(meal, searchOn),
+        searchOn,
+      ),
+    };
   }
 
   return { ok: false, message: SWAP_FAIL };

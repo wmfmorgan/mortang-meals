@@ -38,6 +38,7 @@ function extraAsMeal(parent: Meal, extra: MealExtra): Meal {
     steps: extra.steps,
     usedWebSearch: extra.usedWebSearch,
     sourceUrl: extra.sourceUrl,
+    imageUrl: null,
     extras: EMPTY_EXTRAS,
     draft: false,
     stars: 0,
@@ -231,6 +232,7 @@ export function ThisWeekPlanner({
       ) : null}
       <WeekGrid
         plan={plan}
+        weekStart={weekStart ?? plan?.weekStart}
         slotMask={slotMask}
         onSelectMeal={(meal) => setSelected({ type: "meal", mealId: meal.id })}
         onSelectExtra={(meal, extra) =>

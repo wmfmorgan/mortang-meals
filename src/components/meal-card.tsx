@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { ExtraKind, Meal, MealExtra } from "@/lib/types";
 import { readUseIngredients } from "@/lib/use-ingredients";
 import { MealExtras } from "./meal-extras";
+import { MealImage } from "./meal-image";
 
 export function SwapButton({ meal }: { meal: Meal }) {
   const router = useRouter();
@@ -159,7 +160,13 @@ export function MealBadges({ meal }: { meal: Meal }) {
   );
 }
 
-export function DeleteButton({ meal }: { meal: Meal }) {
+export function DeleteButton({
+  meal,
+  icon = "close",
+}: {
+  meal: Meal;
+  icon?: "close" | "trash";
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
 
@@ -189,7 +196,7 @@ export function DeleteButton({ meal }: { meal: Meal }) {
         void onDelete();
       }}
     >
-      <CloseIcon />
+      {icon === "trash" ? <TrashIcon /> : <CloseIcon />}
     </button>
   );
 }
@@ -361,6 +368,7 @@ export function MealCard({
       data-slot={meal.slot}
       data-pinned={meal.pinned}
     >
+      {compact ? <MealImage imageUrl={meal.imageUrl} compact /> : null}
       <div className="meal-card-top">
         <button
           type="button"
@@ -386,7 +394,7 @@ export function MealCard({
             </>
           )}
         </button>
-        {editable ? (
+        {editable && !compact ? (
           <div className="meal-card-tools">
             <DeleteButton meal={meal} />
           </div>
@@ -400,9 +408,9 @@ export function MealCard({
         />
       )}
       {compact ? (
-        editable && !meal.takeout ? (
+        editable ? (
           <div className="meal-card-actions meal-card-action-icons">
-            {meal.slot !== "breakfast" && onChooseExtra ? (
+            {!meal.takeout && meal.slot !== "breakfast" && onChooseExtra ? (
               <>
                 <button
                   type="button"
@@ -434,7 +442,7 @@ export function MealCard({
                 </button>
               </>
             ) : null}
-            {onLeftover && !meal.leftover ? (
+            {!meal.takeout && onLeftover && !meal.leftover ? (
               <button
                 type="button"
                 className="icon-button"
@@ -445,6 +453,7 @@ export function MealCard({
                 <LeftoversIcon />
               </button>
             ) : null}
+            <DeleteButton meal={meal} icon="trash" />
           </div>
         ) : null
       ) : (

@@ -1,3 +1,16 @@
+import type { DayOfWeek } from "@/lib/types";
+import { DAYS } from "@/lib/types";
+
+const DAY_SHORT: Record<DayOfWeek, string> = {
+  monday: "Mon",
+  tuesday: "Tue",
+  wednesday: "Wed",
+  thursday: "Thu",
+  friday: "Fri",
+  saturday: "Sat",
+  sunday: "Sun",
+};
+
 export function mondayOf(date: Date): string {
   const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const day = d.getDay(); // 0 Sun .. 6 Sat
@@ -60,6 +73,13 @@ export function weekMonthLabel(weekStart: string): string {
 export function planDisplayName(plan: { name: string; weekStart: string }): string {
   const custom = plan.name.trim();
   return custom || weekRangeLabel(plan.weekStart);
+}
+
+/** Weekday + date for a column, e.g. "Mon 21". */
+export function dayHeadingLabel(weekStart: string, day: DayOfWeek): string {
+  const date = parseMonday(weekStart);
+  date.setDate(date.getDate() + DAYS.indexOf(day));
+  return `${DAY_SHORT[day]} ${date.getDate()}`;
 }
 
 /** Monday–Sunday label, e.g. "Aug 24–30, 2026" or "Aug 31–Sep 6, 2026". */

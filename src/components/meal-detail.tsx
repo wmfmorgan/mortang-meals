@@ -32,6 +32,7 @@ const EMPTY_DRAFT: Meal = {
   pinned: false,
   createdAt: "",
   sourceUrl: null,
+  imageUrl: null,
   extras: EMPTY_EXTRAS,
   draft: false,
   stars: 0,

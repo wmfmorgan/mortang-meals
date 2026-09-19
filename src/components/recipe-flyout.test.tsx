@@ -28,7 +28,8 @@ const meal: Meal = {
   pinned: false,
   createdAt: "2026-08-10T12:00:00.000Z",
   sourceUrl: null,
-  extras: EMPTY_EXTRAS,
+        imageUrl: null,
+        extras: EMPTY_EXTRAS,
   draft: false,
   stars: 0,
   takeout: false,
@@ -70,7 +71,8 @@ describe("RecipeFlyout", () => {
           ...meal,
           planId: "",
           sourceUrl: "https://example.com/salmon",
-          usedWebSearch: true,
+        imageUrl: null,
+        usedWebSearch: true,
         }}
         servings={2}
         onClose={() => {}}
@@ -109,6 +111,7 @@ describe("RecipeFlyout", () => {
           ...meal,
           usedWebSearch: true,
           sourceUrl: "https://example.com/week-salmon",
+        imageUrl: null,
         }}
         servings={2}
         onClose={() => {}}

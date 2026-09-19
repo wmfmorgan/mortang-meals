@@ -21,6 +21,8 @@ export type TraceKind =
   | "extra-retry"
   | "library"
   | "library-retry"
+  | "image-backfill"
+  | "image-backfill-retry"
   | "test";
 export type ExtraMode = "suggestion" | "recipe";
 export type ValidationResult =
@@ -67,6 +69,7 @@ export type GeneratedMeal = {
   ingredients: Ingredient[];
   steps: string[];
   sourceUrl?: string | null;
+  imageUrl?: string | null;
 };
 
 export type MealExtra = {
@@ -95,6 +98,7 @@ export type Meal = GeneratedMeal & {
   pinned: boolean;
   createdAt: string;
   sourceUrl: string | null;
+  imageUrl: string | null;
   extras: MealExtras;
   draft: boolean;
   stars: number;
@@ -181,6 +185,9 @@ export type ShoppingItem = {
 
 export type ShoppingList = { aisle: Aisle; items: ShoppingItem[] }[];
 
+/** Grok reasoning depth (xAI reasoning_effort / reasoning.effort). */
+export type ReasoningEffort = "low" | "medium" | "high" | "xhigh";
+
 export type AiSettings = {
   mode: ProviderMode;
   baseUrl: string;
@@ -188,6 +195,7 @@ export type AiSettings = {
   customApiKey: string | null;
   developerTools: boolean;
   webSearch: boolean;
+  reasoningEffort: ReasoningEffort;
 };
 
 export type AiTrace = {

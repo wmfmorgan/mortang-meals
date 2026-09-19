@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyWebSearchUrls,
   mealEditSchema,
+  normalizeImageUrl,
   normalizeSourceUrl,
   parseExtraRecipeResponse,
   parseExtraSuggestionResponse,
@@ -168,6 +170,44 @@ describe("sourceUrl on generate JSON", () => {
     if (result.ok) {
       expect(result.meal.sourceUrl).toBeNull();
     }
+  });
+});
+
+describe("normalizeImageUrl / applyWebSearchUrls", () => {
+  it("keeps https image URLs when web search is on", () => {
+    expect(
+      normalizeImageUrl("https://cdn.example.com/dish.jpg", true),
+    ).toBe("https://cdn.example.com/dish.jpg");
+  });
+
+  it("drops image URLs when web search is off", () => {
+    expect(
+      normalizeImageUrl("https://cdn.example.com/dish.jpg", false),
+    ).toBeNull();
+  });
+
+  it("applies both source and image URL rules", () => {
+    const kept = applyWebSearchUrls(
+      {
+        ...validMeal,
+        sourceUrl: "https://example.com/recipe",
+        imageUrl: "https://cdn.example.com/dish.jpg",
+      },
+      true,
+    );
+    expect(kept.sourceUrl).toBe("https://example.com/recipe");
+    expect(kept.imageUrl).toBe("https://cdn.example.com/dish.jpg");
+
+    const stripped = applyWebSearchUrls(
+      {
+        ...validMeal,
+        sourceUrl: "https://example.com/recipe",
+        imageUrl: "https://cdn.example.com/dish.jpg",
+      },
+      false,
+    );
+    expect(stripped.sourceUrl).toBeUndefined();
+    expect(stripped.imageUrl).toBeUndefined();
   });
 });
 

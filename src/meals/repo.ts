@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { meals, weekPlans } from "@/lib/schema";
 import type {
@@ -41,6 +41,7 @@ function mapMeal(row: MealRow): Meal {
     pinned: row.pinned,
     createdAt: row.createdAt,
     sourceUrl: row.sourceUrl,
+    imageUrl: row.imageUrl ?? null,
     extras: parseMealExtras(row.extras),
     draft: row.draft,
     stars: row.stars,
@@ -102,6 +103,7 @@ function mealInsertValues(
     weekStart: string;
     createdAt?: string;
     sourceUrl?: string | null;
+    imageUrl?: string | null;
     id?: string;
     extras?: MealExtras;
     draft?: boolean;
@@ -128,6 +130,7 @@ function mealInsertValues(
     weekStart: extras.weekStart,
     createdAt: extras.createdAt ?? new Date().toISOString(),
     sourceUrl: extras.sourceUrl ?? meal.sourceUrl ?? null,
+    imageUrl: extras.imageUrl ?? meal.imageUrl ?? null,
     extras: extras.extras ?? EMPTY_EXTRAS,
     draft: extras.draft ?? false,
     stars: extras.stars ?? 0,
@@ -259,6 +262,7 @@ export async function saveStandaloneMeal(
       pinned: false,
       weekStart,
       sourceUrl: input.sourceUrl ?? null,
+      imageUrl: input.meal.imageUrl ?? null,
       draft: input.draft === true,
       servings: input.servings,
     },
@@ -573,6 +577,7 @@ export async function replaceMeal(
     weekStart: existing.weekStart,
     createdAt: existing.createdAt,
     sourceUrl: next.sourceUrl ?? null,
+    imageUrl: next.imageUrl ?? null,
     extras: parseMealExtras(existing.extras),
     draft: existing.draft,
     stars: existing.stars,
@@ -723,6 +728,7 @@ export async function placeMeal(
       pinned: occupant.pinned,
       weekStart: plan.weekStart,
       sourceUrl: source.sourceUrl,
+      imageUrl: source.imageUrl,
       servings: source.servings,
     });
     const [row] = await getDb()
@@ -739,6 +745,7 @@ export async function placeMeal(
     pinned: false,
     weekStart: plan.weekStart,
     sourceUrl: source.sourceUrl,
+    imageUrl: source.imageUrl,
     servings: source.servings,
   });
   const [row] = await getDb().insert(meals).values(values).returning();
@@ -779,6 +786,7 @@ async function copyOntoPlan(
     pinned: occupant?.pinned ?? false,
     weekStart: plan.weekStart,
     sourceUrl: input.source.sourceUrl,
+    imageUrl: input.source.imageUrl,
     leftover: input.leftover,
     takeout: false,
     servings: input.source.servings,
@@ -831,6 +839,7 @@ export async function saveTakeoutMeal(
     pinned: occupant?.pinned ?? false,
     weekStart: plan.weekStart,
     sourceUrl: null as string | null,
+    imageUrl: null as string | null,
     takeout: true,
     leftover: false,
     servings: 2,
@@ -1018,6 +1027,63 @@ export function mealAt(
   slot: MealSlot,
 ): Meal | undefined {
   return planMeals.find((meal) => meal.day === day && meal.slot === slot);
+}
+
+/** Non-draft library meals missing an image (newest first). */
+export async function listMealsMissingImages(
+  householdId: string,
+  limit = 25,
+): Promise<Meal[]> {
+  const db = getDb();
+  const rows = await db
+    .select()
+    .from(meals)
+    .where(
+      and(
+        eq(meals.householdId, householdId),
+        eq(meals.draft, false),
+        eq(meals.takeout, false),
+        sql`(${meals.imageUrl} is null or ${meals.imageUrl} = '')`,
+      ),
+    )
+    .orderBy(desc(meals.createdAt))
+    .limit(Math.max(1, Math.min(limit, 50)));
+  return rows.map(mapMeal);
+}
+
+export async function setMealImageUrl(
+  householdId: string,
+  mealId: string,
+  imageUrl: string | null,
+): Promise<Meal> {
+  const existing = await loadMealRow(householdId, mealId);
+  if (!existing) throw new Error("Meal not found");
+  if (existing.draft) throw new Error("Drafts cannot be backfilled here.");
+  const [row] = await getDb()
+    .update(meals)
+    .set({ imageUrl })
+    .where(and(eq(meals.householdId, householdId), eq(meals.id, mealId)))
+    .returning();
+  if (!row) throw new Error("Meal not found");
+  return mapMeal(row);
+}
+
+export async function countMealsMissingImages(
+  householdId: string,
+): Promise<number> {
+  const db = getDb();
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(meals)
+    .where(
+      and(
+        eq(meals.householdId, householdId),
+        eq(meals.draft, false),
+        eq(meals.takeout, false),
+        sql`(${meals.imageUrl} is null or ${meals.imageUrl} = '')`,
+      ),
+    );
+  return row?.count ?? 0;
 }
 
 export async function dedupeLibraryMeals(householdId: string): Promise<number> {

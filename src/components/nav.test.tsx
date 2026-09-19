@@ -22,12 +22,16 @@ describe("Nav", () => {
     render(<Nav developerTools={true} userEmail="alex@example.com" />);
     expect(screen.queryByRole("link", { name: "Settings" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Developer" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Kitchen" })).toBeNull();
     expect(screen.getByRole("link", { name: "Plans" }).getAttribute("href")).toBe(
       "/",
     );
     expect(screen.getByRole("link", { name: "Meals" }).getAttribute("href")).toBe(
       "/meals",
     );
+    expect(
+      screen.getByRole("link", { name: "Household" }).getAttribute("href"),
+    ).toBe("/household");
   });
 
   it("shows Settings for the admin email", () => {

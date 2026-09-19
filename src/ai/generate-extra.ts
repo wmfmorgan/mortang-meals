@@ -3,7 +3,7 @@ import { findAllergen } from "@/meals/allergen";
 import { isDuplicateTitle, normalizeTitle } from "@/meals/duplicates";
 import { suggestionExtra } from "@/meals/extras";
 import {
-  applySourceUrl,
+  applyWebSearchUrls,
   extraRecipeJsonSchema,
   extraSuggestionJsonSchema,
   parseExtraRecipeResponse,
@@ -52,13 +52,15 @@ const RECIPE_RULES = [
   "Use the household servings.",
 ].join("\n");
 
-const NO_URL_RULE = "sourceUrl must be null. Do not invent URLs.";
+const NO_URL_RULE =
+  "sourceUrl and imageUrl must be null. Do not invent URLs.";
 
 const WEB_SEARCH_RULES = [
   "Use web_search to find a real published recipe for this extra.",
   "Copy accurate quantities, units, cook times, and steps from the source.",
   "Do not invent amounts when a source lists them.",
   "Set sourceUrl to the cited page URL, or null if you cannot cite a real page.",
+  "When you set sourceUrl, also set imageUrl to that page’s direct photo URL (og:image or hero image of the finished dish). Prefer https image CDN links ending in .jpg/.jpeg/.png/.webp. Only use null for imageUrl if the page truly has no dish photo.",
 ].join("\n");
 
 function extraLabel(kind: ExtraKind): string {
@@ -194,7 +196,7 @@ export async function generateExtra(input: {
       return { ok: false, message: EXTRA_FAIL };
     }
 
-    const recipe = applySourceUrl(parsed.extra, searchOn);
+    const recipe = applyWebSearchUrls(parsed.extra, searchOn);
     const title = keepTitle || recipe.title;
     const allergen = findAllergen(recipe.ingredients, allergies);
     if (allergen) {

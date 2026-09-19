@@ -118,7 +118,8 @@ describe("generateExtra", () => {
         steps: [],
         usedWebSearch: false,
         sourceUrl: null,
-      },
+        imageUrl: null,
+        },
     });
     expect(traces[0]).toMatchObject({ kind: "extra", validation: "ok" });
     expect(adapter.requests[0]?.schemaName).toBe("extra_suggestion");

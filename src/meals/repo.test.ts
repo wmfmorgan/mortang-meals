@@ -209,7 +209,8 @@ describe("meals repo", () => {
         meal({
           title: "Cited salmon",
           sourceUrl: "https://example.com/salmon",
-        }),
+      imageUrl: null,
+    }),
       ],
       usedWebSearch: true,
     });
@@ -222,7 +223,8 @@ describe("meals repo", () => {
       meal({
         title: "Cited trout",
         sourceUrl: "https://example.com/trout",
-      }),
+      imageUrl: null,
+    }),
     );
     expect(swapped.sourceUrl).toBe("https://example.com/trout");
     expect((await getCurrentPlan(ident.householdId))?.meals[0]?.sourceUrl).toBe(
@@ -383,6 +385,7 @@ describe("meals repo", () => {
       meal: meal({ title: "Imported stew" }),
       slot: "dinner",
       sourceUrl: "https://example.com/stew",
+      imageUrl: null,
     });
     const pinned = await setPinned(ident.householdId, saved.id, true);
     const updated = await updateMeal(ident.householdId, pinned.id, {

@@ -37,7 +37,8 @@ const meal: Meal = {
   pinned: false,
   createdAt: "2026-08-10T12:00:00.000Z",
   sourceUrl: null,
-  extras: EMPTY_EXTRAS,
+        imageUrl: null,
+        extras: EMPTY_EXTRAS,
   draft: false,
   stars: 0,
   takeout: false,
@@ -61,6 +62,7 @@ describe("MealDetail source", () => {
   it("shows a clickable source URL on the full recipe", () => {
     renderDetail({
       meal: { ...meal, sourceUrl: "https://example.com/salmon" },
+      imageUrl: null,
     });
     const source = screen.getByRole("link", {
       name: "https://example.com/salmon",

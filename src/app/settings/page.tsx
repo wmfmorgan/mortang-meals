@@ -33,6 +33,7 @@ export default async function SettingsPage() {
             settings.customApiKey != null && settings.customApiKey.length > 0,
           developerTools: settings.developerTools,
           webSearch: settings.webSearch,
+          reasoningEffort: settings.reasoningEffort,
         }}
       />
     </div>

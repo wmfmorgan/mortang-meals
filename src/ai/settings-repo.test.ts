@@ -1,4 +1,12 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "vitest";
 import { getDb, resetDbForTests } from "@/lib/db";
 import { households } from "@/lib/schema";
 import { createTestIdentity, deleteTestUser } from "@/lib/test-identity";
@@ -7,12 +15,7 @@ import { getSettings, saveSettings } from "./settings-repo";
 let ident: Awaited<ReturnType<typeof createTestIdentity>>;
 const extraUsers: string[] = [];
 
-beforeAll(async () => {
-  ident = await createTestIdentity();
-});
-
-afterEach(async () => {
-  await Promise.all(extraUsers.splice(0).map(deleteTestUser));
+async function reseedHousehold() {
   await resetDbForTests();
   const [row] = await getDb()
     .insert(households)
@@ -25,6 +28,19 @@ afterEach(async () => {
     })
     .returning();
   ident.householdId = row!.id;
+}
+
+beforeAll(async () => {
+  ident = await createTestIdentity();
+});
+
+beforeEach(async () => {
+  await Promise.all(extraUsers.splice(0).map(deleteTestUser));
+  await reseedHousehold();
+});
+
+afterEach(async () => {
+  await Promise.all(extraUsers.splice(0).map(deleteTestUser));
 });
 
 afterAll(async () => {
@@ -44,12 +60,22 @@ describe("settings repo", () => {
     );
   });
 
+  it("defaults reasoning effort to high and persists globally", async () => {
+    expect((await getSettings(ident.householdId)).reasoningEffort).toBe("high");
+    expect(
+      (await saveSettings(ident.householdId, { reasoningEffort: "low" }))
+        .reasoningEffort,
+    ).toBe("low");
+    expect((await getSettings(ident.householdId)).reasoningEffort).toBe("low");
+  });
+
   it("shares provider settings across households but keeps developer tools local", async () => {
     const other = await createTestIdentity();
     extraUsers.push(other.userId);
     await saveSettings(ident.householdId, {
       model: "grok-shared",
       webSearch: true,
+      reasoningEffort: "high",
       developerTools: true,
     });
     await saveSettings(other.householdId, { developerTools: false });

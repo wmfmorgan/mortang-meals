@@ -51,6 +51,7 @@ function mondayDinnerPlan(): WeekPlan {
         pinned: false,
         createdAt: "2026-08-10T12:00:00.000Z",
         sourceUrl: null,
+        imageUrl: null,
         extras: EMPTY_EXTRAS,
         draft: false,
         stars: 0,
@@ -67,19 +68,26 @@ describe("WeekGrid", () => {
     render(<WeekGrid plan={mondayDinnerPlan()} />);
 
     expect(screen.getAllByRole("gridcell")).toHaveLength(7);
-    expect(screen.getAllByText("Dinner").length).toBe(7);
+    expect(
+      screen.getAllByRole("gridcell").every((cell) =>
+        cell.getAttribute("data-slot") === "dinner",
+      ),
+    ).toBe(true);
     expect(screen.queryByText("Breakfast")).toBeNull();
+    expect(screen.queryByText("Dinner")).toBeNull();
     expect(screen.getByText("Lemon herb salmon")).toBeTruthy();
     expect(screen.getByText("Lemon herb salmon").className).toContain(
       "meal-card-title",
     );
     expect(screen.queryByRole("gridcell", { name: /breakfast/i })).toBeNull();
-    expect(screen.getByRole("heading", { name: /monday/i })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /^mon 5$/i })).toBeTruthy();
+    expect(screen.queryByText(/01/)).toBeNull();
 
     const emptyTuesdayDinner = screen.getByRole("gridcell", {
       name: /empty tuesday dinner/i,
     });
     expect(emptyTuesdayDinner.textContent).not.toMatch(/lemon herb salmon/i);
+    expect(emptyTuesdayDinner.textContent).not.toMatch(/01/);
   });
 
   it("keeps a lunch row when a leftover occupies lunch", () => {
@@ -110,7 +118,13 @@ describe("WeekGrid", () => {
   it("lets an empty cell add a past meal when editable", () => {
     const onAdd = vi.fn();
     render(<WeekGrid plan={mondayDinnerPlan()} onAdd={onAdd} editable />);
-    fireEvent.click(screen.getByRole("button", { name: /add tuesday dinner/i }));
+    const addButton = screen.getByRole("button", {
+      name: /add tuesday dinner/i,
+    });
+    expect(addButton.textContent).toMatch(/dinner/i);
+    expect(addButton.textContent).not.toMatch(/add dinner/i);
+    expect(addButton.querySelector(".week-cell-add-plus")).toBeTruthy();
+    fireEvent.click(addButton);
     expect(onAdd).toHaveBeenCalledWith("tuesday", "dinner");
   });
 
@@ -131,6 +145,7 @@ describe("WeekGrid", () => {
       ...plan.meals[0]!,
       usedWebSearch: true,
       sourceUrl: "https://example.com/salmon",
+      imageUrl: null,
     };
     render(<WeekGrid plan={plan} editable />);
     expect(screen.getByText("Lemon herb salmon")).toBeTruthy();

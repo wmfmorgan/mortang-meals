@@ -10,6 +10,7 @@ import { useGeneration } from "./generation-provider";
 import { DraftQueue } from "./draft-queue";
 import { LibraryGenerateForm } from "./library-generate-form";
 import { MealBadges } from "./meal-card";
+import { MealImage } from "./meal-image";
 import { MealDetail } from "./meal-detail";
 import { RecipeFlyout, recipeEyebrow } from "./recipe-flyout";
 import { StarRating } from "./star-rating";
@@ -195,6 +196,7 @@ export function MealsCatalog({
                     className="meal-card-open w-full text-left"
                     onClick={() => setSelected(meal)}
                   >
+                    <MealImage imageUrl={meal.imageUrl} />
                     <h3 className="mt-0 mb-0 flex items-start gap-2">
                       <MealBadges meal={meal} />
                       <span className="meal-card-title">{meal.title}</span>

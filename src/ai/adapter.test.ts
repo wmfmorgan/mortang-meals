@@ -22,6 +22,7 @@ const grokSettings: AiSettings = {
   customApiKey: "ignored",
   developerTools: false,
   webSearch: false,
+  reasoningEffort: "high",
 };
 
 const customSettings: AiSettings = {
@@ -31,6 +32,7 @@ const customSettings: AiSettings = {
   customApiKey: null,
   developerTools: false,
   webSearch: false,
+  reasoningEffort: "high",
 };
 
 const request: AdapterRequest = {
@@ -59,6 +61,7 @@ it("resolveApiKey uses XAI_API_KEY for grok and the stored key for custom", () =
       customApiKey: "ignored",
       developerTools: false,
       webSearch: false,
+      reasoningEffort: "high",
     }),
   ).toBe("xai-secret");
   expect(
@@ -69,6 +72,7 @@ it("resolveApiKey uses XAI_API_KEY for grok and the stored key for custom", () =
       customApiKey: null,
       developerTools: false,
       webSearch: false,
+      reasoningEffort: "high",
     }),
   ).toBeUndefined();
   expect(
@@ -79,6 +83,7 @@ it("resolveApiKey uses XAI_API_KEY for grok and the stored key for custom", () =
       customApiKey: "local-secret",
       developerTools: false,
       webSearch: false,
+      reasoningEffort: "high",
     }),
   ).toBe("local-secret");
 });
@@ -108,6 +113,7 @@ describe("createAdapter", () => {
           strict: true,
         },
       },
+      reasoning_effort: "high",
     });
     expect(grokResult).toEqual({ ok: true, text: '{"title":"Soup"}' });
 
@@ -151,8 +157,36 @@ describe("createAdapter", () => {
           strict: true,
         },
       },
+      reasoning: { effort: "high" },
     });
     expect(result).toEqual({ ok: true, text: '{"title":"Searched soup"}' });
+  });
+
+  it("sends the configured reasoning effort on Grok calls", async () => {
+    process.env.XAI_API_KEY = "xai-secret";
+    createMock.mockResolvedValue({
+      choices: [{ message: { content: '{"title":"Soup"}' } }],
+    });
+    responsesCreateMock.mockResolvedValue({
+      output_text: '{"title":"Soup"}',
+    });
+
+    await createAdapter({
+      ...grokSettings,
+      reasoningEffort: "low",
+    }).complete(request);
+    expect(createMock.mock.calls[0]?.[0]).toMatchObject({
+      reasoning_effort: "low",
+    });
+
+    await createAdapter({
+      ...grokSettings,
+      webSearch: true,
+      reasoningEffort: "xhigh",
+    }).complete(request);
+    expect(responsesCreateMock.mock.calls[0]?.[0]).toMatchObject({
+      reasoning: { effort: "xhigh" },
+    });
   });
 
   it("uses the last complete JSON object from concatenated web-search output", async () => {

@@ -1,8 +1,9 @@
 import { buildHouseholdBrief } from "@/household/brief";
 import { findAllergen } from "@/meals/allergen";
 import { isDuplicateTitle } from "@/meals/duplicates";
+import { enrichMealsImageUrls } from "@/meals/page-image";
 import {
-  applySourceUrl,
+  applyWebSearchUrls,
   mealsJsonSchema,
   parseMealsResponse,
 } from "@/meals/schema";
@@ -49,13 +50,15 @@ const HARD_RULES = [
   'Ingredient quantity must be a string such as "1", "1/2", or "1/4". Never use 0 for an ingredient that is used.',
 ].join("\n");
 
-const NO_URL_RULE = "sourceUrl must be null. Do not invent URLs.";
+const NO_URL_RULE =
+  "sourceUrl and imageUrl must be null. Do not invent URLs.";
 
 const WEB_SEARCH_RULES = [
   "Use web_search to find real published recipes for each requested slot.",
   "Copy accurate quantities, units, cook times, and steps from the sources.",
   "Do not invent amounts when a source lists them.",
   "Set sourceUrl to the cited page URL, or null if you cannot cite a real page.",
+  "When you set sourceUrl, also set imageUrl to that page’s direct photo URL (og:image or hero image of the finished dish). Prefer https image CDN links ending in .jpg/.jpeg/.png/.webp. Only use null for imageUrl if the page truly has no dish photo.",
 ].join("\n");
 
 export function collectAllergies(household: Household): string[] {
@@ -296,9 +299,12 @@ export async function generateWeekPlan(input: {
     }
 
     log("ok", result.text);
+    const withUrls = parsed.meals.map((meal) =>
+      applyWebSearchUrls(meal, searchOn),
+    );
     return {
       ok: true,
-      meals: parsed.meals.map((meal) => applySourceUrl(meal, searchOn)),
+      meals: await enrichMealsImageUrls(withUrls, searchOn, input.signal),
     };
   }
 

@@ -79,12 +79,20 @@ export async function resolveHandlerAuth(
     if (!household) {
       return { ok: false, result: jsonError(400, ADD_HOUSEHOLD) };
     }
+    let email = auth.email ?? null;
+    // Routes often pass userId/householdId only; owner checks need email.
+    if (email == null || email === "") {
+      const user = await requireUser();
+      if (user.ok && user.userId === auth.userId) {
+        email = user.email;
+      }
+    }
     return {
       ok: true,
       userId: auth.userId,
       householdId: household.id,
       household,
-      email: auth.email ?? null,
+      email,
     };
   }
   return requireHousehold();

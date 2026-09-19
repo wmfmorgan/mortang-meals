@@ -7,7 +7,11 @@ export async function GET() {
     return Response.json(auth.result.body, { status: auth.result.status });
   }
   const result = await handleGetSettings({
-    auth: { userId: auth.userId, householdId: auth.householdId },
+    auth: {
+      userId: auth.userId,
+      householdId: auth.householdId,
+      email: auth.email,
+    },
   });
   return Response.json(result.body, { status: result.status });
 }
@@ -24,7 +28,11 @@ export async function PUT(req: Request) {
     return Response.json(auth.result.body, { status: auth.result.status });
   }
   const result = await handlePutSettings(body, {
-    auth: { userId: auth.userId, householdId: auth.householdId },
+    auth: {
+      userId: auth.userId,
+      householdId: auth.householdId,
+      email: auth.email,
+    },
   });
   return Response.json(result.body, { status: result.status });
 }

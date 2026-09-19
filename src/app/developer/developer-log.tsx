@@ -4,9 +4,16 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AiTrace } from "@/lib/types";
 
-export function DeveloperLog({ traces }: { traces: AiTrace[] }) {
+export function DeveloperLog({
+  traces,
+  missingImages = 0,
+}: {
+  traces: AiTrace[];
+  missingImages?: number;
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  const [backfillPending, setBackfillPending] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
   async function onClear() {
@@ -27,18 +34,51 @@ export function DeveloperLog({ traces }: { traces: AiTrace[] }) {
     }
   }
 
+  async function onBackfillImages() {
+    setBackfillPending(true);
+    setStatus(null);
+    try {
+      const res = await fetch("/api/library/backfill-images", {
+        method: "POST",
+      });
+      const data = (await res.json()) as { message?: string };
+      setStatus(data.message ?? (res.ok ? "Done." : "Backfill failed."));
+      router.refresh();
+    } catch {
+      setStatus("Couldn’t backfill meal images.");
+    } finally {
+      setBackfillPending(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
-      <button
-        type="button"
-        className="btn btn-secondary"
-        disabled={pending}
-        onClick={() => {
-          void onClear();
-        }}
-      >
-        Clear log
-      </button>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={pending}
+          onClick={() => {
+            void onClear();
+          }}
+        >
+          Clear log
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={backfillPending || missingImages === 0}
+          onClick={() => {
+            void onBackfillImages();
+          }}
+        >
+          {backfillPending
+            ? "Finding pictures…"
+            : missingImages === 0
+              ? "Meal images filled"
+              : `Backfill meal images (${missingImages})`}
+        </button>
+      </div>
       {status ? <p className="text-sm text-herb">{status}</p> : null}
       {traces.length === 0 ? (
         <p className="page-lede">No traces yet.</p>

@@ -50,6 +50,7 @@ export function createAdapter(settings: AiSettings) {
     async complete(req: AdapterRequest): Promise<AdapterResult> {
       try {
         if (grokWebSearchEnabled(settings)) {
+          // SDK types lag xAI's "xhigh" effort; cast at the boundary.
           const body = {
             model: settings.model,
             input: req.messages,
@@ -62,10 +63,16 @@ export function createAdapter(settings: AiSettings) {
                 strict: true,
               },
             },
+            reasoning: { effort: settings.reasoningEffort },
           };
           const response = req.signal
-            ? await client.responses.create(body, { signal: req.signal })
-            : await client.responses.create(body);
+            ? await client.responses.create(
+                body as Parameters<typeof client.responses.create>[0],
+                { signal: req.signal },
+              )
+            : await client.responses.create(
+                body as Parameters<typeof client.responses.create>[0],
+              );
           return { ok: true, text: extractResponseText(response) };
         }
 
@@ -83,11 +90,19 @@ export function createAdapter(settings: AiSettings) {
                   },
                 }
               : { type: "json_object" as const },
+          ...(settings.mode === "grok"
+            ? { reasoning_effort: settings.reasoningEffort }
+            : {}),
         };
-        const completion = req.signal
-          ? await client.chat.completions.create(body, { signal: req.signal })
-          : await client.chat.completions.create(body);
-        const text = completion.choices[0]?.message?.content ?? "";
+        const completion = (req.signal
+          ? await client.chat.completions.create(
+              body as Parameters<typeof client.chat.completions.create>[0],
+              { signal: req.signal },
+            )
+          : await client.chat.completions.create(
+              body as Parameters<typeof client.chat.completions.create>[0],
+            )) as { choices?: Array<{ message?: { content?: string | null } }> };
+        const text = completion.choices?.[0]?.message?.content ?? "";
         return { ok: true, text };
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") {

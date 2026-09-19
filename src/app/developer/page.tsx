@@ -4,6 +4,7 @@ import { getSettings } from "@/ai/settings-repo";
 import { listTraces } from "@/ai/traces";
 import { requirePageHousehold } from "@/lib/request-auth";
 import { createClient } from "@/lib/supabase/server";
+import { countMealsMissingImages } from "@/meals/repo";
 import { DeveloperLog } from "./developer-log";
 import { canViewDeveloper } from "./visibility";
 
@@ -19,6 +20,7 @@ export default async function DeveloperPage() {
   }
 
   const traces = await listTraces(householdId);
+  const missingImages = await countMealsMissingImages(householdId);
 
   return (
     <div>
@@ -27,7 +29,7 @@ export default async function DeveloperPage() {
         title="Developer"
         lede="The last twenty-five prompts and replies. Keys are stripped before anything is stored."
       />
-      <DeveloperLog traces={traces} />
+      <DeveloperLog traces={traces} missingImages={missingImages} />
     </div>
   );
 }
