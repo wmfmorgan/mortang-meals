@@ -23,6 +23,8 @@ const grokSettings: AiSettings = {
   developerTools: false,
   webSearch: false,
   reasoningEffort: "high",
+  aiDailyCapEnabled: true,
+  aiDailyCap: 10,
 };
 
 const customSettings: AiSettings = {
@@ -33,6 +35,8 @@ const customSettings: AiSettings = {
   developerTools: false,
   webSearch: false,
   reasoningEffort: "high",
+  aiDailyCapEnabled: true,
+  aiDailyCap: 10,
 };
 
 const request: AdapterRequest = {
@@ -62,6 +66,8 @@ it("resolveApiKey uses XAI_API_KEY for grok and the stored key for custom", () =
       developerTools: false,
       webSearch: false,
       reasoningEffort: "high",
+  aiDailyCapEnabled: true,
+  aiDailyCap: 10,
     }),
   ).toBe("xai-secret");
   expect(
@@ -73,6 +79,8 @@ it("resolveApiKey uses XAI_API_KEY for grok and the stored key for custom", () =
       developerTools: false,
       webSearch: false,
       reasoningEffort: "high",
+  aiDailyCapEnabled: true,
+  aiDailyCap: 10,
     }),
   ).toBeUndefined();
   expect(
@@ -84,6 +92,8 @@ it("resolveApiKey uses XAI_API_KEY for grok and the stored key for custom", () =
       developerTools: false,
       webSearch: false,
       reasoningEffort: "high",
+  aiDailyCapEnabled: true,
+  aiDailyCap: 10,
     }),
   ).toBe("local-secret");
 });
@@ -174,6 +184,8 @@ describe("createAdapter", () => {
     await createAdapter({
       ...grokSettings,
       reasoningEffort: "low",
+  aiDailyCapEnabled: true,
+  aiDailyCap: 10,
     }).complete(request);
     expect(createMock.mock.calls[0]?.[0]).toMatchObject({
       reasoning_effort: "low",
@@ -183,6 +195,8 @@ describe("createAdapter", () => {
       ...grokSettings,
       webSearch: true,
       reasoningEffort: "xhigh",
+  aiDailyCapEnabled: true,
+  aiDailyCap: 10,
     }).complete(request);
     expect(responsesCreateMock.mock.calls[0]?.[0]).toMatchObject({
       reasoning: { effort: "xhigh" },

@@ -113,7 +113,7 @@ Generation UX is global (`GenerationProvider` in `AppShell`): NDJSON stream in t
 
 **Slot mask** — which of the 21 cells are requested. Default: all dinners on (`defaultSlotMask`). Also session-backed (`mortang.slotMask`). Pinned slots are treated as locked in the picker (`maskMinusPinned`, `toggleSlot` / `toggleDay` / `toggleMealRow`).
 
-**Settings** — Global provider config (`app_settings`): `mode: grok | custom`, `baseUrl` (default `https://api.x.ai/v1`), `model` (default `grok-4.6`), optional `customApiKey`, `webSearch`, `reasoningEffort` (`low | medium | high | xhigh`, default `high`). Per-household: `developerTools` only. API responses expose `customApiKey` as a boolean only. Grok adapter sends `reasoning.effort` (Responses / web search) or `reasoning_effort` (chat completions).
+**Settings** — Global provider config (`app_settings`): `mode: grok | custom`, `baseUrl` (default `https://api.x.ai/v1`), `model` (default `grok-4.6`), optional `customApiKey`, `webSearch`, `reasoningEffort` (`low | medium | high | xhigh`, default `high`), `aiDailyCapEnabled` (default on), `aiDailyCap` (default 10, shared-key calls per user per UTC day). Per-household: `developerTools` only. API responses expose `customApiKey` as a boolean only. Grok adapter sends `reasoning.effort` (Responses / web search) or `reasoning_effort` (chat completions). Shared-key cap is skipped when `aiDailyCapEnabled` is false or Settings mode is custom with a key.
 
 **AI trace** — kind `generate | generate-retry | swap | swap-retry | extra | extra-retry | library | library-retry | image-backfill | image-backfill-retry | test`, request/response text, validation `ok | invalid-json | schema | allergen | duplicate | transport`. Import is **not** traced today.
 

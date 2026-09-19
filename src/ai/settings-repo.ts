@@ -3,6 +3,9 @@ import { getDb } from "@/lib/db";
 import { aiSettings, appSettings } from "@/lib/schema";
 import type { AiSettings } from "@/lib/types";
 
+/** Default shared-key daily cap when the setting is on. */
+export const DEFAULT_AI_DAILY_CAP = 10;
+
 const DEFAULT_SETTINGS: AiSettings = {
   mode: "grok",
   baseUrl: "https://api.x.ai/v1",
@@ -11,6 +14,8 @@ const DEFAULT_SETTINGS: AiSettings = {
   developerTools: false,
   webSearch: false,
   reasoningEffort: "high",
+  aiDailyCapEnabled: true,
+  aiDailyCap: DEFAULT_AI_DAILY_CAP,
 };
 
 const APP_SETTINGS_ID = "default";
@@ -26,6 +31,13 @@ function parseReasoningEffort(
   return DEFAULT_SETTINGS.reasoningEffort;
 }
 
+function parseAiDailyCap(raw: number | null | undefined): number {
+  if (typeof raw !== "number" || !Number.isFinite(raw)) {
+    return DEFAULT_SETTINGS.aiDailyCap;
+  }
+  return Math.max(1, Math.floor(raw));
+}
+
 type GlobalFields = Pick<
   AiSettings,
   | "mode"
@@ -34,6 +46,8 @@ type GlobalFields = Pick<
   | "customApiKey"
   | "webSearch"
   | "reasoningEffort"
+  | "aiDailyCapEnabled"
+  | "aiDailyCap"
 >;
 
 function globalValues(settings: GlobalFields) {
@@ -44,6 +58,8 @@ function globalValues(settings: GlobalFields) {
     customApiKey: settings.customApiKey,
     webSearch: settings.webSearch,
     reasoningEffort: settings.reasoningEffort,
+    aiDailyCapEnabled: settings.aiDailyCapEnabled,
+    aiDailyCap: parseAiDailyCap(settings.aiDailyCap),
   };
 }
 
@@ -62,6 +78,8 @@ async function ensureGlobalSettings(): Promise<GlobalFields> {
       customApiKey: row.customApiKey,
       webSearch: row.webSearch,
       reasoningEffort: parseReasoningEffort(row.reasoningEffort),
+      aiDailyCapEnabled: row.aiDailyCapEnabled ?? true,
+      aiDailyCap: parseAiDailyCap(row.aiDailyCap),
     };
   }
   const seed = globalValues(DEFAULT_SETTINGS);
@@ -73,6 +91,8 @@ async function ensureGlobalSettings(): Promise<GlobalFields> {
     customApiKey: DEFAULT_SETTINGS.customApiKey,
     webSearch: DEFAULT_SETTINGS.webSearch,
     reasoningEffort: DEFAULT_SETTINGS.reasoningEffort,
+    aiDailyCapEnabled: DEFAULT_SETTINGS.aiDailyCapEnabled,
+    aiDailyCap: DEFAULT_SETTINGS.aiDailyCap,
   };
 }
 
@@ -116,7 +136,11 @@ export async function saveSettings(
   patch: Partial<AiSettings>,
 ): Promise<AiSettings> {
   const current = await getSettings(householdId);
-  const next: AiSettings = { ...current, ...patch };
+  const next: AiSettings = {
+    ...current,
+    ...patch,
+    aiDailyCap: parseAiDailyCap(patch.aiDailyCap ?? current.aiDailyCap),
+  };
   const db = getDb();
 
   await db

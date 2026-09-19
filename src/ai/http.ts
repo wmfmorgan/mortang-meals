@@ -181,6 +181,8 @@ const settingsPatchSchema = z.object({
   developerTools: z.boolean().optional(),
   webSearch: z.boolean().optional(),
   reasoningEffort: z.enum(["low", "medium", "high", "xhigh"]).optional(),
+  aiDailyCapEnabled: z.boolean().optional(),
+  aiDailyCap: z.number().int().min(1).max(10_000).optional(),
 });
 
 const TEST_JSON_SCHEMA = {

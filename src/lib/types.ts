@@ -196,6 +196,10 @@ export type AiSettings = {
   developerTools: boolean;
   webSearch: boolean;
   reasoningEffort: ReasoningEffort;
+  /** When false, shared-key (Grok / XAI_API_KEY) calls are uncapped for all users. */
+  aiDailyCapEnabled: boolean;
+  /** Shared-key calls allowed per user per UTC day when the cap is on (min 1). */
+  aiDailyCap: number;
 };
 
 export type AiTrace = {

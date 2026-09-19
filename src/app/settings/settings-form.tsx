@@ -12,6 +12,8 @@ export type SafeSettings = {
   developerTools: boolean;
   webSearch: boolean;
   reasoningEffort: ReasoningEffort;
+  aiDailyCapEnabled: boolean;
+  aiDailyCap: number;
 };
 
 const REASONING_OPTIONS: { value: ReasoningEffort; label: string }[] = [
@@ -35,6 +37,10 @@ export function SettingsForm({ settings }: { settings: SafeSettings }) {
   const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>(
     settings.reasoningEffort,
   );
+  const [aiDailyCapEnabled, setAiDailyCapEnabled] = useState(
+    settings.aiDailyCapEnabled,
+  );
+  const [aiDailyCap, setAiDailyCap] = useState(String(settings.aiDailyCap));
   const [status, setStatus] = useState<string | null>(null);
   const [testMessage, setTestMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -120,6 +126,31 @@ export function SettingsForm({ settings }: { settings: SafeSettings }) {
       await putSettings({ reasoningEffort: next });
     } catch (error) {
       setReasoningEffort(previous);
+      setStatus(
+        error instanceof Error ? error.message : "Couldn’t save settings.",
+      );
+    }
+  }
+
+  async function onToggleAiDailyCap(checked: boolean) {
+    setAiDailyCapEnabled(checked);
+    try {
+      await putSettings({ aiDailyCapEnabled: checked });
+    } catch (error) {
+      setAiDailyCapEnabled(!checked);
+      setStatus(
+        error instanceof Error ? error.message : "Couldn’t save settings.",
+      );
+    }
+  }
+
+  async function onSaveAiDailyCap() {
+    const parsed = Math.max(1, Math.floor(Number(aiDailyCap) || 1));
+    setAiDailyCap(String(parsed));
+    try {
+      await putSettings({ aiDailyCap: parsed });
+      setStatus("Saved daily cap.");
+    } catch (error) {
       setStatus(
         error instanceof Error ? error.message : "Couldn’t save settings.",
       );
@@ -255,6 +286,51 @@ export function SettingsForm({ settings }: { settings: SafeSettings }) {
         <span className="mt-1 block text-sm font-normal text-herb">
           How hard Grok thinks before answering. Higher is slower and uses more
           tokens. Grok mode only.
+        </span>
+      </label>
+      <label className="flex min-h-11 items-start gap-3 text-sm font-medium">
+        <input
+          className="mt-0.5 h-4 w-4 accent-[var(--color-olive)]"
+          type="checkbox"
+          checked={aiDailyCapEnabled}
+          onChange={(event) => {
+            void onToggleAiDailyCap(event.target.checked);
+          }}
+        />
+        <span>
+          Limit shared Grok key usage
+          <span className="mt-1 block font-normal text-herb">
+            Caps calls that use the server <code>XAI_API_KEY</code> (generate,
+            import, swap, image backfill). Turn off to remove the limit for all
+            users. Custom API keys are never capped.
+          </span>
+        </span>
+      </label>
+      <label className="field">
+        Daily cap (per user, UTC day)
+        <div className="flex flex-wrap items-end gap-2">
+          <input
+            className={inputClass}
+            type="number"
+            min={1}
+            step={1}
+            value={aiDailyCap}
+            disabled={!aiDailyCapEnabled}
+            onChange={(event) => setAiDailyCap(event.target.value)}
+          />
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={!aiDailyCapEnabled || pending}
+            onClick={() => {
+              void onSaveAiDailyCap();
+            }}
+          >
+            Save cap
+          </button>
+        </div>
+        <span className="mt-1 block text-sm font-normal text-herb">
+          Only applies when the limit above is on. Default is 10.
         </span>
       </label>
       {status ? <p className="text-sm text-herb">{status}</p> : null}

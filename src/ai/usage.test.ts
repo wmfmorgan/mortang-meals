@@ -12,7 +12,9 @@ const grok = {
   customApiKey: null,
   developerTools: false,
   webSearch: false,
-  reasoningEffort: "high",
+  reasoningEffort: "high" as const,
+  aiDailyCapEnabled: true,
+  aiDailyCap: AI_DAILY_CAP,
 };
 
 describe("consumeAiQuota", () => {
@@ -57,6 +59,30 @@ describe("consumeAiQuota", () => {
       .from(aiUsage)
       .where(and(eq(aiUsage.userId, ident.userId), eq(aiUsage.day, day)));
     expect(row?.generateCount).toBe(AI_DAILY_CAP);
+    await deleteTestUser(ident.userId);
+  });
+
+  it("skips the cap when aiDailyCapEnabled is false", async () => {
+    const ident = await createTestIdentity();
+    const settings = { ...grok, aiDailyCapEnabled: false };
+    for (let i = 0; i < AI_DAILY_CAP + 3; i++) {
+      const result = await consumeAiQuota({ userId: ident.userId, settings });
+      expect(result.ok).toBe(true);
+    }
+    await deleteTestUser(ident.userId);
+  });
+
+  it("respects a custom aiDailyCap value", async () => {
+    const ident = await createTestIdentity();
+    const settings = { ...grok, aiDailyCap: 2 };
+    expect(
+      (await consumeAiQuota({ userId: ident.userId, settings })).ok,
+    ).toBe(true);
+    expect(
+      (await consumeAiQuota({ userId: ident.userId, settings })).ok,
+    ).toBe(true);
+    const blocked = await consumeAiQuota({ userId: ident.userId, settings });
+    expect(blocked.ok).toBe(false);
     await deleteTestUser(ident.userId);
   });
 });

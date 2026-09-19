@@ -76,6 +76,8 @@ describe("settings repo", () => {
       model: "grok-shared",
       webSearch: true,
       reasoningEffort: "high",
+      aiDailyCapEnabled: true,
+      aiDailyCap: 10,
       developerTools: true,
     });
     await saveSettings(other.householdId, { developerTools: false });

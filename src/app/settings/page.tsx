@@ -34,6 +34,8 @@ export default async function SettingsPage() {
           developerTools: settings.developerTools,
           webSearch: settings.webSearch,
           reasoningEffort: settings.reasoningEffort,
+          aiDailyCapEnabled: settings.aiDailyCapEnabled,
+          aiDailyCap: settings.aiDailyCap,
         }}
       />
     </div>

@@ -117,6 +117,8 @@ export const appSettings = pgTable("app_settings", {
   customApiKey: text("custom_api_key"),
   webSearch: boolean("web_search").notNull(),
   reasoningEffort: text("reasoning_effort").notNull().default("high"),
+  aiDailyCapEnabled: boolean("ai_daily_cap_enabled").notNull().default(true),
+  aiDailyCap: integer("ai_daily_cap").notNull().default(10),
 });
 
 export const aiTraces = pgTable("ai_traces", {
