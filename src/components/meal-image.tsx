@@ -1,3 +1,5 @@
+import { displayImageUrl } from "@/meals/schema";
+
 export function MealImage({
   imageUrl,
   className = "",
@@ -11,8 +13,9 @@ export function MealImage({
   const frame = compact
     ? "meal-image meal-image-compact"
     : "meal-image meal-image-catalog";
+  const src = displayImageUrl(imageUrl);
 
-  if (!imageUrl) {
+  if (!src) {
     return (
       <div
         className={`${frame} meal-image-placeholder ${className}`.trim()}
@@ -25,7 +28,7 @@ export function MealImage({
     <div className={`${frame} ${className}`.trim()}>
       {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary recipe CDNs */}
       <img
-        src={imageUrl}
+        src={src}
         alt=""
         loading="lazy"
         referrerPolicy="no-referrer"

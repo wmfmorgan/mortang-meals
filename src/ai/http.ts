@@ -662,7 +662,7 @@ export async function handleTestConnection(
   };
 }
 
-const BACKFILL_BATCH = 5;
+const BACKFILL_BATCH = 25;
 
 export async function handleBackfillMealImages(
   deps?: HandlerDeps,

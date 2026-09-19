@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyWebSearchUrls,
+  displayImageUrl,
   mealEditSchema,
   normalizeImageUrl,
   normalizeSourceUrl,
@@ -178,6 +179,15 @@ describe("normalizeImageUrl / applyWebSearchUrls", () => {
     expect(
       normalizeImageUrl("https://cdn.example.com/dish.jpg", true),
     ).toBe("https://cdn.example.com/dish.jpg");
+  });
+
+  it("upgrades http image URLs to https", () => {
+    expect(
+      normalizeImageUrl("http://cdn.example.com/dish.jpg", true),
+    ).toBe("https://cdn.example.com/dish.jpg");
+    expect(displayImageUrl("http://cdn.example.com/dish.jpg")).toBe(
+      "https://cdn.example.com/dish.jpg",
+    );
   });
 
   it("drops image URLs when web search is off", () => {

@@ -68,6 +68,23 @@ export function normalizeImageUrl(
   try {
     const url = new URL(trimmed);
     if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    // Production is HTTPS; prefer https image URLs to avoid mixed-content blocks.
+    if (url.protocol === "http:") url.protocol = "https:";
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+/** Safe display URL for cards (upgrade http→https; drop invalid). */
+export function displayImageUrl(raw: string | null | undefined): string | null {
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    if (url.protocol === "http:") url.protocol = "https:";
     return url.href;
   } catch {
     return null;
