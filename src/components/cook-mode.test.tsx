@@ -145,6 +145,70 @@ describe("CookMode", () => {
     expect(screen.getByRole("button", { name: "Edit" })).toBeTruthy();
   });
 
+  it("defaults to Step-by-Step and shows one instruction", () => {
+    const { container } = renderCook();
+    expect(
+      screen.getByRole("radio", { name: "Step-by-Step" }).getAttribute("aria-checked"),
+    ).toBe("true");
+    expect(
+      screen.getByRole("radio", { name: "All Steps Overview" }).getAttribute("aria-checked"),
+    ).toBe("false");
+    expect(container.querySelector(".cook-instruction")?.textContent).toBe(
+      "Preheat the oven to 425",
+    );
+    expect(screen.queryByRole("list", { name: "All steps" })).toBeNull();
+  });
+
+  it("shows every step after All Steps Overview is selected", () => {
+    renderCook();
+    fireEvent.click(screen.getByRole("radio", { name: "All Steps Overview" }));
+    const list = screen.getByRole("list", { name: "All steps" });
+    expect([...list.querySelectorAll("li")].map((item) => item.textContent)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("Preheat the oven to 425"),
+        expect.stringContaining("Roast until the flesh flakes"),
+      ]),
+    );
+    expect(screen.queryByRole("button", { name: /next/i })).toBeNull();
+    expect(sessionStorage.getItem("mortang.cookView.meal-salmon")).toBe(
+      JSON.stringify("overview"),
+    );
+  });
+
+  it("restores All Steps Overview from sessionStorage", async () => {
+    sessionStorage.setItem("mortang.cookView.meal-salmon", JSON.stringify("overview"));
+    renderCook();
+    await vi.waitFor(() => {
+      expect(
+        screen.getByRole("radio", { name: "All Steps Overview" }).getAttribute("aria-checked"),
+      ).toBe("true");
+      expect(screen.getByRole("list", { name: "All steps" })).toBeTruthy();
+    });
+  });
+
+  it("hides the view switch when there are no steps", () => {
+    renderCook({ meal: { ...meal, steps: [] } });
+    expect(screen.queryByRole("radiogroup", { name: "Cooking view" })).toBeNull();
+    expect(screen.getByText("No method steps yet.")).toBeTruthy();
+  });
+
+  it("keeps the active step highlighted in overview and after switching back", () => {
+    const { container } = renderCook();
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(screen.getByRole("radio", { name: "All Steps Overview" }));
+    expect(
+      screen
+        .getByRole("button", { name: /2\. Roast until the flesh flakes/i })
+        .getAttribute("aria-current"),
+    ).toBe("step");
+
+    fireEvent.click(screen.getByRole("button", { name: /1\. Preheat the oven to 425/i }));
+    fireEvent.click(screen.getByRole("radio", { name: "Step-by-Step" }));
+    expect(container.querySelector(".cook-instruction")?.textContent).toBe(
+      "Preheat the oven to 425",
+    );
+  });
+
   it("writes checked ingredients to sessionStorage", () => {
     renderCook();
     fireEvent.click(screen.getByRole("checkbox"));

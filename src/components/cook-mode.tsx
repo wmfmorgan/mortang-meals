@@ -13,8 +13,11 @@ import { StarRating } from "./star-rating";
 
 const CHECKS_PREFIX = "mortang.cookChecks.";
 const STEP_PREFIX = "mortang.cookStep.";
+const VIEW_PREFIX = "mortang.cookView.";
 const MIN_SERVINGS = 1;
 const MAX_SERVINGS = 24;
+
+type CookView = "step" | "overview";
 
 function checksKey(mealId: string) {
   return `${CHECKS_PREFIX}${mealId}`;
@@ -85,6 +88,25 @@ function writeStep(mealId: string, index: number) {
   writeSession(stepKey(mealId), JSON.stringify(index));
 }
 
+function viewKey(mealId: string) {
+  return `${VIEW_PREFIX}${mealId}`;
+}
+
+function readView(mealId: string): CookView {
+  const raw = readSession(viewKey(mealId));
+  if (!raw) return "step";
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed === "overview" ? "overview" : "step";
+  } catch {
+    return "step";
+  }
+}
+
+function writeView(mealId: string, view: CookView) {
+  writeSession(viewKey(mealId), JSON.stringify(view));
+}
+
 function clampServings(value: number): number {
   if (!Number.isFinite(value)) return MIN_SERVINGS;
   return Math.min(MAX_SERVINGS, Math.max(MIN_SERVINGS, Math.round(value)));
@@ -131,6 +153,7 @@ export function CookMode({
 
   const [checked, setChecked] = useState(() => emptyChecks(meal.ingredients.length));
   const [activeStep, setActiveStep] = useState(0);
+  const [view, setView] = useState<CookView>("step");
   const [displayServings, setDisplayServings] = useState(() =>
     clampServings(meal.servings || 1),
   );
@@ -148,6 +171,7 @@ export function CookMode({
   useEffect(() => {
     setChecked(readChecks(meal.id, meal.ingredients.length));
     setActiveStep(readStep(meal.id, meal.steps.length));
+    setView(readView(meal.id));
     setDisplayServings(clampServings(meal.servings || 1));
     setRemaining(secondsFromCookMinutes(meal.cookMinutes));
     setRunning(false);
@@ -273,6 +297,11 @@ export function CookMode({
     writeStep(meal.id, next);
   }
 
+  function setCookView(next: CookView) {
+    setView(next);
+    writeView(meal.id, next);
+  }
+
   function toggleWake() {
     if (!wakeSupported) return;
     if (wakeHeld) {
@@ -315,6 +344,26 @@ export function CookMode({
         </p>
         {meal.sourceUrl ? <SourceLink href={meal.sourceUrl} /> : null}
         <div className="cook-utils no-print">
+          {hasSteps ? (
+            <div className="cook-view-switch" role="radiogroup" aria-label="Cooking view">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={view === "step"}
+                onClick={() => setCookView("step")}
+              >
+                Step-by-Step
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={view === "overview"}
+                onClick={() => setCookView("overview")}
+              >
+                All Steps Overview
+              </button>
+            </div>
+          ) : null}
           <button
             type="button"
             className="cook-pill cook-wake"
@@ -416,7 +465,36 @@ export function CookMode({
         </aside>
 
         <section className="cook-stage">
-          {hasSteps ? (
+          {hasSteps && view === "overview" ? (
+            <article className="cook-card cook-stage-card no-print">
+              <div className="cook-stage-image no-print">
+                <MealImage imageUrl={meal.imageUrl} />
+              </div>
+              <ol className="cook-overview" aria-label="All steps">
+                {meal.steps.map((step, index) => (
+                  <li key={`${index}-${step}`}>
+                    <button
+                      type="button"
+                      className="cook-overview-step"
+                      aria-current={index === current ? "step" : undefined}
+                      data-done={index < current ? "true" : undefined}
+                      onClick={() => goToStep(index)}
+                    >
+                      <span className="cook-overview-index" aria-hidden="true">
+                        {index < current ? "✓" : index + 1}
+                      </span>
+                      <span className="cook-overview-body">
+                        <span className="cook-overview-heading">
+                          {stepChipTitle(step, index)}
+                        </span>
+                        <span className="cook-instruction">{step}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </article>
+          ) : hasSteps ? (
             <>
               <nav className="cook-card cook-steps-card no-print" aria-label="Cooking steps">
                 <div className="cook-steps">
