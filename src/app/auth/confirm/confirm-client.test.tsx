@@ -95,6 +95,13 @@ describe("ConfirmClient", () => {
   });
 
   it("goes home when a pending invite is accepted after confirm", async () => {
+    const assign = vi.fn();
+    vi.stubGlobal("location", {
+      ...window.location,
+      assign,
+      search: "?token_hash=abc&type=email",
+      hash: "",
+    });
     window.history.replaceState(
       {},
       "",
@@ -108,8 +115,8 @@ describe("ConfirmClient", () => {
 
     await waitFor(() => {
       expect(completeInviteSignInAction).toHaveBeenCalled();
-      expect(replace).toHaveBeenCalledWith("/");
-      expect(refresh).toHaveBeenCalled();
+      expect(assign).toHaveBeenCalledWith("/");
     });
+    vi.unstubAllGlobals();
   });
 });

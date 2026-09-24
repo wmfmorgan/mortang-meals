@@ -63,15 +63,15 @@ export function LoginForm({
     setStatus(null);
     const supabase = createClient();
     const origin = publicAppOrigin(window.location.origin);
-    const confirmUrl = new URL("/auth/confirm", origin);
+    const callbackUrl = new URL("/auth/callback", origin);
     if (afterLogin !== "/") {
-      confirmUrl.searchParams.set("next", afterLogin);
+      callbackUrl.searchParams.set("next", afterLogin);
     }
     const { error } = await supabase.auth.signInWithOtp({
       email: trimmed,
       options: {
         shouldCreateUser: false,
-        emailRedirectTo: confirmUrl.toString(),
+        emailRedirectTo: callbackUrl.toString(),
       },
     });
     setPending(false);

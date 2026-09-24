@@ -58,15 +58,15 @@ export async function sendInviteMagicLink(
     (process.env.VERCEL_URL
       ? `https://${process.env.VERCEL_URL.replace(/^https?:\/\//, "")}`
       : "http://127.0.0.1:3000");
-  const confirmUrl = new URL("/auth/confirm", origin);
-  confirmUrl.searchParams.set("next", joinPath);
+  const callbackUrl = new URL("/auth/callback", origin);
+  callbackUrl.searchParams.set("next", joinPath);
 
   const admin = createAdminClient();
   const { error } = await admin.auth.signInWithOtp({
     email: normalized,
     options: {
       shouldCreateUser: false,
-      emailRedirectTo: confirmUrl.toString(),
+      emailRedirectTo: callbackUrl.toString(),
     },
   });
   if (error) {

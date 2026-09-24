@@ -39,18 +39,19 @@ Dashboard work — create the projects if they do not exist yet; this repo does 
 4. Auth URL configuration (Authentication → URL Configuration):
    - **Site URL** = `https://www.mortang.com` (canonical production origin)
    - **Redirect URLs** must include at least:
+     - `https://www.mortang.com/auth/callback`
      - `https://www.mortang.com/auth/confirm`
      - `https://www.mortang.com/**`
      - optional: `https://mortang-meals.vercel.app/**` for the Vercel alias
    - Do **not** rely on `*.vercel.app` team deployment hostnames for magic links unless those exact origins are allowlisted.
-5. Magic-link **email template** (Authentication → Emails → Magic Link) must use the token-hash confirm link — **not** the default `{{ .ConfirmationURL }}` verify link. Body example (same as `supabase/templates/magic_link.html`):
+5. Magic-link **email template** (Authentication → Emails → Magic Link) must use the **server** callback with a token hash — **not** the default `{{ .ConfirmationURL }}` verify link. Body example (same as `supabase/templates/magic_link.html`):
 
    ```html
    <h2>Sign in to Mortang Meals</h2>
-   <p><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email">Sign in</a></p>
+   <p><a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=email">Sign in</a></p>
    ```
 
-   The default hosted template (`/auth/v1/verify?token=pkce_…`) needs a same-browser PKCE cookie and a matching allowlisted `redirect_to`; it commonly dumps users back on `/login`.
+   `/auth/callback` verifies the OTP on the server and sets session cookies before redirecting (required for existing users with middleware). The default hosted template (`/auth/v1/verify?token=pkce_…`) needs a same-browser PKCE cookie and commonly dumps users back on `/login`.
 6. `supabase link` then `supabase db push` (or apply `supabase/migrations/` in the dashboard).
 7. Set Vercel env (Production; use a separate DB for Preview — **do not** point preview deploys at the production database). With the Vercel ↔ Supabase Marketplace integration, `POSTGRES_*` and `NEXT_PUBLIC_SUPABASE_*` are injected automatically; also set:
    - `XAI_API_KEY`

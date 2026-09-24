@@ -125,7 +125,7 @@ describe("LoginForm", () => {
         email: "guest@example.com",
         options: {
           shouldCreateUser: false,
-          emailRedirectTo: expect.stringMatching(/\/auth\/confirm$/),
+          emailRedirectTo: expect.stringMatching(/\/auth\/callback$/),
         },
       });
     });
@@ -148,7 +148,7 @@ describe("LoginForm", () => {
           email: "guest@example.com",
           options: {
             shouldCreateUser: false,
-            emailRedirectTo: "https://www.mortang.com/auth/confirm",
+            emailRedirectTo: "https://www.mortang.com/auth/callback",
           },
         });
       });

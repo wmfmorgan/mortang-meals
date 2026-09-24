@@ -58,14 +58,9 @@ export function ConfirmClient() {
       setMessage("Finishing invite…");
       const inviteResult = await completeInviteSignInAction();
       if (cancelled) return;
-      if (inviteResult.ok && inviteResult.joined) {
-        router.replace("/");
-        router.refresh();
-        return;
-      }
-
-      router.replace(next);
-      router.refresh();
+      // Full navigation so middleware sees cookies (router.replace can race).
+      const dest = inviteResult.ok && inviteResult.joined ? "/" : next;
+      window.location.assign(dest);
     }
 
     void finish();

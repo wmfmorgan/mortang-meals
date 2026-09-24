@@ -75,7 +75,7 @@ Thin `src/app/api/*/route.ts` files parse JSON, resolve the session household, a
 
 | Route | Role |
 | --- | --- |
-| `/login` | Email + password **or** magic link (“Email me a link”). Invite-only; OTP never self-registers (`shouldCreateUser: false`). Household invites may create the Auth user. Supports `?next=` return after sign-in. |
+| `/login` | Email + password **or** magic link (“Email me a link”). Invite-only; OTP never self-registers (`shouldCreateUser: false`). Household invites may create the Auth user. Supports `?next=` return after sign-in. Magic links land on `/auth/callback` (server OTP verify + cookies). |
 | `/setup` | First-run wizard: household → kitchen checklist → slot mask. Redirect target when there is no household or no named people. Links “Have an invite code?” → `/join` when the user has no household yet. |
 | `/join` | Accept a household invite (`?code=`). Requires a signed-in user with **no** membership yet whose email matches the invite’s `invited_email`; then shares that household’s Plans / Meals / shopping list. |
 | `/` Plans | Home. Week switcher, slot picker (cells to fill), fill-empty-slots from the library, takeout, leftovers, week grid, recipe flyout, library flyout. Labels are Monday–Sunday ranges. Visiting `/` with no `?plan=` opens this calendar week if the current plan is in the past. `?plan=` opens a historical plan. |
