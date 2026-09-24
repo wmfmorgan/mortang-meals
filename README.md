@@ -20,7 +20,7 @@ This worktree’s `supabase/config.toml` uses **563xx** ports so it does not col
 5. Auth is **email + password or magic link** (no Google). Signup stays off; magic link uses `shouldCreateUser: false`.
    - Studio → Authentication → Users → Add user: set email, optional password, confirm email (or update an existing user).
    - Magic-link emails land in **Mailpit** at `http://127.0.0.1:56324` (this repo’s local Supabase port). Open the message and follow the link through `/auth/confirm`.
-6. `npm run dev` → `http://localhost:3000/login` → **Sign in** with email + password, or **Email me a link** (check Mailpit).
+6. `npm run dev` → `http://localhost:3000/login` → **Email me a link** (check Mailpit), or **Use a password instead**.
 
 ```
 npm test        # vitest (needs supabase start)
@@ -58,7 +58,7 @@ Dashboard work — create the projects if they do not exist yet; this repo does 
    - `NEXT_PUBLIC_SITE_URL=https://www.mortang.com` — magic-link `emailRedirectTo` uses this instead of the current `*.vercel.app` host
    - Optional `DATABASE_URL` (transaction pooler) — if omitted, the app uses `POSTGRES_PRISMA_URL` / `POSTGRES_URL`
    - `SUPABASE_SERVICE_ROLE_KEY` — required in production for household member emails on `/household` (and for tests / import script on a trusted machine; never expose to the browser). Without it the page still loads with “Unknown email”.
-8. Add or update yourself in Studio (Users) with email, optional password, email confirmed. Sign in once at `/login` with password or magic link. To invite a partner: Household → invite by email (creates their Auth user if needed and sends a magic link bound to that address). Apply migration `20260923205018_invite_email.sql` on hosted Supabase before using email invites in production.
+8. Add or update yourself in Studio (Users) with email, optional password, email confirmed. Sign in once at `/login` with **Email me a link** (or **Use a password instead**). To invite a partner: Household → invite by email (creates their Auth user if needed and sends a magic link bound to that address). Apply migration `20260923205018_invite_email.sql` on hosted Supabase before using email invites in production.
 9. Optional one-time migrate from the old local SQLite file. After first login/setup, run with **`--force`** (wipes that household’s app rows, not `auth.users`, then copies sqlite). Without `--force`, the empty current week from `openPlan` plus unique week constraints / duplicate people can fail the import:
 
    `npx tsx scripts/import-sqlite.ts --email you@example.com --db data/mortang.db --force`

@@ -34,18 +34,25 @@ afterEach(() => {
   refresh.mockReset();
 });
 
+function revealPassword() {
+  fireEvent.click(screen.getByRole("button", { name: /use a password instead/i }));
+}
+
 describe("LoginForm", () => {
-  it("shows email and password fields with Sign in and Email me a link, no Google", () => {
+  it("defaults to email + Email me a link, password hidden, no Google", () => {
     render(<LoginForm />);
     expect(screen.getByLabelText(/^email$/i)).toBeTruthy();
-    expect(screen.getByLabelText(/^password$/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /^sign in$/i })).toBeTruthy();
+    expect(screen.queryByLabelText(/^password$/i)).toBeNull();
     expect(screen.getByRole("button", { name: /email me a link/i })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^sign in$/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /use a password instead/i })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /continue with google/i })).toBeNull();
   });
 
-  it("signs in with email and password then goes home", async () => {
+  it("reveals password sign-in when asked, then signs in", async () => {
     render(<LoginForm />);
+    revealPassword();
+    expect(screen.getByLabelText(/^password$/i)).toBeTruthy();
     fireEvent.change(screen.getByLabelText(/^email$/i), {
       target: { value: "guest@example.com" },
     });
@@ -64,8 +71,19 @@ describe("LoginForm", () => {
     });
   });
 
+  it("returns to magic-link mode from password mode", () => {
+    render(<LoginForm />);
+    revealPassword();
+    expect(screen.getByLabelText(/^password$/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /email me a link instead/i }));
+    expect(screen.queryByLabelText(/^password$/i)).toBeNull();
+    expect(screen.getByRole("button", { name: /email me a link/i })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^sign in$/i })).toBeNull();
+  });
+
   it("redirects to next after password sign-in", async () => {
     render(<LoginForm next="/join?code=ABCD2345" />);
+    revealPassword();
     fireEvent.change(screen.getByLabelText(/^email$/i), {
       target: { value: "guest@example.com" },
     });
@@ -81,6 +99,7 @@ describe("LoginForm", () => {
 
   it("rejects unsafe next via safeNextPath and goes home", async () => {
     render(<LoginForm next="//evil.example" />);
+    revealPassword();
     fireEvent.change(screen.getByLabelText(/^email$/i), {
       target: { value: "guest@example.com" },
     });
@@ -99,6 +118,7 @@ describe("LoginForm", () => {
       error: { message: "Invalid login credentials" },
     });
     render(<LoginForm />);
+    revealPassword();
     fireEvent.change(screen.getByLabelText(/^email$/i), {
       target: { value: "guest@example.com" },
     });
@@ -108,12 +128,39 @@ describe("LoginForm", () => {
     fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/invalid login credentials/i)).toBeTruthy();
+      expect(screen.getByRole("alert").textContent).toMatch(/invalid login credentials/i);
     });
     expect(replace).not.toHaveBeenCalled();
   });
 
-  it("sends a magic link with shouldCreateUser false and emailRedirectTo /auth/confirm", async () => {
+  it("requires a password in password mode", async () => {
+    render(<LoginForm />);
+    revealPassword();
+    fireEvent.change(screen.getByLabelText(/^email$/i), {
+      target: { value: "guest@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert").textContent).toMatch(/enter your password/i);
+    });
+    expect(signInWithPassword).not.toHaveBeenCalled();
+  });
+
+  it("Enter in link mode sends a magic link, not password", async () => {
+    render(<LoginForm />);
+    fireEvent.change(screen.getByLabelText(/^email$/i), {
+      target: { value: "guest@example.com" },
+    });
+    fireEvent.submit(screen.getByLabelText(/^email$/i).closest("form")!);
+
+    await waitFor(() => {
+      expect(signInWithOtp).toHaveBeenCalled();
+      expect(signInWithPassword).not.toHaveBeenCalled();
+    });
+  });
+
+  it("sends a magic link with shouldCreateUser false and emailRedirectTo /auth/callback", async () => {
     render(<LoginForm />);
     fireEvent.change(screen.getByLabelText(/^email$/i), {
       target: { value: "guest@example.com" },
@@ -158,7 +205,7 @@ describe("LoginForm", () => {
     }
   });
 
-  it("shows inbox message on successful OTP without navigating away", async () => {
+  it("shows inbox status on successful OTP without navigating away", async () => {
     render(<LoginForm />);
     fireEvent.change(screen.getByLabelText(/^email$/i), {
       target: { value: "guest@example.com" },
@@ -166,15 +213,18 @@ describe("LoginForm", () => {
     fireEvent.click(screen.getByRole("button", { name: /email me a link/i }));
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/If that address can sign in, check your inbox for a link\./),
-      ).toBeTruthy();
+      expect(screen.getByRole("status").textContent).toMatch(
+        /If that address can sign in, check your inbox for a link\./,
+      );
     });
+    expect(screen.getByText("guest@example.com")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /check your inbox/i })).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
     expect(replace).not.toHaveBeenCalled();
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it("maps signup-disallowed OTP errors to the same inbox message", async () => {
+  it("maps signup-disallowed OTP errors to the same inbox status", async () => {
     signInWithOtp.mockResolvedValueOnce({
       error: { message: "Signups not allowed for otp" },
     });
@@ -185,15 +235,31 @@ describe("LoginForm", () => {
     fireEvent.click(screen.getByRole("button", { name: /email me a link/i }));
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/If that address can sign in, check your inbox for a link\./),
-      ).toBeTruthy();
+      expect(screen.getByRole("status").textContent).toMatch(
+        /If that address can sign in, check your inbox for a link\./,
+      );
     });
     expect(screen.queryByText(/signups not allowed/i)).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
     expect(replace).not.toHaveBeenCalled();
   });
 
-  it("still shows distinct OTP transport errors", async () => {
+  it("lets the user return from the inbox panel to edit email", async () => {
+    render(<LoginForm />);
+    fireEvent.change(screen.getByLabelText(/^email$/i), {
+      target: { value: "guest@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /email me a link/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /use a different email/i }));
+    expect(screen.getByLabelText(/^email$/i)).toBeTruthy();
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("still shows distinct OTP transport errors as alerts", async () => {
     signInWithOtp.mockResolvedValueOnce({
       error: { message: "Request rate limit reached" },
     });
@@ -204,8 +270,9 @@ describe("LoginForm", () => {
     fireEvent.click(screen.getByRole("button", { name: /email me a link/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/request rate limit reached/i)).toBeTruthy();
+      expect(screen.getByRole("alert").textContent).toMatch(/request rate limit reached/i);
     });
+    expect(screen.queryByRole("status")).toBeNull();
   });
 
   it("requires an email before sending a magic link", async () => {
@@ -213,8 +280,13 @@ describe("LoginForm", () => {
     fireEvent.click(screen.getByRole("button", { name: /email me a link/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/enter your email/i)).toBeTruthy();
+      expect(screen.getByRole("alert").textContent).toMatch(/enter your email/i);
     });
     expect(signInWithOtp).not.toHaveBeenCalled();
+  });
+
+  it("shows a confirm authError as an alert on the form", () => {
+    render(<LoginForm authError="That sign-in link didn’t finish. Request a new one." />);
+    expect(screen.getByRole("alert").textContent).toMatch(/sign-in link didn’t finish/i);
   });
 });

@@ -188,6 +188,15 @@ textarea.input {
   font-size: 0.9rem;
 }
 
+.notice {
+  margin: 0;
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--color-olive) 12%, var(--color-paper));
+  color: var(--color-olive-deep);
+  font-size: 0.9rem;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;

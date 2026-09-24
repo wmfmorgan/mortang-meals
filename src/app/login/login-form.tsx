@@ -30,28 +30,11 @@ export function LoginForm({
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [mode, setMode] = useState<"link" | "password">("link");
   const [status, setStatus] = useState<string | null>(authError);
+  const [sentTo, setSentTo] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const afterLogin = safeNextPath(next) ?? "/";
-
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    if (!password.trim()) {
-      setStatus("Enter your password, or use Email me a link.");
-      return;
-    }
-    setPending(true);
-    setStatus(null);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setStatus(error.message);
-      setPending(false);
-      return;
-    }
-    router.replace(afterLogin);
-    router.refresh();
-  }
 
   async function sendMagicLink() {
     const trimmed = email.trim();
@@ -76,16 +59,98 @@ export function LoginForm({
     });
     setPending(false);
     if (error) {
-      setStatus(
-        isOtpUnknownUserError(error.message) ? OTP_INBOX_MESSAGE : error.message,
-      );
+      if (isOtpUnknownUserError(error.message)) {
+        setSentTo(trimmed);
+        return;
+      }
+      setStatus(error.message);
       return;
     }
-    setStatus(OTP_INBOX_MESSAGE);
+    setSentTo(trimmed);
   }
 
+  async function signInWithPasswordSubmit() {
+    if (!password.trim()) {
+      setStatus("Enter your password.");
+      return;
+    }
+    setPending(true);
+    setStatus(null);
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setStatus(error.message);
+      setPending(false);
+      return;
+    }
+    router.replace(afterLogin);
+    router.refresh();
+  }
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (mode === "link") {
+      await sendMagicLink();
+      return;
+    }
+    await signInWithPasswordSubmit();
+  }
+
+  if (sentTo) {
+    return (
+      <div className="space-y-4">
+        <h1 className="font-display text-[1.75rem] font-bold tracking-tight">
+          Check your inbox
+        </h1>
+        <p role="status" className="notice">
+          {OTP_INBOX_MESSAGE}
+        </p>
+        <p className="text-sm text-herb">{sentTo}</p>
+        <button
+          type="button"
+          className="btn btn-ghost min-h-11 w-full"
+          onClick={() => {
+            setSentTo(null);
+            setStatus(null);
+            setMode("link");
+          }}
+        >
+          Use a different email
+        </button>
+      </div>
+    );
+  }
+
+  const primaryLabel =
+    mode === "link"
+      ? pending
+        ? "Sending link…"
+        : "Email me a link"
+      : pending
+        ? "Signing in…"
+        : "Sign in";
+
   return (
-    <form className="max-w-md space-y-5" onSubmit={(event) => void onSubmit(event)}>
+    <form
+      className="space-y-5"
+      noValidate
+      onSubmit={(event) => void onSubmit(event)}
+    >
+      <div>
+        <h1 className="font-display text-[1.75rem] font-bold tracking-tight">
+          Sign in
+        </h1>
+        <p className="mt-2 text-[0.95rem] leading-relaxed text-herb">
+          {mode === "link"
+            ? "We’ll email you a sign-in link."
+            : "Sign in with your password."}
+        </p>
+      </div>
+      {status ? (
+        <p role="alert" className="alert">
+          {status}
+        </p>
+      ) : null}
       <label className="field">
         Email
         <input
@@ -94,39 +159,44 @@ export function LoginForm({
           name="email"
           autoComplete="email"
           required
+          autoFocus={mode === "link"}
           value={email}
           onChange={(event) => setEmail(event.target.value)}
         />
       </label>
-      <label className="field">
-        Password
-        <input
-          className="input"
-          type="password"
-          name="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-        />
-      </label>
-      <div className="flex flex-wrap gap-3">
-        <button type="submit" className="btn btn-primary" disabled={pending}>
-          Sign in
+      {mode === "password" ? (
+        <label className="field">
+          Password
+          <input
+            className="input"
+            type="password"
+            name="password"
+            id="login-password"
+            autoComplete="current-password"
+            autoFocus
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </label>
+      ) : null}
+      <div className="space-y-2">
+        <button type="submit" className="btn btn-primary w-full" disabled={pending}>
+          {primaryLabel}
         </button>
         <button
           type="button"
-          className="btn btn-secondary"
+          className="btn btn-ghost min-h-11 w-full"
           disabled={pending}
-          onClick={() => void sendMagicLink()}
+          aria-expanded={mode === "password"}
+          aria-controls={mode === "password" ? "login-password" : undefined}
+          onClick={() => {
+            setMode(mode === "link" ? "password" : "link");
+            setStatus(null);
+          }}
         >
-          Email me a link
+          {mode === "link" ? "Use a password instead" : "Email me a link instead"}
         </button>
       </div>
-      {status ? (
-        <p role="alert" className="alert">
-          {status}
-        </p>
-      ) : null}
     </form>
   );
 }
