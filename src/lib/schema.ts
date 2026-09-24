@@ -41,6 +41,7 @@ export const householdInvites = pgTable("household_invites", {
   householdId: uuid("household_id").notNull(),
   code: text("code").notNull().unique(),
   createdBy: uuid("created_by").notNull(),
+  invitedEmail: text("invited_email"),
   expiresAt: timestamp("expires_at", { withTimezone: true, mode: "string" }).notNull(),
   maxUses: integer("max_uses").notNull().default(1),
   useCount: integer("use_count").notNull().default(0),

@@ -89,6 +89,7 @@ describe("init migration", () => {
         "use_count",
         "revoked_at",
         "created_at",
+        "invited_email",
       ]),
     );
 
