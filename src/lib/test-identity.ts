@@ -1,19 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
 import { getDb } from "./db";
 import { householdMembers, households } from "./schema";
-
-function adminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceRole) {
-    throw new Error(
-      "NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required",
-    );
-  }
-  return createClient(url, serviceRole, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
+import { createAdminClient } from "./supabase/admin";
 
 export async function createTestIdentity(email?: string): Promise<{
   userId: string;
@@ -21,7 +8,7 @@ export async function createTestIdentity(email?: string): Promise<{
   householdId: string;
 }> {
   const resolvedEmail = email ?? `test-${crypto.randomUUID()}@example.com`;
-  const { data, error } = await adminClient().auth.admin.createUser({
+  const { data, error } = await createAdminClient().auth.admin.createUser({
     email: resolvedEmail,
     email_confirm: true,
   });
@@ -54,7 +41,22 @@ export async function createTestIdentity(email?: string): Promise<{
   };
 }
 
+/** Auth user only — no households / membership rows. */
+export async function createAuthUserWithoutHousehold(
+  email?: string,
+): Promise<{ userId: string; email: string }> {
+  const resolvedEmail = email ?? `orphan-${crypto.randomUUID()}@example.com`;
+  const { data, error } = await createAdminClient().auth.admin.createUser({
+    email: resolvedEmail,
+    email_confirm: true,
+  });
+  if (error || !data.user) {
+    throw new Error(error?.message ?? "Failed to create auth user");
+  }
+  return { userId: data.user.id, email: resolvedEmail };
+}
+
 export async function deleteTestUser(userId: string): Promise<void> {
-  const { error } = await adminClient().auth.admin.deleteUser(userId);
+  const { error } = await createAdminClient().auth.admin.deleteUser(userId);
   if (error) throw new Error(error.message);
 }
