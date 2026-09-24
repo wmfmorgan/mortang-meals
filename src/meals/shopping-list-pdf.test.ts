@@ -19,7 +19,13 @@ describe("shoppingListPdf", () => {
         {
           aisle: "produce",
           items: [
-            { name: "garlic", quantity: "4", unit: "clove", aisle: "produce" },
+            {
+              name: "garlic",
+              quantity: "4",
+              unit: "clove",
+              aisle: "produce",
+              sources: [],
+            },
           ],
         },
       ],
@@ -36,8 +42,20 @@ describe("shoppingListPdf", () => {
         {
           aisle: "produce",
           items: [
-            { name: "garlic", quantity: "4", unit: "clove", aisle: "produce" },
-            { name: "parsley", quantity: "4", unit: "tbsp", aisle: "produce" },
+            {
+              name: "garlic",
+              quantity: "4",
+              unit: "clove",
+              aisle: "produce",
+              sources: [],
+            },
+            {
+              name: "parsley",
+              quantity: "4",
+              unit: "tbsp",
+              aisle: "produce",
+              sources: [],
+            },
           ],
         },
       ],

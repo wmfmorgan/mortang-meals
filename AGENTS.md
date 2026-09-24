@@ -82,7 +82,7 @@ Thin `src/app/api/*/route.ts` files parse JSON, resolve the session household, a
 | `/meals` | Library: generate drafts (batch or one recipe), approve/reject queue, then search / filter / group, import-from-URL, add-recipe. Catalog is unique by title. Saved meals can be rated 1–5 stars. |
 | `/meals/new` | Redirects to `/meals` (manual add is an inline collapsible card there). |
 | `/meals/[id]` | Counter Cook Mode (mise en place + active step). Edit is a secondary mode on the same page. |
-| `/shopping-list` | Derived list for the open plan (`?plan=` supported). Not stored. |
+| `/shopping-list` | Derived list for the open plan (`?plan=` supported). Not stored. Aisle cards, check-off (localStorage), recipe source chips, household dietary-guards sidebar, and Safe-for-{person} filters from people allergies. Print/share PDF. |
 | `/household` | Household & Dietary: **members** (owner invites by email + revoke/remove), people, notes, cook prefs (expertise / involved / max cook time), and appliance/method checklist. Servings for AI drafts are set on Meals. |
 | `/kitchen` | Redirects to `/household` (kitchen content lives on Household). |
 | `/settings` | Global provider mode/URL/model/key/web search/reasoning effort (all households). Developer tools is per-admin household. Nav + route limited to admin email. |
@@ -183,7 +183,7 @@ Lunch and dinner cards on the **current** plan can add one side and one dessert 
 
 ### Shopping list
 
-`mergeShoppingList` (`src/meals/shopping-list.ts`) from the **open** plan’s meals **plus recipe extras**. Suggestions add nothing. Normalize names (lowercase, naive English plural strip). Merge quantities when name + unit match and both quantities parse (`1`, `1/2`, `1 1/2`, decimals). Non-numeric quantities do not merge. Group by aisle: produce, meat, dairy, pantry, other.
+`mergeShoppingList` (`src/meals/shopping-list.ts`) from the **open** plan’s meals **plus recipe extras**. Suggestions add nothing. Normalize names (lowercase, naive English plural strip). Merge quantities when name + unit match and both quantities parse (`1`, `1/2`, `1 1/2`, decimals). Non-numeric quantities do not merge. Group by aisle: produce, meat, dairy, pantry, other. Each merged row keeps `sources` (unique meal / extra titles). Check-off is per-plan in `localStorage` (`mortang.shopChecks`). `shoppingItemFlags` chips an ingredient whose name matches a person’s allergy or avoidance; **Safe for {name}** hides allergy matches only.
 
 ## AI adapter
 
@@ -223,7 +223,7 @@ Brief (`src/household/brief.ts`) includes people, notes, allergies, avoidances, 
 | `src/meals/repo.ts` | Plans and meals persistence (merge, place, pin, library, import, typed create, drafts, stars) |
 | `src/meals/http.ts` | Library / pin / place / import / create / update / delete / draft approve-reject / rate handlers |
 | `src/meals/catalog.ts` | Search / filter / group for `/meals` |
-| `src/meals/{allergen,duplicates,extras,shopping-list}.ts` | Pure validators / extras parse / list merge |
+| `src/meals/{allergen,duplicates,extras,shopping-list,shopping-flags}.ts` | Pure validators / extras parse / list merge / shopping allergen chips |
 | `src/ai/adapter.ts` | Provider client |
 | `src/ai/generate-plan.ts` | Generate loop + validation |
 | `src/ai/generate-library.ts` | Library batch / one-recipe loop + validation |
@@ -280,6 +280,7 @@ Household, membership (invite/revoke/remove/accept), and kitchen writes are serv
 - Any open plan is editable. Week switcher includes Previous / Current week / Next. Library generate still targets drafts; AI week generate (if used) still merges onto the current plan.
 - Lunch/dinner cards show side and dessert lines. Only a full extra recipe is a flyout control.
 - Session slot mask, slot-picker open/closed, and use-ingredients survive in-tab navigation. On Plans the slot picker collapses to a summary when a plan exists (or after the user collapses it); setup wizard keeps the full table.
+- Shopping list check-off survives refresh for that plan. Source chips and dietary-guards sidebar use existing meal titles and household people; there is no Instacart, pantry, or custom-item flow.
 
 ## How to change things
 

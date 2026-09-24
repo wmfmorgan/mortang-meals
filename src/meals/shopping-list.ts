@@ -1,10 +1,19 @@
 import {
   AISLES,
+  type Aisle,
   type Meal,
   type MealExtras,
   type ShoppingItem,
   type ShoppingList,
 } from "@/lib/types";
+
+export const AISLE_LABELS: Record<Aisle, string> = {
+  produce: "Produce & Fresh Herbs",
+  meat: "Proteins & Seafood",
+  dairy: "Dairy & Refrigerated",
+  pantry: "Pantry, Grains & Canned Goods",
+  other: "Other",
+};
 
 const UNIT_ALIASES: Record<string, string> = {
   tablespoon: "tbsp",
@@ -285,19 +294,33 @@ export function formatQuantity(value: number): string {
   return sign + String(rounded);
 }
 
-function extraRecipeIngredients(
-  extras: MealExtras | undefined,
-): Meal["ingredients"] {
-  const items: Meal["ingredients"] = [];
-  for (const extra of [extras?.side, extras?.dessert]) {
-    if (extra?.mode === "recipe") items.push(...extra.ingredients);
+function addSource(item: ShoppingItem, title: string | undefined) {
+  const trimmed = title?.trim();
+  if (!trimmed) return;
+  if (!item.sources.includes(trimmed)) item.sources.push(trimmed);
+}
+
+function ingredientBatches(
+  meal: Pick<Meal, "ingredients"> & {
+    title?: string;
+    extras?: MealExtras;
+  },
+): Array<{ title?: string; ingredients: Meal["ingredients"] }> {
+  const batches: Array<{ title?: string; ingredients: Meal["ingredients"] }> = [
+    { title: meal.title, ingredients: meal.ingredients },
+  ];
+  for (const extra of [meal.extras?.side, meal.extras?.dessert]) {
+    if (extra?.mode === "recipe") {
+      batches.push({ title: extra.title, ingredients: extra.ingredients });
+    }
   }
-  return items;
+  return batches;
 }
 
 export function mergeShoppingList(
   meals: Array<
     Pick<Meal, "ingredients"> & {
+      title?: string;
       extras?: MealExtras;
       takeout?: boolean;
       leftover?: boolean;
@@ -308,37 +331,40 @@ export function mergeShoppingList(
 
   for (const meal of meals) {
     if (meal.takeout || meal.leftover) continue;
-    const ingredients = [
-      ...meal.ingredients,
-      ...extraRecipeIngredients(meal.extras),
-    ];
-    for (const ingredient of ingredients) {
-      const name = normalizeIngredientName(ingredient.name);
-      const unit = canonicalUnit(ingredient.unit);
-      const parsed = parseQuantity(ingredient.quantity);
-      const quantityText = String(ingredient.quantity).trim();
-      const existing = merged.find(
-        (item) =>
-          sameProduct(item.name, name) &&
-          (item.unit === unit ||
-            (parsed != null &&
-              unitFamily(item.unit) !== "other" &&
-              unitFamily(unit) !== "other" &&
-              unitFamily(item.unit) === unitFamily(unit))),
-      );
-      if (existing && parsed != null && addQuantities(existing, parsed, unit)) {
-        if (name.length < existing.name.length) existing.name = name;
-        continue;
+    for (const batch of ingredientBatches(meal)) {
+      for (const ingredient of batch.ingredients) {
+        const name = normalizeIngredientName(ingredient.name);
+        const unit = canonicalUnit(ingredient.unit);
+        const parsed = parseQuantity(ingredient.quantity);
+        const quantityText = String(ingredient.quantity).trim();
+        const existing = merged.find(
+          (item) =>
+            sameProduct(item.name, name) &&
+            (item.unit === unit ||
+              (parsed != null &&
+                unitFamily(item.unit) !== "other" &&
+                unitFamily(unit) !== "other" &&
+                unitFamily(item.unit) === unitFamily(unit))),
+        );
+        if (existing && parsed != null && addQuantities(existing, parsed, unit)) {
+          if (name.length < existing.name.length) existing.name = name;
+          addSource(existing, batch.title);
+          continue;
+        }
+        if (existing && parsed == null && existing.unit === unit) {
+          addSource(existing, batch.title);
+          continue;
+        }
+        const created: ShoppingItem = {
+          name,
+          quantity: parsed == null ? quantityText : formatQuantity(parsed),
+          unit,
+          aisle: ingredient.aisle,
+          sources: [],
+        };
+        addSource(created, batch.title);
+        merged.push(created);
       }
-      if (existing && parsed == null && existing.unit === unit) {
-        continue;
-      }
-      merged.push({
-        name,
-        quantity: parsed == null ? quantityText : formatQuantity(parsed),
-        unit,
-        aisle: ingredient.aisle,
-      });
     }
   }
 
