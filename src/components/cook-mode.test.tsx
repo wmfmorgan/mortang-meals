@@ -190,6 +190,13 @@ describe("CookMode", () => {
     expect(screen.queryByRole("button", { name: "4 stars" })).toBeNull();
   });
 
+  it("calls onRate when a star is clicked", () => {
+    const onRate = vi.fn();
+    renderCook({ meal: { ...meal, stars: 0 }, onRate });
+    fireEvent.click(screen.getByRole("button", { name: "4 stars" }));
+    expect(onRate).toHaveBeenCalledWith(4);
+  });
+
   it("scales ingredient quantities with the servings stepper", () => {
     renderCook();
     expect(screen.getByText("1 lb salmon")).toBeTruthy();

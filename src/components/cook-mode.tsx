@@ -117,12 +117,14 @@ export function CookMode({
   servingsLabel,
   canSwap,
   actions,
+  onRate,
 }: {
   meal: Meal;
   people: Person[];
   servingsLabel?: string;
   canSwap: boolean;
   actions: ReactNode;
+  onRate?: (stars: number) => void;
 }) {
   void canSwap;
   void servingsLabel;
@@ -304,7 +306,9 @@ export function CookMode({
             <MealBadges meal={meal} />
             {meal.title}
           </h1>
-          {!meal.draft ? <StarRating value={meal.stars} /> : null}
+          {!meal.draft ? (
+            <StarRating value={meal.stars} onChange={onRate} />
+          ) : null}
         </div>
         <p className="cook-meta">
           {meal.cookMinutes} min · Feeds {displayServings} · {meal.method}

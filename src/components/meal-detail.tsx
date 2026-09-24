@@ -78,6 +78,7 @@ export function MealDetail({
   const [ingredients, setIngredients] = useState<Ingredient[]>(source.ingredients);
   const [steps, setSteps] = useState<string[]>(source.steps);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
+  const [stars, setStars] = useState(source.stars);
 
   const dirty =
     editing &&
@@ -203,6 +204,18 @@ export function MealDetail({
     } finally {
       setPending(false);
     }
+  }
+
+  async function onRate(next: number) {
+    if (!meal || meal.draft) return;
+    const res = await fetch("/api/library/rate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mealId: meal.id, stars: next }),
+    });
+    if (!res.ok) return;
+    setStars(next);
+    router.refresh();
   }
 
   async function onDelete() {
@@ -577,11 +590,12 @@ export function MealDetail({
         </form>
       ) : (
         <CookMode
-          meal={source}
+          meal={{ ...source, stars }}
           people={people}
           servingsLabel={servings}
           canSwap={canSwap}
           actions={actions}
+          onRate={source.draft ? undefined : (next) => void onRate(next)}
         />
       )}
     </>

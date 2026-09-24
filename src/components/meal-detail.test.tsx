@@ -119,10 +119,20 @@ describe("MealDetail print", () => {
 });
 
 describe("MealDetail rating", () => {
-  it("shows rating stars in the cook header", () => {
+  it("rates a saved recipe", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    vi.stubGlobal("fetch", fetchMock);
     renderDetail();
-    expect(screen.getByRole("button", { name: "4 stars" })).toBeTruthy();
-    expect(screen.getByRole("group", { name: "Rating" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "4 stars" }));
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/library/rate",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ mealId: "meal-salmon", stars: 4 }),
+        }),
+      );
+    });
   });
 
   it("hides stars on drafts", () => {
