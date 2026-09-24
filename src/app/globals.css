@@ -2259,7 +2259,7 @@ a.badge-link:hover {
   z-index: 2;
   padding: 0 1rem 1rem;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.5rem;
 }
