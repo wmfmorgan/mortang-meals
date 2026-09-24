@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import type { CookFrom } from "@/lib/cook-exit";
+import { cookMealHref } from "@/lib/cook-exit";
 import type { Meal } from "@/lib/types";
 import { CloseIcon, MealBadges, SwapButton } from "./meal-card";
 import { StarRating } from "./star-rating";
@@ -68,6 +70,8 @@ export function RecipeFlyout({
   eyebrow,
   showOpenFullRecipe = true,
   onRate,
+  from = "meals",
+  planId,
 }: {
   meal: Meal;
   servings: number;
@@ -76,6 +80,8 @@ export function RecipeFlyout({
   eyebrow?: string;
   showOpenFullRecipe?: boolean;
   onRate?: (stars: number) => void;
+  from?: CookFrom;
+  planId?: string;
 }) {
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -150,7 +156,14 @@ export function RecipeFlyout({
 
         <div className="flex flex-wrap items-center gap-3">
           {showOpenFullRecipe ? (
-            <Link href={`/meals/${meal.id}`} className="btn btn-primary no-underline">
+            <Link
+              href={cookMealHref(
+                meal.id,
+                from,
+                from === "plans" ? planId : undefined,
+              )}
+              className="btn btn-primary no-underline"
+            >
               Open full recipe
             </Link>
           ) : null}

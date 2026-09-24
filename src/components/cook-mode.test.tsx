@@ -67,6 +67,21 @@ describe("CookMode", () => {
     expect(screen.getByText("Mise en Place")).toBeTruthy();
   });
 
+  it("defaults exit to the library", () => {
+    renderCook();
+    const link = screen.getByRole("link", { name: "Exit to Library" });
+    expect(link.getAttribute("href")).toBe("/meals");
+  });
+
+  it("uses the provided Plans exit", () => {
+    renderCook({
+      exit: { href: "/?plan=plan-1", label: "Exit to Plans" },
+    });
+    const link = screen.getByRole("link", { name: "Exit to Plans" });
+    expect(link.getAttribute("href")).toBe("/?plan=plan-1");
+    expect(screen.queryByRole("link", { name: "Exit to Library" })).toBeNull();
+  });
+
   it("counts checked ingredients as Ready", () => {
     renderCook();
     expect(screen.getByText("0 of 1 Ready")).toBeTruthy();

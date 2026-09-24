@@ -108,6 +108,7 @@ export function WeekGrid({
                       <MealCard
                         meal={meal}
                         compact
+                        planId={plan?.id}
                         onOpen={onSelectMeal}
                         onOpenExtra={
                           onSelectExtra

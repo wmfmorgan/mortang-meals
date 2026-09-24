@@ -165,6 +165,7 @@ export function CookMode({
   canSwap,
   actions,
   onRate,
+  exit,
 }: {
   meal: Meal;
   people: Person[];
@@ -172,9 +173,14 @@ export function CookMode({
   canSwap: boolean;
   actions: ReactNode;
   onRate?: (stars: number) => void;
+  exit?: { href: string; label: string };
 }) {
   void canSwap;
   void servingsLabel;
+  const { href: exitHref, label: exitLabel } = exit ?? {
+    href: "/meals",
+    label: "Exit to Library",
+  };
 
   const [checked, setChecked] = useState(() => emptyChecks(meal.ingredients.length));
   const [activeStep, setActiveStep] = useState(0);
@@ -363,8 +369,8 @@ export function CookMode({
     <div className="cook-mode">
       <header className="cook-header">
         <div className="cook-header-bar no-print">
-          <Link href="/meals" className="cook-exit no-print">
-            Exit to Library
+          <Link href={exitHref} className="cook-exit no-print">
+            {exitLabel}
           </Link>
           <div className="cook-header-actions">{actions}</div>
         </div>

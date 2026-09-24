@@ -69,6 +69,7 @@ export function MealDetail({
   onClose,
   onSaved,
   onDirtyChange,
+  exit,
 }: {
   meal?: Meal;
   servings: string;
@@ -79,6 +80,7 @@ export function MealDetail({
   onClose?: () => void;
   onSaved?: () => void;
   onDirtyChange?: (dirty: boolean) => void;
+  exit?: { href: string; label: string };
 }) {
   const creating = mode === "create";
   const source = meal ?? EMPTY_DRAFT;
@@ -261,7 +263,7 @@ export function MealDetail({
         body: JSON.stringify({ mealId: meal.id }),
       });
       if (!res.ok) return;
-      router.push("/meals");
+      router.push(exit?.href ?? "/meals");
       router.refresh();
     } finally {
       setPending(false);
@@ -320,10 +322,10 @@ export function MealDetail({
       ) : editing ? (
         <>
           <Link
-            href="/meals"
+            href={exit?.href ?? "/meals"}
             className="no-print mb-6 inline-block text-sm text-herb no-underline hover:text-ink"
           >
-            ← Meals
+            {exit?.label === "Exit to Plans" ? "← Plans" : "← Meals"}
           </Link>
           <PageHeader
             eyebrow={eyebrow}
@@ -696,6 +698,7 @@ export function MealDetail({
           canSwap={canSwap}
           actions={actions}
           onRate={source.draft ? undefined : (next) => void onRate(next)}
+          exit={exit}
         />
       )}
     </>

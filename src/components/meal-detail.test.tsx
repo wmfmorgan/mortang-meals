@@ -80,6 +80,19 @@ describe("MealDetail cook view", () => {
     expect(screen.getByRole("link", { name: "← Meals" })).toBeTruthy();
     expect(screen.queryByRole("link", { name: "Exit to Library" })).toBeNull();
   });
+
+  it("sends Cook and edit back to Plans when exit is Plans", () => {
+    renderDetail({
+      exit: { href: "/", label: "Exit to Plans" },
+    });
+    expect(screen.getByRole("link", { name: "Exit to Plans" }).getAttribute("href")).toBe(
+      "/",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const back = screen.getByRole("link", { name: "← Plans" });
+    expect(back.getAttribute("href")).toBe("/");
+    expect(screen.queryByRole("link", { name: "← Meals" })).toBeNull();
+  });
 });
 
 describe("MealDetail source", () => {
