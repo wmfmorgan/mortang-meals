@@ -13,10 +13,19 @@ const { replace, refresh } = vi.hoisted(() => ({
   refresh: vi.fn(),
 }));
 
+const { completeInviteSignInAction } = vi.hoisted(() => ({
+  completeInviteSignInAction: vi.fn(),
+}));
+
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
     auth: { verifyOtp, exchangeCodeForSession, setSession },
   }),
+}));
+
+vi.mock("@/app/household/actions", () => ({
+  completeInviteSignInAction: (...args: unknown[]) =>
+    completeInviteSignInAction(...args),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -30,6 +39,7 @@ afterEach(() => {
   verifyOtp.mockReset();
   exchangeCodeForSession.mockReset();
   setSession.mockReset();
+  completeInviteSignInAction.mockReset();
   replace.mockReset();
   refresh.mockReset();
   window.history.replaceState({}, "", "/auth/confirm");
@@ -40,6 +50,7 @@ beforeEach(() => {
   verifyOtp.mockResolvedValue({ error: null });
   exchangeCodeForSession.mockResolvedValue({ error: null });
   setSession.mockResolvedValue({ error: null });
+  completeInviteSignInAction.mockResolvedValue({ ok: true, joined: false });
 });
 
 describe("ConfirmClient", () => {
@@ -80,6 +91,25 @@ describe("ConfirmClient", () => {
 
     await waitFor(() => {
       expect(replace).toHaveBeenCalledWith("/login?error=confirm");
+    });
+  });
+
+  it("goes home when a pending invite is accepted after confirm", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "/auth/confirm?token_hash=abc&type=email",
+    );
+    completeInviteSignInAction.mockResolvedValueOnce({
+      ok: true,
+      joined: true,
+    });
+    render(<ConfirmClient />);
+
+    await waitFor(() => {
+      expect(completeInviteSignInAction).toHaveBeenCalled();
+      expect(replace).toHaveBeenCalledWith("/");
+      expect(refresh).toHaveBeenCalled();
     });
   });
 });

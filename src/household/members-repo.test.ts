@@ -10,6 +10,7 @@ import { getHouseholdForUser, upsertHousehold } from "./repo";
 import * as inviteEmail from "./invite-email";
 import {
   acceptInvite,
+  acceptPendingInviteForUser,
   createInvite,
   listInvites,
   listMembers,
@@ -77,6 +78,31 @@ describe("members repo", () => {
 
     const seen = await getHouseholdForUser(guest.userId);
     expect(seen?.id).toBe(owner.householdId);
+  });
+
+  it("acceptPendingInviteForUser joins without a code when invite is pending", async () => {
+    mockSendMagicLink();
+    const owner = await ownerHousehold("pending-owner");
+    const guest = await createAuthUserWithoutHousehold(
+      `pending-guest-${crypto.randomUUID()}@example.com`,
+    );
+    users.push(guest.userId);
+
+    await createInvite(owner.householdId, owner.userId, guest.email);
+
+    const joined = await acceptPendingInviteForUser(guest.userId, guest.email);
+    expect(joined?.householdId).toBe(owner.householdId);
+    expect(await getHouseholdForUser(guest.userId)).toMatchObject({
+      id: owner.householdId,
+    });
+  });
+
+  it("acceptPendingInviteForUser returns null when no pending invite", async () => {
+    const guest = await createAuthUserWithoutHousehold(
+      `no-invite-${crypto.randomUUID()}@example.com`,
+    );
+    users.push(guest.userId);
+    expect(await acceptPendingInviteForUser(guest.userId, guest.email)).toBeNull();
   });
 
   it("accept rejects wrong email", async () => {

@@ -222,8 +222,9 @@ export function HouseholdMembers({
           {created ? (
             <div className="space-y-2 rounded-xl border border-wheat/80 bg-linen/40 p-3">
               <p className="m-0 text-sm">
-                Invite sent to <strong>{created.emailedTo}</strong>. They can
-                open the magic link in their email, or use this backup code.
+                Invite sent to <strong>{created.emailedTo}</strong>. Opening the
+                magic link signs them in and joins this household automatically.
+                Backup code (only if the email link fails):
               </p>
               <p className="m-0 text-sm">
                 Invite code:{" "}

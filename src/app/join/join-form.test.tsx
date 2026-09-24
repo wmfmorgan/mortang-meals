@@ -26,13 +26,9 @@ afterEach(() => {
 });
 
 describe("JoinForm", () => {
-  it("prefills code from initialCode and accepts", async () => {
+  it("auto-accepts when initialCode is present", async () => {
     acceptInviteAction.mockResolvedValue({ ok: true });
     render(<JoinForm initialCode="ab12cd34" />);
-    const input = screen.getByLabelText(/invite code/i) as HTMLInputElement;
-    expect(input.value).toBe("AB12CD34");
-
-    fireEvent.click(screen.getByRole("button", { name: /accept invite/i }));
 
     await waitFor(() => {
       expect(acceptInviteAction).toHaveBeenCalledWith("AB12CD34");

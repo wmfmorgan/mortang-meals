@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { householdInvites, householdMembers } from "@/lib/schema";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -260,6 +260,53 @@ export async function removeMember(
         eq(householdMembers.userId, targetUserId),
       ),
     );
+}
+
+/**
+ * After magic-link sign-in, join the newest valid invite for this email.
+ * Returns null when there is nothing pending (caller continues to setup/home).
+ */
+export async function acceptPendingInviteForUser(
+  userId: string,
+  email: string,
+): Promise<{ householdId: string } | null> {
+  const acceptorEmail = normalizeInviteEmail(email);
+  const db = getDb();
+
+  const [existing] = await db
+    .select({ householdId: householdMembers.householdId })
+    .from(householdMembers)
+    .where(eq(householdMembers.userId, userId))
+    .limit(1);
+  if (existing) {
+    return { householdId: existing.householdId };
+  }
+
+  const candidates = await db
+    .select({
+      code: householdInvites.code,
+      invitedEmail: householdInvites.invitedEmail,
+      revokedAt: householdInvites.revokedAt,
+      expiresAt: householdInvites.expiresAt,
+      useCount: householdInvites.useCount,
+      maxUses: householdInvites.maxUses,
+    })
+    .from(householdInvites)
+    .where(eq(householdInvites.invitedEmail, acceptorEmail))
+    .orderBy(desc(householdInvites.createdAt));
+
+  for (const invite of candidates) {
+    if (!invite.invitedEmail) continue;
+    if (invite.revokedAt) continue;
+    if (new Date(invite.expiresAt).getTime() <= Date.now()) continue;
+    if (invite.useCount >= invite.maxUses) continue;
+    try {
+      return await acceptInvite(invite.code, userId, acceptorEmail);
+    } catch {
+      // Try older invites if this one raced or failed.
+    }
+  }
+  return null;
 }
 
 export async function acceptInvite(

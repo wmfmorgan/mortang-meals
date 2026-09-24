@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { acceptInviteAction } from "@/app/household/actions";
 
@@ -9,11 +9,10 @@ export function JoinForm({ initialCode = "" }: { initialCode?: string }) {
   const [code, setCode] = useState(initialCode.trim().toUpperCase());
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const autoTried = useRef(false);
 
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
+  async function accept(trimmed: string) {
     setError(null);
-    const trimmed = code.trim();
     if (!trimmed) {
       setError("Enter an invite code.");
       return;
@@ -32,6 +31,19 @@ export function JoinForm({ initialCode = "" }: { initialCode?: string }) {
       setError(err instanceof Error ? err.message : "Couldn’t accept invite.");
       setPending(false);
     }
+  }
+
+  useEffect(() => {
+    const trimmed = initialCode.trim().toUpperCase();
+    if (!trimmed || autoTried.current) return;
+    autoTried.current = true;
+    void accept(trimmed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot on mount for ?code=
+  }, [initialCode]);
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    await accept(code.trim());
   }
 
   return (

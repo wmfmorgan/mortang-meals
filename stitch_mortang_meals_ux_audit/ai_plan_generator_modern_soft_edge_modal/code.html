@@ -1,0 +1,532 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+    @layer base {
+      html, body { margin: 0; padding: 0; }
+      body { overscroll-behavior: none; }
+    }
+    ::-webkit-scrollbar { display: none; }
+  </style>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "border-wheat": "#e7d8c2",
+            "canvas-linen": "#f7f2ea",
+            "surface-paper": "#fffdfa",
+            "surface-dim": "#f3eae0",
+            "surface-container": "#fbf5ee",
+            "surface-container-high": "#f5ece1",
+            "olive-forest": "#4f6744",
+            "olive-dark": "#43573a",
+            "olive-light": "#e8eedf",
+            "on-surface": "#282017",
+            "on-surface-variant": "#695d52",
+            "tertiary-tint": "#8c4436",
+            "error-soft": "#fdf2f0",
+            "error-text": "#b83226"
+          },
+          fontFamily: {
+            headline: ["Space Grotesk", "sans-serif"],
+            body: ["Geist", "sans-serif"]
+          },
+          borderRadius: {
+            "2xl": "1rem",
+            "3xl": "1.5rem"
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="bg-[#fff8f3] font-body text-on-surface antialiased">
+<!-- TOP NAVIGATION BAR (Screen 14 Weekly Plan Hub Style) -->
+<header class="fixed top-0 left-0 right-0 w-full z-40 bg-[#fffdfa]/95 backdrop-blur-md border-b border-[#e7d8c2]">
+<div class="h-16 max-w-[1360px] mx-auto px-4 sm:px-8 flex items-center justify-between gap-4">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2.5">
+<img alt="Mortang Meals Logo" class="h-7 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDdGln9bpbWK-IQn2uf134kDmANHRSuMc2EjxPZbEi8ARvH5_NZ5_40Byiwy5PwVhwojFZ9unzoKg22DzfDUFWInUfGU53ss8MWGLErsom5m3em3NUnjhTzFGruDb0e1_cwVJA6Rejsxvnve5Uy0erJNm7cnC1gzRr_glY1wmkfeyyP3nIdJvWZp5tuKXpc3Q7GNm53pRv7Zse735p5PJQknzKAGX0RSIITHndfcM976VL51fdONbxfnw">
+<span class="font-headline font-bold text-lg tracking-tight uppercase text-[#6c2516]">Mortang Meals</span>
+</div>
+<div class="hidden lg:flex items-center gap-2 px-3 py-1 bg-[#f7f2ea] rounded-full border border-[#e7d8c2]">
+<span class="material-symbols-outlined text-[#4f6744] text-[16px]">group</span>
+<span class="text-xs text-on-surface-variant font-medium tracking-wide">The Morgan Household · 4 Members</span>
+</div>
+</div>
+<nav class="hidden md:flex items-center gap-1.5">
+<a class="px-4 py-2 rounded-full bg-[#4f6744] text-white font-medium text-xs tracking-wider uppercase" href="#">Weekly Plan</a>
+<a class="px-4 py-2 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-[#f7f2ea] font-medium text-xs tracking-wider uppercase transition-colors" href="#">Recipe Library</a>
+<a class="px-4 py-2 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-[#f7f2ea] font-medium text-xs tracking-wider uppercase transition-colors" href="#">Grocery List</a>
+<a class="px-4 py-2 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-[#f7f2ea] font-medium text-xs tracking-wider uppercase transition-colors" href="#">Household</a>
+</nav>
+<div class="flex items-center gap-3">
+<button class="flex items-center gap-1.5 px-4 py-2 bg-[#6c2516] text-white rounded-full text-xs font-semibold uppercase tracking-wider shadow-sm hover:bg-[#581c10] transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">bolt</span>
+<span>Auto-Generate</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-[#e8eedf] text-[#4f6744] flex items-center justify-center font-bold text-xs">
+          W
+        </div>
+</div>
+</div>
+</header>
+<main class="w-full pt-16 min-h-screen relative">
+<!-- BACKGROUND LAYER: Screen 14 Weekly Plan Hub with soft blur -->
+<div class="w-full max-w-[1360px] mx-auto px-4 sm:px-8 py-6 opacity-30 blur-[2px] pointer-events-none select-none transition-all">
+<div class="flex items-center justify-between mb-6">
+<div>
+<span class="text-xs font-semibold uppercase tracking-widest text-[#4f6744]">Active Schedule · Week 42</span>
+<h2 class="font-headline text-2xl font-bold text-on-surface">Weekly Meal Matrix</h2>
+</div>
+<div class="px-4 py-1.5 bg-[#f7f2ea] rounded-full border border-[#e7d8c2] text-xs font-semibold text-on-surface-variant">
+          Oct 14 — Oct 20
+        </div>
+</div>
+<!-- 7-Day Hub Grid Preview -->
+<div class="grid grid-cols-7 gap-3 w-full">
+<!-- Mon -->
+<div class="bg-white rounded-2xl p-3 border border-[#e7d8c2] shadow-sm flex flex-col gap-2.5">
+<div class="flex justify-between items-center pb-1 border-b border-[#f2e7da]">
+<span class="font-headline font-bold text-xs text-[#6c2516]">Mon 14</span>
+<span class="text-[10px] text-on-surface-variant">3 Meals</span>
+</div>
+<div class="bg-[#fbf7ef] p-2 rounded-xl text-xs"><span class="text-[10px] text-on-surface-variant font-medium">BFAST</span><p class="font-medium truncate">Toasted Spelt &amp; Fig</p></div>
+<div class="bg-[#f7f3ea] p-2 rounded-xl text-xs"><span class="text-[10px] text-on-surface-variant font-medium">LUNCH</span><p class="font-medium truncate">White Bean Stew</p></div>
+<div class="bg-[#e8eedf] p-2 rounded-xl text-xs"><span class="text-[10px] text-[#4f6744] font-medium">DINNER</span><p class="font-medium truncate">Cast Iron Trout</p></div>
+</div>
+<!-- Tue -->
+<div class="bg-white rounded-2xl p-3 border border-[#e7d8c2] shadow-sm flex flex-col gap-2.5">
+<div class="flex justify-between items-center pb-1 border-b border-[#f2e7da]">
+<span class="font-headline font-bold text-xs text-on-surface">Tue 15</span>
+<span class="text-[10px] text-on-surface-variant">3 Meals</span>
+</div>
+<div class="bg-[#fbf7ef] p-2 rounded-xl text-xs"><span class="text-[10px] text-on-surface-variant font-medium">BFAST</span><p class="font-medium truncate">Cracked Oats &amp; Berry</p></div>
+<div class="bg-[#f7f3ea] p-2 rounded-xl text-xs"><span class="text-[10px] text-on-surface-variant font-medium">LUNCH</span><p class="font-medium truncate">Leftover Trout Salad</p></div>
+<div class="bg-[#e8eedf] p-2 rounded-xl text-xs"><span class="text-[10px] text-[#4f6744] font-medium">DINNER</span><p class="font-medium truncate">Fennel &amp; Lentil Braise</p></div>
+</div>
+<!-- Wed -->
+<div class="bg-white rounded-2xl p-3 border border-[#e7d8c2] shadow-sm flex flex-col gap-2.5">
+<div class="flex justify-between items-center pb-1 border-b border-[#f2e7da]">
+<span class="font-headline font-bold text-xs text-on-surface">Wed 16</span>
+<span class="text-[10px] text-on-surface-variant">3 Meals</span>
+</div>
+<div class="bg-[#fbf7ef] p-2 rounded-xl text-xs"><span class="text-[10px] text-on-surface-variant font-medium">BFAST</span><p class="font-medium truncate">Cardamom Porridge</p></div>
+<div class="bg-[#f7f3ea] p-2 rounded-xl text-xs"><span class="text-[10px] text-on-surface-variant font-medium">LUNCH</span><p class="font-medium truncate">Harvest Grain Bowl</p></div>
+<div class="bg-[#e8eedf] p-2 rounded-xl text-xs"><span class="text-[10px] text-[#4f6744] font-medium">DINNER</span><p class="font-medium truncate">Chickpea &amp; Spinach Pot</p></div>
+</div>
+<!-- Thu -->
+<div class="bg-white rounded-2xl p-3 border border-[#e7d8c2] shadow-sm flex flex-col gap-2.5">
+<div class="flex justify-between items-center pb-1 border-b border-[#f2e7da]">
+<span class="font-headline font-bold text-xs text-on-surface">Thu 17</span>
+<span class="text-[10px] text-on-surface-variant">3 Meals</span>
+</div>
+<div class="bg-[#fbf7ef] p-2 rounded-xl text-xs"><span class="text-[10px] text-on-surface-variant font-medium">BFAST</span><p class="font-medium truncate">Poached Eggs &amp; Greens</p></div>
+<div class="bg-[#f7f3ea] p-2 rounded-xl text-xs"><span class="text-[10px] text-on-surface-variant font-medium">LUNCH</span><p class="font-medium truncate">Chickpea Leftovers</p></div>
+<div class="bg-[#e8eedf] p-2 rounded-xl text-xs"><span class="text-[10px] text-[#4f6744] font-medium">DINNER</span><p class="font-medium truncate">Sheet Pan Pork Chop</p></div>
+</div>
+<!-- Fri -->
+<div class="bg-white rounded-2xl p-3 border border-[#e7d8c2] shadow-sm flex flex-col gap-2.5">
+<div class="flex justify-between items-center pb-1 border-b border-[#f2e7da]">
+<span class="font-headline font-bold text-xs text-on-surface">Fri 18</span>
+<span class="text-[10px] text-on-surface-variant">3 Meals</span>
+</div>
+<div class="bg-[#fbf7ef] p-2 rounded-xl text-xs"><span class="text-[10px] text-on-surface-variant font-medium">BFAST</span><p class="font-medium truncate">Rye Toast &amp; Ricotta</p></div>
+<div class="bg-[#f7f3ea] p-2 rounded-xl text-xs"><span class="text-[10px] text-on-surface-variant font-medium">LUNCH</span><p class="font-medium truncate">Market Deli Wrap</p></div>
+<div class="bg-[#f5ece1] p-2 rounded-xl text-xs"><span class="text-[10px] text-tertiary-tint font-medium">DINNER</span><p class="font-medium truncate">Homemade Pizza Night</p></div>
+</div>
+<!-- Sat -->
+<div class="bg-white rounded-2xl p-3 border border-[#e7d8c2] shadow-sm flex flex-col gap-2.5">
+<div class="flex justify-between items-center pb-1 border-b border-[#f2e7da]">
+<span class="font-headline font-bold text-xs text-on-surface">Sat 19</span>
+<span class="text-[10px] text-on-surface-variant">3 Meals</span>
+</div>
+<div class="bg-[#fbf7ef] p-2 rounded-xl text-xs"><span class="text-[10px] text-on-surface-variant font-medium">BFAST</span><p class="font-medium truncate">Skillet Dutch Baby</p></div>
+<div class="bg-[#f7f3ea] p-2 rounded-xl text-xs"><span class="text-[10px] text-on-surface-variant font-medium">LUNCH</span><p class="font-medium truncate">Broth &amp; Dumplings</p></div>
+<div class="bg-[#e8eedf] p-2 rounded-xl text-xs"><span class="text-[10px] text-[#4f6744] font-medium">DINNER</span><p class="font-medium truncate">Herb Braised Brisket</p></div>
+</div>
+<!-- Sun -->
+<div class="bg-white rounded-2xl p-3 border border-[#e7d8c2] shadow-sm flex flex-col gap-2.5">
+<div class="flex justify-between items-center pb-1 border-b border-[#f2e7da]">
+<span class="font-headline font-bold text-xs text-on-surface">Sun 20</span>
+<span class="text-[10px] text-on-surface-variant">3 Meals</span>
+</div>
+<div class="bg-[#fbf7ef] p-2 rounded-xl text-xs"><span class="text-[10px] text-on-surface-variant font-medium">BFAST</span><p class="font-medium truncate">Garden Herb Frittata</p></div>
+<div class="bg-[#f7f3ea] p-2 rounded-xl text-xs"><span class="text-[10px] text-on-surface-variant font-medium">LUNCH</span><p class="font-medium truncate">Brisket Hash</p></div>
+<div class="bg-[#e8eedf] p-2 rounded-xl text-xs"><span class="text-[10px] text-[#4f6744] font-medium">DINNER</span><p class="font-medium truncate">Batch Minestrone</p></div>
+</div>
+</div>
+</div>
+<!-- SOFT BACKDROP OVERLAY -->
+<div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/30 backdrop-blur-sm overflow-y-auto">
+<!-- CENTRAL WIZARD MODAL CONTAINER -->
+<div class="relative w-full max-w-[820px] my-auto bg-white rounded-3xl shadow-2xl border border-[#e7d8c2] flex flex-col max-h-[92vh] overflow-hidden">
+<!-- MODAL HEADER -->
+<div class="px-6 sm:px-8 pt-6 pb-5 border-b border-[#f0e4d5] bg-[#fffdfa] relative flex items-start justify-between">
+<div class="pr-12">
+<h1 class="font-headline text-2xl sm:text-[26px] font-bold text-on-surface tracking-tight">Generate Weekly Plan</h1>
+<p class="text-sm text-on-surface-variant mt-1">Choose dietary preferences, schedule slots, and weeknight cooking style.</p>
+</div>
+<!-- Rounded circular close button -->
+<button aria-label="Close modal" class="w-9 h-9 rounded-full bg-[#f4ebe1] hover:bg-[#eae0d4] text-on-surface flex items-center justify-center transition-colors shadow-sm shrink-0" type="button">
+<span class="material-symbols-outlined text-[19px]">close</span>
+</button>
+</div>
+<!-- MODAL BODY: SCROLLABLE SURFACE -->
+<div class="flex-1 overflow-y-auto px-6 sm:px-8 py-6 flex flex-col gap-7 bg-[#fffdfa]">
+<!-- SECTION 1: FAMILY DIETARY RULES -->
+<section class="flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-[#4f6744]"></span>
+<h2 class="font-headline text-sm uppercase tracking-wider font-bold text-on-surface">Family Dietary Rules</h2>
+</div>
+<a class="text-xs font-semibold text-[#4f6744] hover:underline" href="#">Edit Household</a>
+</div>
+<!-- Member Profile Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+<!-- Will -->
+<div class="p-3.5 rounded-2xl bg-[#fbf5ee] border border-[#e7d8c2] flex flex-col justify-between gap-2.5">
+<div>
+<div class="flex items-center justify-between">
+<span class="font-headline font-bold text-sm text-on-surface">Will</span>
+<span class="material-symbols-outlined text-[16px] text-[#4f6744]">check_circle</span>
+</div>
+<span class="inline-block mt-0.5 text-xs text-[#4f6744] font-medium">Standard · All Meals</span>
+<p class="text-xs text-on-surface-variant mt-1">No restrictions applied</p>
+</div>
+<div class="flex items-center gap-1 text-[11px] font-medium text-[#4f6744]">
+<span class="material-symbols-outlined text-[14px]">done</span> Active
+                </div>
+</div>
+<!-- Sarah -->
+<div class="p-3.5 rounded-2xl bg-[#fbf5ee] border border-[#e7d8c2] flex flex-col justify-between gap-2.5">
+<div>
+<div class="flex items-center justify-between">
+<span class="font-headline font-bold text-sm text-on-surface">Sarah</span>
+<span class="material-symbols-outlined text-[16px] text-[#4f6744]">check_circle</span>
+</div>
+<span class="inline-block mt-0.5 text-xs text-[#4f6744] font-medium">Vegetarian Dinners</span>
+<p class="text-xs text-on-surface-variant mt-1">Legumes, eggs &amp; dairy ok</p>
+</div>
+<div class="flex items-center gap-1 text-[11px] font-medium text-[#4f6744]">
+<span class="material-symbols-outlined text-[14px]">done</span> Active
+                </div>
+</div>
+<!-- Leo -->
+<div class="p-3.5 rounded-2xl bg-[#fdf2f0] border border-[#f5cfca] flex flex-col justify-between gap-2.5">
+<div>
+<div class="flex items-center justify-between">
+<span class="font-headline font-bold text-sm text-[#b83226]">Leo (Child)</span>
+<span class="material-symbols-outlined text-[16px] text-[#b83226]">shield</span>
+</div>
+<span class="inline-block mt-0.5 text-xs font-semibold text-[#b83226]">Peanut-Free (Strict)</span>
+<p class="text-xs text-on-surface-variant mt-1">Zero trace guarantee</p>
+</div>
+<div class="flex items-center gap-1 text-[11px] font-semibold text-[#b83226]">
+<span class="material-symbols-outlined text-[14px]">lock</span> Protected
+                </div>
+</div>
+<!-- Maya -->
+<div class="p-3.5 rounded-2xl bg-[#fbf5ee] border border-[#e7d8c2] flex flex-col justify-between gap-2.5">
+<div>
+<div class="flex items-center justify-between">
+<span class="font-headline font-bold text-sm text-on-surface">Maya (Child)</span>
+<span class="material-symbols-outlined text-[16px] text-[#4f6744]">check_circle</span>
+</div>
+<span class="inline-block mt-0.5 text-xs text-[#4f6744] font-medium">Gluten-Free Swap</span>
+<p class="text-xs text-on-surface-variant mt-1">Rice, corn, quinoa bases</p>
+</div>
+<div class="flex items-center gap-1 text-[11px] font-medium text-[#4f6744]">
+<span class="material-symbols-outlined text-[14px]">done</span> Active
+                </div>
+</div>
+</div>
+</section>
+<!-- SECTION 2: MEALS TO PLAN (SCHEDULE MATRIX) -->
+<section class="flex flex-col gap-3 pt-2 border-t border-[#f0e4d5]">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-[#4f6744]"></span>
+<h2 class="font-headline text-sm uppercase tracking-wider font-bold text-on-surface">Meals to Plan</h2>
+<span class="px-2.5 py-0.5 rounded-full bg-[#e8eedf] text-[#4f6744] font-semibold text-xs ml-1" id="matrix-count">21 meals selected</span>
+</div>
+<!-- Quick Presets -->
+<div class="flex flex-wrap items-center gap-1.5 text-xs">
+<button class="preset-pill px-3 py-1 rounded-full bg-[#4f6744] text-white font-medium hover:bg-[#43573a] transition-colors" data-preset="all" type="button">All 21 Meals</button>
+<button class="preset-pill px-3 py-1 rounded-full bg-[#f4ebe1] text-on-surface hover:bg-[#e7dacb] font-medium transition-colors" data-preset="dinners" type="button">Dinners Only (7)</button>
+<button class="preset-pill px-3 py-1 rounded-full bg-[#f4ebe1] text-on-surface hover:bg-[#e7dacb] font-medium transition-colors" data-preset="weekdays" type="button">Weekdays (15)</button>
+<button class="preset-pill px-2.5 py-1 rounded-full text-on-surface-variant hover:text-[#b83226] font-medium transition-colors" data-preset="clear" type="button">Clear</button>
+</div>
+</div>
+<!-- Meal Matrix Grid -->
+<div class="overflow-x-auto rounded-2xl border border-[#e7d8c2] bg-[#fbf5ee] p-3">
+<div class="min-w-[620px] flex flex-col gap-2">
+<!-- Day Headers -->
+<div class="grid grid-cols-8 gap-1.5 text-center font-headline text-xs font-semibold text-on-surface pb-1 border-b border-[#e7d8c2]/70">
+<div class="text-left pl-2 text-on-surface-variant text-[11px]">MEAL</div>
+<div>Mon</div>
+<div>Tue</div>
+<div>Wed</div>
+<div>Thu</div>
+<div>Fri</div>
+<div>Sat</div>
+<div>Sun</div>
+</div>
+<!-- Breakfast Row -->
+<div class="grid grid-cols-8 gap-1.5 items-center">
+<div class="text-left pl-2 text-xs font-medium text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px] text-[#6c2516]">wb_twilight</span>
+<span>Bfast</span>
+</div>
+<button class="slot-pill active h-8 rounded-lg bg-[#4f6744] text-white font-medium text-xs flex items-center justify-center transition-all hover:opacity-90 shadow-sm" data-day="mon" data-slot="b" type="button">Mon</button>
+<button class="slot-pill active h-8 rounded-lg bg-[#4f6744] text-white font-medium text-xs flex items-center justify-center transition-all hover:opacity-90 shadow-sm" data-day="tue" data-slot="b" type="button">Tue</button>
+<button class="slot-pill active h-8 rounded-lg bg-[#4f6744] text-white font-medium text-xs flex items-center justify-center transition-all hover:opacity-90 shadow-sm" data-day="wed" data-slot="b" type="button">Wed</button>
+<button class="slot-pill active h-8 rounded-lg bg-[#4f6744] text-white font-medium text-xs flex items-center justify-center transition-all hover:opacity-90 shadow-sm" data-day="thu" data-slot="b" type="button">Thu</button>
+<button class="slot-pill active h-8 rounded-lg bg-[#4f6744] text-white font-medium text-xs flex items-center justify-center transition-all hover:opacity-90 shadow-sm" data-day="fri" data-slot="b" type="button">Fri</button>
+<button class="slot-pill active h-8 rounded-lg bg-[#4f6744] text-white font-medium text-xs flex items-center justify-center transition-all hover:opacity-90 shadow-sm" data-day="sat" data-slot="b" type="button">Sat</button>
+<button class="slot-pill active h-8 rounded-lg bg-[#4f6744] text-white font-medium text-xs flex items-center justify-center transition-all hover:opacity-90 shadow-sm" data-day="sun" data-slot="b" type="button">Sun</button>
+</div>
+<!-- Lunch Row -->
+<div class="grid grid-cols-8 gap-1.5 items-center">
+<div class="text-left pl-2 text-xs font-medium text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px] text-[#6c2516]">light_mode</span>
+<span>Lunch</span>
+</div>
+<button class="slot-pill active h-8 rounded-lg bg-[#4f6744] text-white font-medium text-xs flex items-center justify-center transition-all hover:opacity-90 shadow-sm" data-day="mon" data-slot="l" type="button">Mon</button>
+<button class="slot-pill active h-8 rounded-lg bg-[#4f6744] text-white font-medium text-xs flex items-center justify-center transition-all hover:opacity-90 shadow-sm" data-day="tue" data-slot="l" type="button">Tue</button>
+<button class="slot-pill active h-8 rounded-lg bg-[#4f6744] text-white font-medium text-xs flex items-center justify-center transition-all hover:opacity-90 shadow-sm" data-day="wed" data-slot="l" type="button">Wed</button>
+<button class="slot-pill active h-8 rounded-lg bg-[#4f6744] text-white font-medium text-xs flex items-center justify-center transition-all hover:opacity-90 shadow-sm" data-day="thu" data-slot="l" type="button">Thu</button>
+<button class="slot-pill active h-8 rounded-lg bg-[#4f6744] text-white font-medium text-xs flex items-center justify-center transition-all hover:opacity-90 shadow-sm" data-day="fri" data-slot="l" type="button">Fri</button>
+<button class="slot-pill active h-8 rounded-lg bg-[#4f6744] text-white font-medium text-xs flex items-center justify-center transition-all hover:opacity-90 shadow-sm" data-day="sat" data-slot="l" type="button">Sat</button>
+<button class="slot-pill active h-8 rounded-lg bg-[#4f6744] text-white font-medium text-xs flex items-center justify-center transition-all hover:opacity-90 shadow-sm" data-day="sun" data-slot="l" type="button">Sun</button>
+</div>
+<!-- Dinner Row -->
+<div class="grid grid-cols-8 gap-1.5 items-center">
+<div class="text-left pl-2 text-xs font-medium text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px] text-[#6c2516]">dark_mode</span>
+<span>Dinner</span>
+</div>
+<button class="slot-pill active h-8 rounded-lg bg-[#4f6744] text-white font-medium text-xs flex items-center justify-center transition-all hover:opacity-90 shadow-sm" data-day="mon" data-slot="d" type="button">Mon</button>
+<button class="slot-pill active h-8 rounded-lg bg-[#4f6744] text-white font-medium text-xs flex items-center justify-center transition-all hover:opacity-90 shadow-sm" data-day="tue" data-slot="d" type="button">Tue</button>
+<button class="slot-pill active h-8 rounded-lg bg-[#4f6744] text-white font-medium text-xs flex items-center justify-center transition-all hover:opacity-90 shadow-sm" data-day="wed" data-slot="d" type="button">Wed</button>
+<button class="slot-pill active h-8 rounded-lg bg-[#4f6744] text-white font-medium text-xs flex items-center justify-center transition-all hover:opacity-90 shadow-sm" data-day="thu" data-slot="d" type="button">Thu</button>
+<button class="slot-pill active h-8 rounded-lg bg-[#4f6744] text-white font-medium text-xs flex items-center justify-center transition-all hover:opacity-90 shadow-sm" data-day="fri" data-slot="d" type="button">Fri</button>
+<button class="slot-pill active h-8 rounded-lg bg-[#4f6744] text-white font-medium text-xs flex items-center justify-center transition-all hover:opacity-90 shadow-sm" data-day="sat" data-slot="d" type="button">Sat</button>
+<button class="slot-pill active h-8 rounded-lg bg-[#4f6744] text-white font-medium text-xs flex items-center justify-center transition-all hover:opacity-90 shadow-sm" data-day="sun" data-slot="d" type="button">Sun</button>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 3: PREP TIME & COOKING STYLE -->
+<section class="flex flex-col gap-4 pt-2 border-t border-[#f0e4d5]">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-[#4f6744]"></span>
+<h2 class="font-headline text-sm uppercase tracking-wider font-bold text-on-surface">Prep Time &amp; Cooking Style</h2>
+</div>
+<!-- Prep Time Selection Cards -->
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-3" id="prep-options">
+<!-- 15 min -->
+<button class="prep-card text-left p-3.5 rounded-2xl bg-white border border-[#e7d8c2] hover:border-[#4f6744] transition-all" type="button">
+<span class="font-headline text-base font-bold text-on-surface block">15 min</span>
+<span class="text-xs text-on-surface-variant block mt-0.5">Quick Assembly</span>
+</button>
+<!-- 25 min (Selected Benchmark) -->
+<button class="prep-card active text-left p-3.5 rounded-2xl bg-[#e8eedf] border-2 border-[#4f6744] shadow-sm transition-all relative" type="button">
+<div class="flex items-center justify-between">
+<span class="font-headline text-base font-bold text-[#4f6744]">25 min</span>
+<span class="material-symbols-outlined text-[16px] text-[#4f6744]">check_circle</span>
+</div>
+<span class="text-xs text-[#4f6744] font-medium block mt-0.5">Weeknight Default</span>
+</button>
+<!-- 35 min -->
+<button class="prep-card text-left p-3.5 rounded-2xl bg-white border border-[#e7d8c2] hover:border-[#4f6744] transition-all" type="button">
+<span class="font-headline text-base font-bold text-on-surface block">35 min</span>
+<span class="text-xs text-on-surface-variant block mt-0.5">Standard</span>
+</button>
+<!-- Flexible -->
+<button class="prep-card text-left p-3.5 rounded-2xl bg-white border border-[#e7d8c2] hover:border-[#4f6744] transition-all" type="button">
+<span class="font-headline text-base font-bold text-on-surface block">Flexible</span>
+<span class="text-xs text-on-surface-variant block mt-0.5">Any Time</span>
+</button>
+</div>
+<!-- Friendly Cookware Tags -->
+<div>
+<span class="text-xs font-semibold text-on-surface block mb-2">Preferred Cookware &amp; Meal Styles</span>
+<div class="flex flex-wrap gap-2">
+<button class="cookware-pill flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#4f6744] text-white text-xs font-medium shadow-sm transition-colors" type="button">
+<span class="material-symbols-outlined text-[15px]">table_rows</span>
+<span>Sheet Pan</span>
+<span class="px-1.5 py-0.2 rounded-full bg-white/20 text-[11px] font-bold">2</span>
+</button>
+<button class="cookware-pill flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#4f6744] text-white text-xs font-medium shadow-sm transition-colors" type="button">
+<span class="material-symbols-outlined text-[15px]">soup_kitchen</span>
+<span>Slow Cooker</span>
+<span class="px-1.5 py-0.2 rounded-full bg-white/20 text-[11px] font-bold">1</span>
+</button>
+<button class="cookware-pill flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#4f6744] text-white text-xs font-medium shadow-sm transition-colors" type="button">
+<span class="material-symbols-outlined text-[15px]">bolt</span>
+<span>Quick Skillet</span>
+<span class="px-1.5 py-0.2 rounded-full bg-white/20 text-[11px] font-bold">2</span>
+</button>
+<button class="cookware-pill flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#f4ebe1] text-on-surface hover:bg-[#e7dacb] text-xs font-medium transition-colors" type="button">
+<span class="material-symbols-outlined text-[15px]">takeout_dining</span>
+<span>Takeout Friday</span>
+<span class="px-1.5 py-0.2 rounded-full bg-white text-[11px] font-bold">1</span>
+</button>
+<button class="cookware-pill flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#f4ebe1] text-on-surface hover:bg-[#e7dacb] text-xs font-medium transition-colors" type="button">
+<span class="material-symbols-outlined text-[15px]">inventory_2</span>
+<span>Batch Prep Sunday</span>
+<span class="px-1.5 py-0.2 rounded-full bg-white text-[11px] font-bold">1</span>
+</button>
+<button class="cookware-pill flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#f4ebe1] text-on-surface hover:bg-[#e7dacb] text-xs font-medium transition-colors" type="button">
+<span class="material-symbols-outlined text-[15px]">outdoor_grill</span>
+<span>Outdoor Grill</span>
+<span class="px-1.5 py-0.2 rounded-full bg-white text-[11px] font-bold">+</span>
+</button>
+</div>
+</div>
+</section>
+<!-- SECTION 4: SPECIAL NOTES & INGREDIENTS -->
+<section class="flex flex-col gap-2 pt-2 border-t border-[#f0e4d5]">
+<div class="flex items-center justify-between">
+<label class="flex items-center gap-1.5 text-xs font-semibold text-on-surface" for="user-notes">
+<span class="material-symbols-outlined text-[#4f6744] text-[16px]">edit_note</span>
+<span>Special Notes &amp; Ingredients</span>
+</label>
+<span class="text-[11px] text-on-surface-variant">Optional</span>
+</div>
+<textarea class="w-full rounded-2xl border border-[#e7d8c2] bg-[#fffcf9] p-3 text-xs sm:text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-[#4f6744] focus:ring-1 focus:ring-[#4f6744] outline-none transition-all resize-none" id="user-notes" placeholder="e.g. Prioritize ripe avocados on Monday, use spinach in crisper, keep Sunday dinner light..." rows="2"></textarea>
+</section>
+</div>
+<!-- MODAL FOOTER -->
+<div class="px-6 sm:px-8 py-4 bg-[#fbf5ee] border-t border-[#f0e4d5] flex flex-col-reverse sm:flex-row items-center justify-between gap-3">
+<button class="text-xs font-semibold text-on-surface-variant hover:text-[#b83226] flex items-center gap-1 transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">restart_alt</span>
+<span>Reset</span>
+</button>
+<!-- Primary CTA Button with soft pill shape -->
+<button class="w-full sm:w-auto rounded-full px-8 py-3.5 bg-[#4f6744] hover:bg-[#43573a] text-white font-medium text-sm flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.99]" id="generate-btn" type="button">
+<span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+<span id="generate-btn-label">Generate 7-Day Plan (21 Meals)</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<!-- INTERACTION LOGIC FOR PILLS & MATRIX -->
+<script>
+    // Meal slot toggles
+    const slotPills = document.querySelectorAll('.slot-pill');
+    const countBadge = document.getElementById('matrix-count');
+    const genBtnLabel = document.getElementById('generate-btn-label');
+
+    function updateCount() {
+      const activeCount = document.querySelectorAll('.slot-pill.active').length;
+      if (countBadge) {
+        countBadge.innerText = `${activeCount} meals selected`;
+      }
+      if (genBtnLabel) {
+        genBtnLabel.innerText = `Generate 7-Day Plan (${activeCount} Meals)`;
+      }
+    }
+
+    slotPills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        pill.classList.toggle('active');
+        if (pill.classList.contains('active')) {
+          pill.className = 'slot-pill active h-8 rounded-lg bg-[#4f6744] text-white font-medium text-xs flex items-center justify-center transition-all hover:opacity-90 shadow-sm';
+        } else {
+          pill.className = 'slot-pill h-8 rounded-lg bg-[#f0e4d5]/60 text-on-surface-variant font-medium text-xs flex items-center justify-center transition-all hover:bg-[#e7dacb]';
+        }
+        updateCount();
+      });
+    });
+
+    // Preset filter chips
+    document.querySelectorAll('.preset-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const preset = btn.getAttribute('data-preset');
+        
+        // Reset preset styling
+        document.querySelectorAll('.preset-pill').forEach(b => {
+          if (b.getAttribute('data-preset') !== 'clear') {
+            b.className = 'preset-pill px-3 py-1 rounded-full bg-[#f4ebe1] text-on-surface hover:bg-[#e7dacb] font-medium transition-colors';
+          }
+        });
+        if (preset !== 'clear') {
+          btn.className = 'preset-pill px-3 py-1 rounded-full bg-[#4f6744] text-white font-medium hover:bg-[#43573a] transition-colors';
+        }
+
+        slotPills.forEach(pill => {
+          const slot = pill.getAttribute('data-slot');
+          const day = pill.getAttribute('data-day');
+          let shouldActive = false;
+
+          if (preset === 'all') shouldActive = true;
+          else if (preset === 'dinners') shouldActive = (slot === 'd');
+          else if (preset === 'weekdays') shouldActive = (day !== 'sat' && day !== 'sun');
+          else if (preset === 'clear') shouldActive = false;
+
+          if (shouldActive) {
+            pill.classList.add('active');
+            pill.className = 'slot-pill active h-8 rounded-lg bg-[#4f6744] text-white font-medium text-xs flex items-center justify-center transition-all hover:opacity-90 shadow-sm';
+          } else {
+            pill.classList.remove('active');
+            pill.className = 'slot-pill h-8 rounded-lg bg-[#f0e4d5]/60 text-on-surface-variant font-medium text-xs flex items-center justify-center transition-all hover:bg-[#e7dacb]';
+          }
+        });
+        updateCount();
+      });
+    });
+
+    // Prep time card selection
+    document.querySelectorAll('.prep-card').forEach(card => {
+      card.addEventListener('click', () => {
+        document.querySelectorAll('.prep-card').forEach(c => {
+          c.classList.remove('active');
+          c.className = 'prep-card text-left p-3.5 rounded-2xl bg-white border border-[#e7d8c2] hover:border-[#4f6744] transition-all';
+          const title = c.querySelector('.font-headline').innerText;
+          const sub = c.querySelector('span:last-child').innerText;
+          c.innerHTML = `<span class="font-headline text-base font-bold text-on-surface block">${title}</span><span class="text-xs text-on-surface-variant block mt-0.5">${sub}</span>`;
+        });
+        
+        card.classList.add('active');
+        const title = card.querySelector('.font-headline').innerText;
+        const sub = card.querySelector('span:last-child').innerText;
+        card.className = 'prep-card active text-left p-3.5 rounded-2xl bg-[#e8eedf] border-2 border-[#4f6744] shadow-sm transition-all relative';
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="font-headline text-base font-bold text-[#4f6744]">${title}</span>
+            <span class="material-symbols-outlined text-[16px] text-[#4f6744]">check_circle</span>
+          </div>
+          <span class="text-xs text-[#4f6744] font-medium block mt-0.5">${sub}</span>
+        `;
+      });
+    });
+
+    // Generate button feedback
+    const genButton = document.getElementById('generate-btn');
+    if (genButton) {
+      genButton.addEventListener('click', () => {
+        genButton.innerHTML = `
+          <span class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+          <span>Creating your plan...</span>
+        `;
+        setTimeout(() => {
+          genButton.innerHTML = `
+            <span class="material-symbols-outlined text-[18px]">check_circle</span>
+            <span>Weekly Plan Generated!</span>
+          `;
+        }, 1500);
+      });
+    }
+  </script>
+</body></html>

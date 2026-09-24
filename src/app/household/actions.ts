@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { normalizePeople } from "@/household/normalize-people";
 import {
   acceptInvite,
+  acceptPendingInviteForUser,
   createInvite,
   removeMember,
   revokeInvite,
@@ -153,5 +154,34 @@ export async function acceptInviteAction(
     return { ok: true };
   } catch (error) {
     return { ok: false, error: actionError(error, "Couldn’t accept invite.") };
+  }
+}
+
+/** After magic-link confirm: join any pending email-bound invite in one shot. */
+export async function completeInviteSignInAction(): Promise<
+  | { ok: true; joined: boolean }
+  | { ok: false; error: string }
+> {
+  const user = await requireUser();
+  if (!user.ok) {
+    return { ok: false, error: "Sign in to continue." };
+  }
+  if (!user.email) {
+    return { ok: true, joined: false };
+  }
+  try {
+    const joined = await acceptPendingInviteForUser(user.userId, user.email);
+    if (joined) {
+      revalidatePath("/");
+      revalidatePath("/household");
+      revalidatePath("/setup");
+      revalidatePath("/join");
+    }
+    return { ok: true, joined: joined != null };
+  } catch (error) {
+    return {
+      ok: false,
+      error: actionError(error, "Couldn’t finish joining the household."),
+    };
   }
 }

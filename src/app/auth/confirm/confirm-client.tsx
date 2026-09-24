@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { completeInviteSignInAction } from "@/app/household/actions";
 import { createClient } from "@/lib/supabase/client";
 import { safeNextPath } from "@/lib/safe-next-path";
 import { resolveBrowserConfirmAuth } from "./confirm-params";
@@ -52,6 +53,17 @@ export function ConfirmClient() {
         router.replace(confirmFailure);
         return;
       }
+
+      // Email invites: join the household immediately (template often omits ?next=).
+      setMessage("Finishing invite…");
+      const inviteResult = await completeInviteSignInAction();
+      if (cancelled) return;
+      if (inviteResult.ok && inviteResult.joined) {
+        router.replace("/");
+        router.refresh();
+        return;
+      }
+
       router.replace(next);
       router.refresh();
     }
