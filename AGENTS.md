@@ -16,7 +16,7 @@ Success path: sign in → set up household + kitchen (or `/join` with an invite)
 
 - Next.js 15 App Router (`src/`), React 19, TypeScript, Tailwind 4
 - Supabase Postgres + Drizzle via `postgres.js` (`DATABASE_URL`). Schema lives in `supabase/migrations/`; Drizzle is queries only.
-- Supabase Auth email + password **or** magic link (`@supabase/ssr`), invite-only (signup off + admin-created users; OTP `shouldCreateUser: false`). Household access via `household_members` (`households.owner_id` still marks the creating owner).
+- Supabase Auth email + password **or** magic link (`@supabase/ssr`), invite-only (signup off; OTP `shouldCreateUser: false`). Household owners can provision invitees via server service-role `createUser` when sending an email invite. Household access via `household_members` (`households.owner_id` still marks the creating owner).
 - Zod for AI JSON and HTTP bodies
 - OpenAI SDK against xAI (`https://api.x.ai/v1`) or a custom OpenAI-compatible base URL
 - AI stays on Node route handlers (`maxDuration = 300`). Shared-key usage uses `AI_DAILY_CAP` (`src/ai/usage.ts`). No Edge Functions / Edge runtime for AI.
@@ -38,7 +38,7 @@ Env: copy `.env.example` to `.env.local`. Set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_
 - Browser talks only to Next.js API routes / server actions. Keys stay on the server.
 - Grok key is `process.env.XAI_API_KEY` only. Never store it in the database. Custom-provider keys may live in settings.
 - Automated tests mock the adapter (`complete`). No live model calls. DB tests use local `supabase start` + `createTestIdentity` / `deleteTestUser` (`src/lib/test-identity.ts`); `resetDbForTests()` truncates app tables only.
-- One household membership per user (`household_members.user_id` unique). Resolve the session household with `getHouseholdForUser` (membership join), not `households.owner_id` alone. Every repo/handler call is scoped by that `householdId`. Members have equal edit access; only the household **owner** creates/revokes invites and removes members (app-admin Settings via `isAdminEmail` stays separate). Join only when the invitee has no membership yet. Week is Monday–Sunday (`mondayOf` in `src/lib/week.ts`). Week slots are `breakfast | lunch | dinner` (21 cells). Library recipes may also be `side` or `dessert`.
+- One household membership per user (`household_members.user_id` unique). Resolve the session household with `getHouseholdForUser` (membership join), not `households.owner_id` alone. Every repo/handler call is scoped by that `householdId`. Members have equal edit access; only the household **owner** creates/revokes invites and removes members (app-admin Settings via `isAdminEmail` stays separate). Owner invites by **email** (creates/reuses Auth user, email-bound invite code, server-sent magic link); accept requires matching email and no existing membership. Never return magic-link URLs to the browser. Week is Monday–Sunday (`mondayOf` in `src/lib/week.ts`). Week slots are `breakfast | lunch | dinner` (21 cells). Library recipes may also be `side` or `dessert`.
 - At most one plan has `isCurrent = 1`.
 - Last good plan / meal / extra is never replaced by a failed generate, swap, extra, import, or library generate. Failed library generate writes no drafts.
 - Ingredient `quantity` is a **string** (`"1"`, `"1/2"`, `"1/4"`). Never a number. Never `0` for a used ingredient.
@@ -75,15 +75,15 @@ Thin `src/app/api/*/route.ts` files parse JSON, resolve the session household, a
 
 | Route | Role |
 | --- | --- |
-| `/login` | Email + password **or** magic link (“Email me a link”). Invite-only; admin must create the user first. OTP never self-registers (`shouldCreateUser: false`). Supports `?next=` return after sign-in. |
+| `/login` | Email + password **or** magic link (“Email me a link”). Invite-only; OTP never self-registers (`shouldCreateUser: false`). Household invites may create the Auth user. Supports `?next=` return after sign-in. |
 | `/setup` | First-run wizard: household → kitchen checklist → slot mask. Redirect target when there is no household or no named people. Links “Have an invite code?” → `/join` when the user has no household yet. |
-| `/join` | Accept a household invite (`?code=`). Requires a signed-in user with **no** membership yet; then shares that household’s Plans / Meals / shopping list. |
+| `/join` | Accept a household invite (`?code=`). Requires a signed-in user with **no** membership yet whose email matches the invite’s `invited_email`; then shares that household’s Plans / Meals / shopping list. |
 | `/` Plans | Home. Week switcher, slot picker (cells to fill), fill-empty-slots from the library, takeout, leftovers, week grid, recipe flyout, library flyout. Labels are Monday–Sunday ranges. Visiting `/` with no `?plan=` opens this calendar week if the current plan is in the past. `?plan=` opens a historical plan. |
 | `/meals` | Library: generate drafts (batch or one recipe), approve/reject queue, then search / filter / group, import-from-URL, add-recipe. Catalog is unique by title. Saved meals can be rated 1–5 stars. |
 | `/meals/new` | Redirects to `/meals` (manual add is an inline collapsible card there). |
 | `/meals/[id]` | Full recipe editor (title, why, time, method, ingredients, steps). Swap only if the meal is on the current plan. |
 | `/shopping-list` | Derived list for the open plan (`?plan=` supported). Not stored. |
-| `/household` | Household & Dietary: **members** (owner invite/revoke/remove), people, notes, cook prefs (expertise / involved / max cook time), and appliance/method checklist. Servings for AI drafts are set on Meals. |
+| `/household` | Household & Dietary: **members** (owner invites by email + revoke/remove), people, notes, cook prefs (expertise / involved / max cook time), and appliance/method checklist. Servings for AI drafts are set on Meals. |
 | `/kitchen` | Redirects to `/household` (kitchen content lives on Household). |
 | `/settings` | Global provider mode/URL/model/key/web search/reasoning effort (all households). Developer tools is per-admin household. Nav + route limited to admin email. |
 | `/developer` | Last 25 AI traces. Admin email only, and only when developer tools is on. |
@@ -98,7 +98,7 @@ Generation UX is global (`GenerationProvider` in `AppShell`): NDJSON stream in t
 
 **Household member** — `household_members` row: `household_id`, `user_id` (unique globally), role `owner` | `member`. `getHouseholdForUser` / `requirePageHousehold` resolve through this table. `upsertHousehold` inserts the owner membership on create; later saves update by household id and do not re-bind `owner_id`.
 
-**Household invite** — `household_invites`: 8-char unambiguous code, 7-day expiry, single-use by default, revocable by owner. Accept via `/join` / `acceptInvite` only when the user has no membership. Join path: `/join?code=CODE`.
+**Household invite** — `household_invites`: 8-char unambiguous code, `invited_email` (required on new invites), 7-day expiry, single-use by default, revocable by owner. Owner flow creates/reuses Auth user and sends a magic link (`emailRedirectTo` → `/auth/confirm?next=/join?code=…`). Accept via `/join` / `acceptInvite` only when the user has no membership **and** email matches `invited_email`. Backup join path still shown: `/join?code=CODE`.
 
 **Person** — name, age, optional sex, allergies (hard exclude), avoidances (soft prefer-to-skip). Blank-name people are dropped on save (`normalizePeople`).
 

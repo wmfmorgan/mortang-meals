@@ -57,7 +57,7 @@ Dashboard work — create the projects if they do not exist yet; this repo does 
    - `NEXT_PUBLIC_SITE_URL=https://www.mortang.com` — magic-link `emailRedirectTo` uses this instead of the current `*.vercel.app` host
    - Optional `DATABASE_URL` (transaction pooler) — if omitted, the app uses `POSTGRES_PRISMA_URL` / `POSTGRES_URL`
    - `SUPABASE_SERVICE_ROLE_KEY` — required in production for household member emails on `/household` (and for tests / import script on a trusted machine; never expose to the browser). Without it the page still loads with “Unknown email”.
-8. Add or update yourself in Studio (Users) with email, optional password, email confirmed. Sign in once at `/login` with password or magic link.
+8. Add or update yourself in Studio (Users) with email, optional password, email confirmed. Sign in once at `/login` with password or magic link. To invite a partner: Household → invite by email (creates their Auth user if needed and sends a magic link bound to that address). Apply migration `20260923205018_invite_email.sql` on hosted Supabase before using email invites in production.
 9. Optional one-time migrate from the old local SQLite file. After first login/setup, run with **`--force`** (wipes that household’s app rows, not `auth.users`, then copies sqlite). Without `--force`, the empty current week from `openPlan` plus unique week constraints / duplicate people can fail the import:
 
    `npx tsx scripts/import-sqlite.ts --email you@example.com --db data/mortang.db --force`
