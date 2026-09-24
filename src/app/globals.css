@@ -1555,6 +1555,27 @@ a.badge-link:hover {
   color: var(--color-paper);
 }
 
+.cook-timer-minutes {
+  width: 3.25rem;
+  min-height: 44px;
+  padding: 0 0.35rem;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: center;
+  appearance: textfield;
+}
+
+.cook-timer-minutes::-webkit-outer-spin-button,
+.cook-timer-minutes::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
 .cook-timer-value {
   min-width: 4.25rem;
   text-align: center;

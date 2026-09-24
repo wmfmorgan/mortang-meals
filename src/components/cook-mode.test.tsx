@@ -550,4 +550,66 @@ describe("CookMode", () => {
       "00:00",
     );
   });
+
+  it("lets the cook set a custom timer duration in minutes", () => {
+    renderCook();
+    const input = screen.getByRole("spinbutton", { name: "Timer minutes" }) as HTMLInputElement;
+    expect(input.value).toBe("35");
+
+    fireEvent.change(input, { target: { value: "8" } });
+    fireEvent.blur(input);
+
+    expect(input.value).toBe("8");
+    expect(screen.getByRole("timer", { name: "Cook timer" }).textContent).toBe("08:00");
+    expect(sessionStorage.getItem("mortang.cookTimerMin.meal-salmon")).toBe(
+      JSON.stringify(8),
+    );
+  });
+
+  it("resets to the custom minutes, not cookMinutes", async () => {
+    vi.useFakeTimers();
+    renderCook();
+    const input = screen.getByRole("spinbutton", { name: "Timer minutes" });
+    fireEvent.change(input, { target: { value: "2" } });
+    fireEvent.blur(input);
+
+    fireEvent.click(screen.getByRole("button", { name: "Play" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(screen.getByRole("timer", { name: "Cook timer" }).textContent).toBe("01:59");
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+    expect(screen.getByRole("timer", { name: "Cook timer" }).textContent).toBe("02:00");
+    expect(screen.getByRole("button", { name: "Play" })).toBeTruthy();
+  });
+
+  it("clamps typed minutes to 1–180 and pauses if running", async () => {
+    vi.useFakeTimers();
+    renderCook();
+    fireEvent.click(screen.getByRole("button", { name: "Play" }));
+    const input = screen.getByRole("spinbutton", { name: "Timer minutes" });
+    fireEvent.change(input, { target: { value: "999" } });
+    fireEvent.blur(input);
+    expect((input as HTMLInputElement).value).toBe("180");
+    expect(screen.getByRole("timer", { name: "Cook timer" }).textContent).toBe("180:00");
+    expect(screen.getByRole("button", { name: "Play" })).toBeTruthy();
+
+    fireEvent.change(input, { target: { value: "0" } });
+    fireEvent.blur(input);
+    expect((input as HTMLInputElement).value).toBe("1");
+    expect(screen.getByRole("timer", { name: "Cook timer" }).textContent).toBe("01:00");
+  });
+
+  it("restores custom timer minutes from sessionStorage", async () => {
+    sessionStorage.setItem("mortang.cookTimerMin.meal-salmon", JSON.stringify(12));
+    renderCook();
+    await vi.waitFor(() => {
+      expect(
+        (screen.getByRole("spinbutton", { name: "Timer minutes" }) as HTMLInputElement)
+          .value,
+      ).toBe("12");
+      expect(screen.getByRole("timer", { name: "Cook timer" }).textContent).toBe("12:00");
+    });
+  });
 });

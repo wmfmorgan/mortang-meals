@@ -14,8 +14,11 @@ import { StarRating } from "./star-rating";
 const CHECKS_PREFIX = "mortang.cookChecks.";
 const STEP_PREFIX = "mortang.cookStep.";
 const VIEW_PREFIX = "mortang.cookView.";
+const TIMER_MIN_PREFIX = "mortang.cookTimerMin.";
 const MIN_SERVINGS = 1;
 const MAX_SERVINGS = 24;
+const MIN_TIMER_MINUTES = 1;
+const MAX_TIMER_MINUTES = 180;
 
 type CookView = "step" | "overview";
 
@@ -107,6 +110,28 @@ function writeView(mealId: string, view: CookView) {
   writeSession(viewKey(mealId), JSON.stringify(view));
 }
 
+function clampTimerMinutes(value: number): number {
+  if (!Number.isFinite(value)) return MIN_TIMER_MINUTES;
+  return Math.min(MAX_TIMER_MINUTES, Math.max(MIN_TIMER_MINUTES, Math.round(value)));
+}
+
+function readTimerMinutes(mealId: string, fallback: number): number {
+  const raw = readSession(`${TIMER_MIN_PREFIX}${mealId}`);
+  if (!raw) return clampTimerMinutes(fallback);
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return typeof parsed === "number"
+      ? clampTimerMinutes(parsed)
+      : clampTimerMinutes(fallback);
+  } catch {
+    return clampTimerMinutes(fallback);
+  }
+}
+
+function writeTimerMinutes(mealId: string, minutes: number) {
+  writeSession(`${TIMER_MIN_PREFIX}${mealId}`, JSON.stringify(minutes));
+}
+
 function clampServings(value: number): number {
   if (!Number.isFinite(value)) return MIN_SERVINGS;
   return Math.min(MAX_SERVINGS, Math.max(MIN_SERVINGS, Math.round(value)));
@@ -159,6 +184,9 @@ export function CookMode({
   );
   const [wakeSupported, setWakeSupported] = useState(false);
   const [wakeHeld, setWakeHeld] = useState(false);
+  const [durationMinutes, setDurationMinutes] = useState(() =>
+    clampTimerMinutes(meal.cookMinutes || MIN_TIMER_MINUTES),
+  );
   const [remaining, setRemaining] = useState(() =>
     secondsFromCookMinutes(meal.cookMinutes),
   );
@@ -173,7 +201,9 @@ export function CookMode({
     setActiveStep(readStep(meal.id, meal.steps.length));
     setView(readView(meal.id));
     setDisplayServings(clampServings(meal.servings || 1));
-    setRemaining(secondsFromCookMinutes(meal.cookMinutes));
+    const minutes = readTimerMinutes(meal.id, meal.cookMinutes);
+    setDurationMinutes(minutes);
+    setRemaining(secondsFromCookMinutes(minutes));
     setRunning(false);
   }, [
     meal.id,
@@ -318,7 +348,15 @@ export function CookMode({
 
   function resetTimer() {
     setRunning(false);
-    setRemaining(secondsFromCookMinutes(meal.cookMinutes));
+    setRemaining(secondsFromCookMinutes(durationMinutes));
+  }
+
+  function applyTimerMinutes(raw: string) {
+    const minutes = clampTimerMinutes(Number(raw));
+    setRunning(false);
+    setDurationMinutes(minutes);
+    setRemaining(secondsFromCookMinutes(minutes));
+    writeTimerMinutes(meal.id, minutes);
   }
 
   return (
@@ -401,6 +439,24 @@ export function CookMode({
           </div>
           <div className="cook-pill">
             <span className="cook-pill-label">Timer</span>
+            <input
+              type="number"
+              className="cook-timer-minutes"
+              min={MIN_TIMER_MINUTES}
+              max={MAX_TIMER_MINUTES}
+              inputMode="numeric"
+              aria-label="Timer minutes"
+              value={durationMinutes}
+              onChange={(event) => {
+                const raw = event.target.value;
+                if (raw === "") return;
+                applyTimerMinutes(raw);
+              }}
+              onBlur={(event) =>
+                applyTimerMinutes(event.target.value || String(durationMinutes))
+              }
+            />
+            <span className="cook-pill-label">min</span>
             <span
               className="cook-timer-value"
               role="timer"
