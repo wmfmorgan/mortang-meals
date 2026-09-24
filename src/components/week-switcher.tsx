@@ -19,7 +19,9 @@ export function WeekSwitcher({ weekStart }: { weekStart: string }) {
         body: JSON.stringify({ weekStart: next }),
       });
       if (!res.ok) return;
-      router.push("/");
+      const data = (await res.json()) as { plan?: { id?: string } };
+      const planId = data.plan?.id;
+      router.push(planId ? `/?plan=${encodeURIComponent(planId)}` : "/");
       router.refresh();
     } finally {
       setPending(false);
