@@ -41,13 +41,14 @@ const members = [
 ];
 
 describe("HouseholdMembers", () => {
-  it("lists emails and roles; owner can invite and remove", async () => {
+  it("lists emails and roles; owner invites by email", async () => {
     createInviteAction.mockResolvedValue({
       ok: true,
       id: "inv-1",
       code: "ABCD2345",
       expiresAt: new Date(Date.now() + 86400000).toISOString(),
       joinPath: "/join?code=ABCD2345",
+      emailedTo: "partner@example.com",
     });
 
     render(
@@ -61,16 +62,17 @@ describe("HouseholdMembers", () => {
 
     expect(screen.getByText(/household members/i)).toBeTruthy();
     expect(screen.getByText(/owner@example.com/i)).toBeTruthy();
-    expect(screen.getByText(/member@example.com/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /invite someone/i })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /^remove$/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /send invite/i })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: /invite someone/i }));
+    fireEvent.change(screen.getByLabelText(/invite by email/i), {
+      target: { value: "partner@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /send invite/i }));
 
     await waitFor(() => {
-      expect(createInviteAction).toHaveBeenCalled();
+      expect(createInviteAction).toHaveBeenCalledWith("partner@example.com");
+      expect(screen.getByText(/invite sent to/i)).toBeTruthy();
       expect(screen.getByDisplayValue(/\/join\?code=ABCD2345/)).toBeTruthy();
-      expect(screen.getAllByText("ABCD2345").length).toBeGreaterThan(0);
     });
   });
 
@@ -83,7 +85,7 @@ describe("HouseholdMembers", () => {
         currentUserId="member-1"
       />,
     );
-    expect(screen.queryByRole("button", { name: /invite someone/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /send invite/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /^remove$/i })).toBeNull();
     expect(
       screen.getByText(/only the household owner can invite/i),

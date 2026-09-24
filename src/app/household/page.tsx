@@ -28,6 +28,7 @@ export default async function HouseholdPage() {
         invites={invites.map((invite) => ({
           id: invite.id,
           code: invite.code,
+          invitedEmail: invite.invitedEmail,
           expiresAt: invite.expiresAt.toISOString(),
           useCount: invite.useCount,
           maxUses: invite.maxUses,

@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { MemberRow } from "@/household/members-repo";
+import { publicAppOrigin } from "@/lib/public-app-origin";
 import {
   createInviteAction,
   removeMemberAction,
@@ -12,6 +13,7 @@ import {
 export type SerializableInvite = {
   id: string;
   code: string;
+  invitedEmail: string | null;
   expiresAt: string;
   useCount: number;
   maxUses: number;
@@ -43,9 +45,11 @@ export function HouseholdMembers({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
   const [created, setCreated] = useState<{
     code: string;
     joinUrl: string;
+    emailedTo: string;
   } | null>(null);
   const [copied, setCopied] = useState(false);
   const [invites, setInvites] = useState(initialInvites);
@@ -62,18 +66,31 @@ export function HouseholdMembers({
   function onInvite() {
     setError(null);
     setCopied(false);
+    const email = inviteEmail.trim();
+    if (!email) {
+      setError("Enter an email address.");
+      return;
+    }
     startTransition(async () => {
-      const result = await createInviteAction();
+      const result = await createInviteAction(email);
       if (!result.ok) {
         setError(result.error);
         return;
       }
-      const joinUrl = `${window.location.origin}${result.joinPath}`;
-      setCreated({ code: result.code, joinUrl });
+      const origin =
+        publicAppOrigin(window.location.origin) || window.location.origin;
+      const joinUrl = `${origin}${result.joinPath}`;
+      setCreated({
+        code: result.code,
+        joinUrl,
+        emailedTo: result.emailedTo,
+      });
+      setInviteEmail("");
       setInvites((current) => [
         {
           id: result.id,
           code: result.code,
+          invitedEmail: result.emailedTo,
           expiresAt: result.expiresAt,
           useCount: 0,
           maxUses: 1,
@@ -180,17 +197,34 @@ export function HouseholdMembers({
 
       {isOwner ? (
         <div className="space-y-3 border-t border-wheat/70 pt-4">
+          <label className="field">
+            Invite by email
+            <input
+              className="input"
+              type="email"
+              name="inviteEmail"
+              autoComplete="email"
+              placeholder="partner@example.com"
+              value={inviteEmail}
+              disabled={pending}
+              onChange={(event) => setInviteEmail(event.target.value)}
+            />
+          </label>
           <button
             type="button"
             className="btn btn-primary"
             disabled={pending}
             onClick={onInvite}
           >
-            {pending && !created ? "Creating…" : "Invite someone"}
+            {pending && !created ? "Sending…" : "Send invite"}
           </button>
 
           {created ? (
             <div className="space-y-2 rounded-xl border border-wheat/80 bg-linen/40 p-3">
+              <p className="m-0 text-sm">
+                Invite sent to <strong>{created.emailedTo}</strong>. They can
+                open the magic link in their email, or use this backup code.
+              </p>
               <p className="m-0 text-sm">
                 Invite code:{" "}
                 <span className="font-mono text-base tracking-wider">
@@ -229,6 +263,11 @@ export function HouseholdMembers({
                       <p className="m-0 font-mono text-sm tracking-wider">
                         {invite.code}
                       </p>
+                      {invite.invitedEmail ? (
+                        <p className="m-0 text-xs text-herb">
+                          {invite.invitedEmail}
+                        </p>
+                      ) : null}
                       <p className="m-0 text-xs text-herb">
                         Expires{" "}
                         {new Date(invite.expiresAt).toLocaleDateString()}

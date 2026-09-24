@@ -17,6 +17,7 @@ import { seedKitchenIfEmpty } from "@/kitchen/repo";
 import {
   requirePageHousehold,
   requirePageUser,
+  requireUser,
 } from "@/lib/request-auth";
 import type { Sex } from "@/lib/types";
 
@@ -76,19 +77,22 @@ export async function saveHouseholdAction(input: HouseholdSaveInput) {
   return getHouseholdForUser(userId);
 }
 
-export async function createInviteAction(): Promise<
+export async function createInviteAction(
+  email: string,
+): Promise<
   | {
       ok: true;
       id: string;
       code: string;
       expiresAt: string;
       joinPath: string;
+      emailedTo: string;
     }
   | { ok: false; error: string }
 > {
   const { userId, householdId } = await requirePageHousehold();
   try {
-    const invite = await createInvite(householdId, userId);
+    const invite = await createInvite(householdId, userId, email);
     revalidatePath("/household");
     return {
       ok: true,
@@ -96,6 +100,7 @@ export async function createInviteAction(): Promise<
       code: invite.code,
       expiresAt: invite.expiresAt.toISOString(),
       joinPath: invite.joinPath,
+      emailedTo: invite.emailedTo,
     };
   } catch (error) {
     return { ok: false, error: actionError(error, "Couldn’t create invite.") };
@@ -132,9 +137,15 @@ export async function removeMemberAction(
 export async function acceptInviteAction(
   code: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const userId = await requirePageUser();
+  const user = await requireUser();
+  if (!user.ok) {
+    return { ok: false, error: "Sign in to continue." };
+  }
+  if (!user.email) {
+    return { ok: false, error: "Sign in with an email account to join." };
+  }
   try {
-    await acceptInvite(code, userId);
+    await acceptInvite(code, user.userId, user.email);
     revalidatePath("/");
     revalidatePath("/household");
     revalidatePath("/setup");
