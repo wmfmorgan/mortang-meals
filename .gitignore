@@ -28,3 +28,4 @@ data/
 .env.vercel.production
 .env.vercel.*
 .env.prod.import
+stitch_mortang_meals_ux_audit/
