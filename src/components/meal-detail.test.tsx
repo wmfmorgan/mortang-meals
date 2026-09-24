@@ -17,6 +17,7 @@ vi.mock("next/navigation", () => ({
 
 afterEach(() => {
   cleanup();
+  sessionStorage.clear();
   vi.unstubAllGlobals();
   router.refresh.mockReset();
   router.push.mockReset();
@@ -58,11 +59,33 @@ function renderDetail(overrides: Partial<ComponentProps<typeof MealDetail>> = {}
   );
 }
 
+describe("MealDetail cook view", () => {
+  it("shows Counter Cook Mode by default", () => {
+    renderDetail();
+    expect(screen.getByText("Mise en Place")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Exit to Library" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "← Meals" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Method" })).toBeNull();
+    expect(screen.getByText(/35 min · Feeds 2/)).toBeTruthy();
+    expect(screen.queryByText(/Serves 2 · 35 min · sheet pan/)).toBeNull();
+  });
+
+  it("opens the edit form from Cook Mode", () => {
+    renderDetail();
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    expect(screen.getByLabelText(/^title$/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /edit recipe/i })).toBeTruthy();
+    expect(screen.queryByText("Mise en Place")).toBeNull();
+    expect(screen.getByRole("link", { name: "← Meals" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Exit to Library" })).toBeNull();
+  });
+});
+
 describe("MealDetail source", () => {
   it("shows a clickable source URL on the full recipe", () => {
     renderDetail({
       meal: { ...meal, sourceUrl: "https://example.com/salmon" },
-      imageUrl: null,
     });
     const source = screen.getByRole("link", {
       name: "https://example.com/salmon",
@@ -232,6 +255,7 @@ describe("MealDetail create", () => {
     expect(
       (screen.getByLabelText(/^why it fits$/i) as HTMLTextAreaElement).required,
     ).toBe(false);
+    expect(screen.queryByText("Mise en Place")).toBeNull();
     expect(screen.queryByRole("button", { name: "Print recipe" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Remove" })).toBeNull();

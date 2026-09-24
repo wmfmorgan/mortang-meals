@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { Aisle, Ingredient, Meal, MealSlot } from "@/lib/types";
+import type { Aisle, Ingredient, Meal, MealSlot, Person } from "@/lib/types";
 import { EMPTY_EXTRAS } from "@/meals/extras";
 import { AISLES, RECIPE_SLOTS } from "@/lib/types";
+import { CookMode } from "./cook-mode";
 import { PageHeader } from "./page-header";
 import { MealBadges, SwapButton, TrashIcon } from "./meal-card";
-import { SourceLink } from "./recipe-flyout";
-import { StarRating } from "./star-rating";
 
 function emptyIngredient(): Ingredient {
   return { name: "", quantity: "", unit: "", aisle: "other" };
@@ -51,12 +51,14 @@ export function MealDetail({
   servings,
   canSwap,
   eyebrow,
+  people = [],
   mode = "edit",
 }: {
   meal?: Meal;
   servings: string;
   canSwap: boolean;
   eyebrow?: string;
+  people?: Person[];
   mode?: "edit" | "create";
 }) {
   const creating = mode === "create";
@@ -283,19 +285,26 @@ export function MealDetail({
         <div className="no-print mb-4 flex flex-wrap items-center justify-end gap-2">
           {actions}
         </div>
-      ) : (
-        <PageHeader
-          eyebrow={eyebrow}
-          title={
-            <span className="inline-flex items-center gap-2">
-              {meal ? <MealBadges meal={meal} /> : null}
-              {editing ? "Edit recipe" : source.title}
-            </span>
-          }
-          lede={editing ? undefined : source.whyItFits}
-          action={actions}
-        />
-      )}
+      ) : editing ? (
+        <>
+          <Link
+            href="/meals"
+            className="no-print mb-6 inline-block text-sm text-herb no-underline hover:text-ink"
+          >
+            ← Meals
+          </Link>
+          <PageHeader
+            eyebrow={eyebrow}
+            title={
+              <span className="inline-flex items-center gap-2">
+                {meal ? <MealBadges meal={meal} /> : null}
+                Edit recipe
+              </span>
+            }
+            action={actions}
+          />
+        </>
+      ) : null}
       {error ? (
         <p role="alert" className="alert mb-6">
           {error}
@@ -580,52 +589,14 @@ export function MealDetail({
           </section>
         </form>
       ) : (
-        <>
-          {meal && !meal.draft ? (
-            <div className="mb-3">
-              <StarRating value={stars} onChange={(next) => void onRate(next)} />
-            </div>
-          ) : null}
-          <p className="mb-4 font-mono text-[0.72rem] uppercase tracking-[0.12em] text-herb">
-            {`Serves ${source.servings} · ${source.cookMinutes} min · ${source.method}`}
-          </p>
-          {source.sourceUrl ? <SourceLink href={source.sourceUrl} /> : null}
-
-          <div className="surface grid gap-8 p-6 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] sm:p-8">
-            <section>
-              <h2 className="page-eyebrow">Ingredients</h2>
-              <ul className="mt-3 space-y-2">
-                {source.ingredients.map((ingredient, index) => (
-                  <li
-                    key={`${index}-${ingredient.quantity}-${ingredient.name}-${ingredient.unit}`}
-                    className="flex gap-3 border-b border-wheat/80 py-2 text-[0.95rem]"
-                  >
-                    <span className="w-24 shrink-0 font-mono text-[0.78rem] text-herb">
-                      {ingredient.quantity} {ingredient.unit}
-                    </span>
-                    <span>{ingredient.name}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-            <section>
-              <h2 className="page-eyebrow">Method</h2>
-              <ol className="mt-3 space-y-3">
-                {source.steps.map((step, index) => (
-                  <li
-                    key={`${index}-${step}`}
-                    className="flex gap-3 text-[0.98rem] leading-relaxed"
-                  >
-                    <span className="font-mono text-[0.72rem] text-olive">
-                      {index + 1}
-                    </span>
-                    <span>{step}</span>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          </div>
-        </>
+        <CookMode
+          meal={{ ...source, stars }}
+          people={people}
+          servingsLabel={servings}
+          canSwap={canSwap}
+          actions={actions}
+          onRate={source.draft ? undefined : (next) => void onRate(next)}
+        />
       )}
     </>
   );
