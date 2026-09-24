@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db";
-import { households, people } from "@/lib/schema";
+import { householdMembers, households, people } from "@/lib/schema";
 import type { Household, Person } from "@/lib/types";
 
 type HouseholdRow = typeof households.$inferSelect;
@@ -42,9 +42,17 @@ export async function getHouseholdForUser(
 ): Promise<Household | null> {
   const db = getDb();
   const [row] = await db
-    .select()
-    .from(households)
-    .where(eq(households.ownerId, userId))
+    .select({
+      id: households.id,
+      ownerId: households.ownerId,
+      name: households.name,
+      dietStyle: households.dietStyle,
+      notes: households.notes,
+      servings: households.servings,
+    })
+    .from(householdMembers)
+    .innerJoin(households, eq(householdMembers.householdId, households.id))
+    .where(eq(householdMembers.userId, userId))
     .limit(1);
   if (!row) return null;
   return mapHousehold(row, await loadPeople(row.id));
@@ -74,6 +82,16 @@ export async function upsertHousehold(
   if (!row) {
     throw new Error("Household upsert failed");
   }
+
+  await db
+    .insert(householdMembers)
+    .values({
+      householdId: row.id,
+      userId: input.ownerId,
+      role: "owner",
+    })
+    .onConflictDoNothing({ target: householdMembers.userId });
+
   return mapHousehold(row, await loadPeople(row.id));
 }
 

@@ -56,4 +56,68 @@ describe("init migration", () => {
     `;
     expect(grants).toHaveLength(0);
   });
+
+  it("creates household_members and household_invites with RLS", async () => {
+    const membersCols = await sql`
+      select column_name
+      from information_schema.columns
+      where table_schema = 'public' and table_name = 'household_members'
+    `;
+    expect(membersCols.map((r) => r.column_name)).toEqual(
+      expect.arrayContaining([
+        "id",
+        "household_id",
+        "user_id",
+        "role",
+        "created_at",
+      ]),
+    );
+
+    const invitesCols = await sql`
+      select column_name
+      from information_schema.columns
+      where table_schema = 'public' and table_name = 'household_invites'
+    `;
+    expect(invitesCols.map((r) => r.column_name)).toEqual(
+      expect.arrayContaining([
+        "id",
+        "household_id",
+        "code",
+        "created_by",
+        "expires_at",
+        "max_uses",
+        "use_count",
+        "revoked_at",
+        "created_at",
+      ]),
+    );
+
+    const rls = await sql`
+      select c.relname, c.relrowsecurity
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public'
+        and c.relname in ('household_members', 'household_invites')
+      order by c.relname
+    `;
+    expect(rls).toHaveLength(2);
+    expect(rls.every((row) => row.relrowsecurity === true)).toBe(true);
+
+    const grants = await sql`
+      select table_name, privilege_type
+      from information_schema.role_table_grants
+      where table_schema = 'public'
+        and table_name in ('household_members', 'household_invites')
+        and grantee in ('anon', 'authenticated')
+    `;
+    expect(grants).toHaveLength(0);
+
+    const fn = await sql`
+      select proname
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.proname = 'is_household_member'
+    `;
+    expect(fn).toHaveLength(1);
+  });
 });

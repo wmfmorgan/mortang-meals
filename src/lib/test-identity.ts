@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { getDb } from "./db";
-import { households } from "./schema";
+import { householdMembers, households } from "./schema";
 
 function adminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -42,6 +42,11 @@ export async function createTestIdentity(email?: string): Promise<{
   if (!row) {
     throw new Error("Failed to insert household");
   }
+  await db.insert(householdMembers).values({
+    householdId: row.id,
+    userId: data.user.id,
+    role: "owner",
+  });
   return {
     userId: data.user.id,
     email: resolvedEmail,

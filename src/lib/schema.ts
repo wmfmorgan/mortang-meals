@@ -8,6 +8,7 @@ import {
   smallint,
   text,
   timestamp,
+  unique,
   uuid,
 } from "drizzle-orm/pg-core";
 import type { Ingredient, MealExtras, SlotMask } from "./types";
@@ -19,6 +20,34 @@ export const households = pgTable("households", {
   dietStyle: text("diet_style").notNull(),
   notes: text("notes").notNull(),
   servings: integer("servings").notNull(),
+});
+
+export const householdMembers = pgTable(
+  "household_members",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    householdId: uuid("household_id").notNull(),
+    userId: uuid("user_id").notNull().unique(),
+    role: text("role").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [unique().on(table.householdId, table.userId)],
+);
+
+export const householdInvites = pgTable("household_invites", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  householdId: uuid("household_id").notNull(),
+  code: text("code").notNull().unique(),
+  createdBy: uuid("created_by").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true, mode: "string" }).notNull(),
+  maxUses: integer("max_uses").notNull().default(1),
+  useCount: integer("use_count").notNull().default(0),
+  revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "string" }),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+    .notNull()
+    .defaultNow(),
 });
 
 export const people = pgTable("people", {

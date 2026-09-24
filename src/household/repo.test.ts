@@ -1,5 +1,8 @@
+import { eq } from "drizzle-orm";
+import { createClient } from "@supabase/supabase-js";
 import { afterEach, describe, expect, it } from "vitest";
-import { resetDbForTests } from "@/lib/db";
+import { getDb, resetDbForTests } from "@/lib/db";
+import { householdMembers } from "@/lib/schema";
 import { createTestIdentity, deleteTestUser } from "@/lib/test-identity";
 import { getHouseholdForUser, replacePeople, upsertHousehold } from "./repo";
 
@@ -8,6 +11,19 @@ afterEach(async () => {
   await resetDbForTests();
   await Promise.all(users.splice(0).map(deleteTestUser));
 });
+
+function adminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceRole) {
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required",
+    );
+  }
+  return createClient(url, serviceRole, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
 
 describe("household repo", () => {
   it("does not return another user's household", async () => {
@@ -24,6 +40,69 @@ describe("household repo", () => {
     });
     const seen = await getHouseholdForUser(b.userId);
     expect(seen?.name ?? "").not.toBe("A");
+  });
+
+  it("member B resolves owner A's household via membership", async () => {
+    const a = await createTestIdentity("owner-a@example.com");
+    users.push(a.userId);
+    await upsertHousehold({
+      ownerId: a.userId,
+      id: a.householdId,
+      name: "Shared",
+      dietStyle: "omnivore",
+      notes: "",
+      servings: 2,
+    });
+
+    const email = `member-b-${crypto.randomUUID()}@example.com`;
+    const { data, error } = await adminClient().auth.admin.createUser({
+      email,
+      email_confirm: true,
+    });
+    if (error || !data.user) {
+      throw new Error(error?.message ?? "Failed to create member user");
+    }
+    users.push(data.user.id);
+
+    await getDb()
+      .insert(householdMembers)
+      .values({
+        householdId: a.householdId,
+        userId: data.user.id,
+        role: "member",
+      });
+
+    const seen = await getHouseholdForUser(data.user.id);
+    expect(seen?.id).toBe(a.householdId);
+    expect(seen?.name).toBe("Shared");
+  });
+
+  it("upsertHousehold ensures an owner membership row", async () => {
+    const email = `upsert-owner-${crypto.randomUUID()}@example.com`;
+    const { data, error } = await adminClient().auth.admin.createUser({
+      email,
+      email_confirm: true,
+    });
+    if (error || !data.user) {
+      throw new Error(error?.message ?? "Failed to create upsert user");
+    }
+    users.push(data.user.id);
+
+    const saved = await upsertHousehold({
+      ownerId: data.user.id,
+      name: "Mortang",
+      dietStyle: "omnivore",
+      notes: "",
+      servings: 2,
+    });
+
+    const rows = await getDb()
+      .select()
+      .from(householdMembers)
+      .where(eq(householdMembers.userId, data.user.id));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.householdId).toBe(saved.id);
+    expect(rows[0]?.role).toBe("owner");
   });
 
   it("replacePeople is scoped to that household", async () => {

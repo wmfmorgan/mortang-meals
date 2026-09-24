@@ -31,6 +31,8 @@ export async function resetDbForTests(): Promise<void> {
       public.kitchen_items,
       public.kitchen_prefs,
       public.people,
+      public.household_invites,
+      public.household_members,
       public.households
     restart identity cascade
   `);
