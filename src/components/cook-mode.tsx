@@ -295,8 +295,8 @@ export function CookMode({
   return (
     <div className="cook-mode">
       <header className="cook-header">
-        <div className="cook-header-bar">
-          <Link href="/meals" className="cook-exit">
+        <div className="cook-header-bar no-print">
+          <Link href="/meals" className="cook-exit no-print">
             Exit to Library
           </Link>
           <div className="cook-header-actions">{actions}</div>
@@ -382,7 +382,7 @@ export function CookMode({
       </header>
 
       <div className="cook-split">
-        <aside className="cook-card">
+        <aside className="cook-card no-print">
           <div className="cook-mise-head">
             <h2 className="cook-card-title">Mise en Place</h2>
             <span className="cook-ready">
@@ -434,14 +434,14 @@ export function CookMode({
                   ))}
                 </div>
               </nav>
-              <article className="cook-card cook-stage-card">
+              <article className="cook-card cook-stage-card no-print">
                 <p className="cook-stage-kicker">
                   Step {current + 1} of {stepCount}
                 </p>
                 <h2 className="cook-stage-heading">
                   {stepChipTitle(currentStep, current)}
                 </h2>
-                <div className="cook-stage-image">
+                <div className="cook-stage-image no-print">
                   <MealImage imageUrl={meal.imageUrl} />
                 </div>
                 <p className="cook-instruction">{currentStep}</p>
@@ -468,9 +468,9 @@ export function CookMode({
               </article>
             </>
           ) : (
-            <div className="cook-card cook-stage-card">
+            <div className="cook-card cook-stage-card no-print">
               <p className="cook-instruction">No method steps yet.</p>
-              <div className="cook-stage-image">
+              <div className="cook-stage-image no-print">
                 <MealImage imageUrl={meal.imageUrl} />
               </div>
             </div>

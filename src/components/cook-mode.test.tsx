@@ -193,7 +193,7 @@ describe("CookMode", () => {
   });
 
   it("renders a print-only list of every ingredient and numbered step", () => {
-    renderCook();
+    const { container } = renderCook();
     const method = screen.getByRole("list", { name: "Full method" });
     const print = method.closest(".cook-print-only");
     expect(print).toBeTruthy();
@@ -202,6 +202,22 @@ describe("CookMode", () => {
       "Roast until the flesh flakes",
     ]);
     expect(print!.textContent).toContain("1 lb salmon");
+    expect(container.querySelector(".cook-exit")?.classList.contains("no-print")).toBe(
+      true,
+    );
+    expect(container.querySelector(".cook-ings")?.closest(".no-print")).toBeTruthy();
+    expect(
+      container.querySelector(".cook-stage-card")?.classList.contains("no-print"),
+    ).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    expect(container.querySelector(".cook-instruction")?.textContent).toBe(
+      "Roast until the flesh flakes",
+    );
+    expect([...method.querySelectorAll("li")].map((item) => item.textContent)).toEqual([
+      "Preheat the oven to 425",
+      "Roast until the flesh flakes",
+    ]);
   });
 
   it("hides stars on drafts", () => {
