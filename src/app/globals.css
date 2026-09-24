@@ -1995,3 +1995,242 @@ a.badge-link:hover {
     color: #4a453c;
   }
 }
+
+/* Recipe Library catalog. Do not restyle week-grid compact cards. */
+.library-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.library-hero,
+.library-toolbar {
+  background: #fff;
+  border: 1px solid #ebdccb;
+  border-radius: 1.5rem;
+  box-shadow: 0 4px 20px rgba(34, 26, 13, 0.03);
+}
+
+.library-hero {
+  padding: 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.library-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.library-pill {
+  border-radius: 9999px;
+}
+
+.library-toolbar {
+  padding: 1.15rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.library-search {
+  width: 100%;
+  border-radius: 9999px;
+}
+
+.input.library-search {
+  margin-top: 0;
+}
+
+.library-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.library-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  min-height: 36px;
+  padding: 0.35rem 0.85rem;
+  border: 1px solid #ebdccb;
+  background: var(--color-linen);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.library-chip:hover {
+  border-color: var(--color-olive-deep);
+}
+
+.library-chip[aria-pressed="true"] {
+  background: var(--color-olive-deep);
+  color: #fff;
+  border-color: var(--color-olive-deep);
+}
+
+.library-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0 0.25rem;
+}
+
+.library-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid #ebdccb;
+}
+
+.library-grid {
+  display: grid;
+  gap: 1.15rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .library-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .library-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .library-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.library-grid.is-list {
+  grid-template-columns: 1fr;
+}
+
+.library-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  border: 1px solid #ebdccb;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(34, 26, 13, 0.04);
+  transition: border-color 140ms ease;
+}
+
+.library-card:hover {
+  border-color: var(--color-olive-deep);
+}
+
+.library-card-photo {
+  position: relative;
+  height: 11rem;
+}
+
+.library-card-photo .meal-image {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border-radius: 0;
+  aspect-ratio: auto;
+}
+
+.library-card-body {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.library-card-actions {
+  padding: 0 1rem 1rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .library-grid.is-list .library-card {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .library-grid.is-list .library-card-photo {
+    width: 8rem;
+    height: auto;
+    flex: 0 0 8rem;
+  }
+
+  .library-grid.is-list .library-card-body {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+  }
+
+  .library-grid.is-list .library-card-actions {
+    flex-direction: column;
+    justify-content: center;
+    padding: 1rem 1rem 1rem 0;
+  }
+}
+
+.library-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(34, 26, 13, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.library-modal {
+  width: min(42rem, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  background: #fff8f3;
+  border: 1px solid #ebdccb;
+  border-radius: 1.5rem;
+  padding: 1.5rem;
+}
+
+.library-drawer-panel {
+  position: fixed;
+  top: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 41;
+  width: min(24rem, calc(100% - 1.5rem));
+  background: #fff;
+  border: 1px solid #ebdccb;
+  border-radius: 1.5rem;
+  padding: 1.5rem;
+  overflow: auto;
+}
+
+.library-day-pills {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.35rem;
+}
