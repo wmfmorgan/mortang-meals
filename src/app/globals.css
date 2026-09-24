@@ -1547,6 +1547,11 @@ a.badge-link:hover {
   cursor: pointer;
 }
 
+.cook-timer-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .cook-ribbon {
   margin: 1rem 0 0;
   padding: 0.65rem 0.9rem;

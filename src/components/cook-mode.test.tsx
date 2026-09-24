@@ -304,6 +304,55 @@ describe("CookMode", () => {
     expect(button.getAttribute("aria-pressed")).toBe("false");
   });
 
+  it("retries Screen Awake from a click after a failed mount request", async () => {
+    const release = vi.fn();
+    const request = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("denied"))
+      .mockResolvedValue({ release });
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      wakeLock: { request },
+    });
+
+    renderCook();
+    const button = screen.getByRole("button", { name: "Screen Awake" });
+    await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(button.getAttribute("aria-pressed")).toBe("false"));
+
+    fireEvent.click(button);
+
+    await vi.waitFor(() => {
+      expect(request).toHaveBeenCalledTimes(2);
+      expect(request).toHaveBeenLastCalledWith("screen");
+      expect(button.getAttribute("aria-pressed")).toBe("true");
+    });
+  });
+
+  it("requests the wake lock from a Screen Awake click when off", async () => {
+    const release = vi.fn();
+    const request = vi.fn().mockResolvedValue({ release });
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      wakeLock: { request },
+    });
+
+    renderCook();
+    const button = screen.getByRole("button", { name: "Screen Awake" });
+    await vi.waitFor(() => expect(button.getAttribute("aria-pressed")).toBe("true"));
+    expect(request).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(button);
+    await vi.waitFor(() => expect(button.getAttribute("aria-pressed")).toBe("false"));
+
+    fireEvent.click(button);
+    await vi.waitFor(() => {
+      expect(request).toHaveBeenCalledTimes(2);
+      expect(request).toHaveBeenLastCalledWith("screen");
+      expect(button.getAttribute("aria-pressed")).toBe("true");
+    });
+  });
+
   it("shows a paused cook timer for cookMinutes and a Play control", () => {
     renderCook();
     expect(screen.getByRole("timer", { name: "Cook timer" }).textContent).toBe(
@@ -380,7 +429,9 @@ describe("CookMode", () => {
     expect(screen.getByRole("timer", { name: "Cook timer" }).textContent).toBe(
       "00:00",
     );
-    expect(screen.getByRole("button", { name: "Play" })).toBeTruthy();
+    expect(
+      (screen.getByRole("button", { name: "Play" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1000);

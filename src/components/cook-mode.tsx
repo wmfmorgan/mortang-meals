@@ -133,13 +133,15 @@ export function CookMode({
     clampServings(meal.servings || 1),
   );
   const [wakeSupported, setWakeSupported] = useState(false);
-  const [wakeOn, setWakeOn] = useState(true);
   const [wakeHeld, setWakeHeld] = useState(false);
   const [remaining, setRemaining] = useState(() =>
     secondsFromCookMinutes(meal.cookMinutes),
   );
   const [running, setRunning] = useState(false);
   const sentinelRef = useRef<WakeLockSentinel | null>(null);
+  const wantWakeRef = useRef(false);
+  const requestGenRef = useRef(0);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
     setChecked(readChecks(meal.id, meal.ingredients.length));
@@ -155,60 +157,72 @@ export function CookMode({
     meal.cookMinutes,
   ]);
 
+  async function releaseSentinel(sentinel: WakeLockSentinel | null) {
+    if (!sentinel) return;
+    try {
+      await sentinel.release();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function acquireWakeLock() {
+    const api = getWakeLock();
+    if (!api) return;
+    wantWakeRef.current = true;
+    const gen = ++requestGenRef.current;
+    try {
+      const sentinel = await api.request("screen");
+      if (
+        gen !== requestGenRef.current ||
+        !wantWakeRef.current ||
+        !mountedRef.current
+      ) {
+        await releaseSentinel(sentinel);
+        return;
+      }
+      const previous = sentinelRef.current;
+      sentinelRef.current = sentinel;
+      setWakeHeld(true);
+      if (previous && previous !== sentinel) await releaseSentinel(previous);
+    } catch {
+      if (gen !== requestGenRef.current) return;
+      sentinelRef.current = null;
+      setWakeHeld(false);
+      wantWakeRef.current = false;
+    }
+  }
+
+  async function dropWakeLock() {
+    requestGenRef.current += 1;
+    wantWakeRef.current = false;
+    const sentinel = sentinelRef.current;
+    sentinelRef.current = null;
+    setWakeHeld(false);
+    await releaseSentinel(sentinel);
+  }
+
   useEffect(() => {
+    mountedRef.current = true;
     const api = getWakeLock();
     if (!api) return;
 
     setWakeSupported(true);
-    if (!wakeOn) return;
-
-    let cancelled = false;
-
-    async function releaseSentinel(sentinel: WakeLockSentinel | null) {
-      if (!sentinel) return;
-      try {
-        await sentinel.release();
-      } catch {
-        /* ignore */
-      }
-    }
-
-    async function acquire() {
-      if (cancelled) return;
-      try {
-        const sentinel = await api.request("screen");
-        if (cancelled) {
-          await releaseSentinel(sentinel);
-          return;
-        }
-        const previous = sentinelRef.current;
-        sentinelRef.current = sentinel;
-        setWakeHeld(true);
-        if (previous && previous !== sentinel) await releaseSentinel(previous);
-      } catch {
-        if (!cancelled) {
-          sentinelRef.current = null;
-          setWakeHeld(false);
-        }
-      }
-    }
-
-    void acquire();
+    void acquireWakeLock();
 
     function onVisibility() {
-      if (document.visibilityState === "visible") void acquire();
+      if (document.visibilityState === "visible" && wantWakeRef.current) {
+        void acquireWakeLock();
+      }
     }
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
-      cancelled = true;
+      mountedRef.current = false;
       document.removeEventListener("visibilitychange", onVisibility);
-      const sentinel = sentinelRef.current;
-      sentinelRef.current = null;
-      setWakeHeld(false);
-      void releaseSentinel(sentinel);
+      void dropWakeLock();
     };
-  }, [wakeOn]);
+  }, []);
 
   useEffect(() => {
     if (!running) return;
@@ -259,11 +273,15 @@ export function CookMode({
 
   function toggleWake() {
     if (!wakeSupported) return;
-    setWakeOn((on) => !on);
+    if (wakeHeld) {
+      void dropWakeLock();
+      return;
+    }
+    void acquireWakeLock();
   }
 
   function toggleTimer() {
-    if (remaining <= 0 && !running) return;
+    if (remaining <= 0) return;
     setRunning((on) => !on);
   }
 
@@ -293,6 +311,17 @@ export function CookMode({
         </p>
         {meal.sourceUrl ? <SourceLink href={meal.sourceUrl} /> : null}
         <div className="cook-utils">
+          <button
+            type="button"
+            className="cook-pill cook-wake"
+            aria-pressed={wakeHeld}
+            title={
+              wakeSupported ? undefined : "Not supported on this browser"
+            }
+            onClick={toggleWake}
+          >
+            Screen Awake
+          </button>
           <div className="cook-pill">
             <span className="cook-pill-label">Servings</span>
             <button
@@ -317,17 +346,6 @@ export function CookMode({
               +
             </button>
           </div>
-          <button
-            type="button"
-            className="cook-pill cook-wake"
-            aria-pressed={wakeHeld}
-            title={
-              wakeSupported ? undefined : "Not supported on this browser"
-            }
-            onClick={toggleWake}
-          >
-            Screen Awake
-          </button>
           <div className="cook-pill">
             <span className="cook-pill-label">Timer</span>
             <span
@@ -340,6 +358,7 @@ export function CookMode({
             <button
               type="button"
               className="cook-timer-btn"
+              disabled={remaining <= 0}
               onClick={toggleTimer}
             >
               {running ? "Pause" : "Play"}
