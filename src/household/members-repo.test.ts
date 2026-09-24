@@ -126,6 +126,19 @@ describe("members repo", () => {
     );
   });
 
+  it("second guest cannot accept after invite is exhausted", async () => {
+    const owner = await ownerHousehold("exhaust-owner");
+    const first = await createAuthUserWithoutHousehold();
+    const second = await createAuthUserWithoutHousehold();
+    users.push(first.userId, second.userId);
+    const invite = await createInvite(owner.householdId, owner.userId);
+    await acceptInvite(invite.code, first.userId);
+    await expect(acceptInvite(invite.code, second.userId)).rejects.toThrow(
+      /already been used/i,
+    );
+    expect(await getHouseholdForUser(second.userId)).toBeNull();
+  });
+
   it("non-owner cannot revoke or remove", async () => {
     const owner = await ownerHousehold("non-owner-mutate");
     const guest = await createAuthUserWithoutHousehold();

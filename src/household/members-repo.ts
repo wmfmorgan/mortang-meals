@@ -230,7 +230,8 @@ export async function acceptInvite(
       .select()
       .from(householdInvites)
       .where(eq(householdInvites.code, normalized))
-      .limit(1);
+      .limit(1)
+      .for("update");
 
     if (!invite) {
       throw new Error("Invalid invite code");
@@ -251,10 +252,19 @@ export async function acceptInvite(
       role: "member",
     });
 
-    await tx
+    const claimed = await tx
       .update(householdInvites)
       .set({ useCount: sql`${householdInvites.useCount} + 1` })
-      .where(eq(householdInvites.id, invite.id));
+      .where(
+        and(
+          eq(householdInvites.id, invite.id),
+          sql`${householdInvites.useCount} < ${householdInvites.maxUses}`,
+        ),
+      )
+      .returning({ id: householdInvites.id });
+    if (claimed.length === 0) {
+      throw new Error("Invite has already been used");
+    }
 
     return { householdId: invite.householdId };
   });
