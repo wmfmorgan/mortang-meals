@@ -181,6 +181,7 @@ export type ShoppingItem = {
   quantity: string;
   unit: string;
   aisle: Aisle;
+  sources: string[];
 };
 
 export type ShoppingList = { aisle: Aisle; items: ShoppingItem[] }[];

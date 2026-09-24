@@ -77,7 +77,15 @@ describe("mergeShoppingList", () => {
     expect(list).toEqual([
       {
         aisle: "meat",
-        items: [{ name: "chicken", quantity: "1", unit: "lb", aisle: "meat" }],
+        items: [
+          {
+            name: "chicken",
+            quantity: "1",
+            unit: "lb",
+            aisle: "meat",
+            sources: [],
+          },
+        ],
       },
     ]);
   });
@@ -99,7 +107,13 @@ describe("mergeShoppingList", () => {
     ]);
     const produce = list.find((g) => g.aisle === "produce")?.items;
     expect(produce).toEqual([
-      { name: "garlic", quantity: "3", unit: "clove", aisle: "produce" },
+      {
+        name: "garlic",
+        quantity: "3",
+        unit: "clove",
+        aisle: "produce",
+        sources: [],
+      },
     ]);
     expect(list.map((g) => g.aisle)).toEqual(["produce", "meat", "pantry"]);
   });
@@ -118,7 +132,13 @@ describe("mergeShoppingList", () => {
       },
     ]);
     expect(list[0].items).toEqual([
-      { name: "olive oil", quantity: "3/4", unit: "cup", aisle: "pantry" },
+      {
+        name: "olive oil",
+        quantity: "3/4",
+        unit: "cup",
+        aisle: "pantry",
+        sources: [],
+      },
     ]);
   });
 
@@ -178,7 +198,13 @@ describe("mergeShoppingList", () => {
     ]);
     const produce = list.find((g) => g.aisle === "produce")?.items;
     expect(produce).toEqual([
-      { name: "russet potato", quantity: "2", unit: "count", aisle: "produce" },
+      {
+        name: "russet potato",
+        quantity: "2",
+        unit: "count",
+        aisle: "produce",
+        sources: ["Baked potato"],
+      },
     ]);
     expect(list.map((g) => g.aisle)).toEqual(["produce", "meat"]);
   });
@@ -205,7 +231,13 @@ describe("mergeShoppingList", () => {
       },
     ]);
     expect(list[0].items).toEqual([
-      { name: "lemon juice", quantity: "3 2/3", unit: "tbsp", aisle: "produce" },
+      {
+        name: "lemon juice",
+        quantity: "3 2/3",
+        unit: "tbsp",
+        aisle: "produce",
+        sources: [],
+      },
     ]);
   });
 
@@ -230,7 +262,13 @@ describe("mergeShoppingList", () => {
       },
     ]);
     expect(list[0].items).toEqual([
-      { name: "parsley", quantity: "4", unit: "tbsp", aisle: "produce" },
+      {
+        name: "parsley",
+        quantity: "4",
+        unit: "tbsp",
+        aisle: "produce",
+        sources: [],
+      },
     ]);
   });
 
@@ -256,7 +294,13 @@ describe("mergeShoppingList", () => {
       },
     ]);
     expect(list[0].items).toEqual([
-      { name: "olive oil", quantity: "4 1/2", unit: "tbsp", aisle: "pantry" },
+      {
+        name: "olive oil",
+        quantity: "4 1/2",
+        unit: "tbsp",
+        aisle: "pantry",
+        sources: [],
+      },
     ]);
   });
 
@@ -271,7 +315,13 @@ describe("mergeShoppingList", () => {
       },
     ]);
     expect(list[0].items).toEqual([
-      { name: "garlic", quantity: "4", unit: "clove", aisle: "produce" },
+      {
+        name: "garlic",
+        quantity: "4",
+        unit: "clove",
+        aisle: "produce",
+        sources: [],
+      },
     ]);
   });
 
@@ -300,6 +350,7 @@ describe("mergeShoppingList", () => {
         quantity: "4",
         unit: "tbsp",
         aisle: "pantry",
+        sources: [],
       },
     ]);
   });
@@ -314,10 +365,59 @@ describe("mergeShoppingList", () => {
       },
     ]);
     expect(list.find((g) => g.aisle === "produce")?.items).toEqual([
-      { name: "garlic", quantity: "2", unit: "clove", aisle: "produce" },
+      {
+        name: "garlic",
+        quantity: "2",
+        unit: "clove",
+        aisle: "produce",
+        sources: [],
+      },
     ]);
     expect(list.find((g) => g.aisle === "pantry")?.items).toEqual([
-      { name: "garlic powder", quantity: "1", unit: "tsp", aisle: "pantry" },
+      {
+        name: "garlic powder",
+        quantity: "1",
+        unit: "tsp",
+        aisle: "pantry",
+        sources: [],
+      },
     ]);
+  });
+
+  it("unions meal titles onto a merged ingredient", () => {
+    const list = mergeShoppingList([
+      {
+        title: "Miso Salmon",
+        ingredients: [
+          { name: "garlic", quantity: "2", unit: "clove", aisle: "produce" },
+        ],
+      },
+      {
+        title: "Lemon Chicken",
+        ingredients: [
+          { name: "garlic", quantity: "1", unit: "clove", aisle: "produce" },
+        ],
+      },
+    ]);
+    expect(list[0].items).toEqual([
+      {
+        name: "garlic",
+        quantity: "3",
+        unit: "clove",
+        aisle: "produce",
+        sources: ["Miso Salmon", "Lemon Chicken"],
+      },
+    ]);
+  });
+
+  it("leaves sources empty when the meal has no title", () => {
+    const list = mergeShoppingList([
+      {
+        ingredients: [
+          { name: "garlic", quantity: "1", unit: "clove", aisle: "produce" },
+        ],
+      },
+    ]);
+    expect(list[0].items[0].sources).toEqual([]);
   });
 });

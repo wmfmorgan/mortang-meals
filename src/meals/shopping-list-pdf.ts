@@ -1,13 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import type { Aisle, ShoppingList } from "@/lib/types";
-
-const AISLE_LABELS: Record<Aisle, string> = {
-  produce: "Produce",
-  meat: "Meat & fish",
-  dairy: "Dairy",
-  pantry: "Pantry",
-  other: "Other",
-};
+import type { ShoppingList } from "@/lib/types";
+import { AISLE_LABELS } from "./shopping-list";
 
 export function shoppingListPdfFilename(weekLabel: string): string {
   return `Mortang shopping list — ${weekLabel}.pdf`;

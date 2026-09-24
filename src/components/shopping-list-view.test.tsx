@@ -49,10 +49,25 @@ const groups = [
   {
     aisle: "produce" as const,
     items: [
-      { name: "garlic", quantity: "4", unit: "clove", aisle: "produce" as const },
+      {
+        name: "garlic",
+        quantity: "4",
+        unit: "clove",
+        aisle: "produce" as const,
+        sources: [] as string[],
+      },
     ],
   },
 ];
+
+const maya = {
+  id: "maya",
+  name: "Maya",
+  age: 8,
+  sex: null,
+  allergies: ["soy"],
+  avoidances: ["gluten"],
+};
 
 describe("ShoppingListView", () => {
   it("checks an item and keeps it for that plan", () => {
@@ -119,5 +134,125 @@ describe("ShoppingListView", () => {
     await vi.waitFor(() => {
       expect(share).toHaveBeenCalled();
     });
+  });
+
+  it("updates batch progress when an item is checked", () => {
+    render(
+      <ShoppingListView
+        planId="plan-a"
+        weekLabel="Aug 31-Sep 6, 2026"
+        groups={groups}
+      />,
+    );
+    expect(screen.getByText(/0 of 1 items marked gathered/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("checkbox"));
+    expect(screen.getByText(/1 of 1 items marked gathered/i)).toBeTruthy();
+    expect(screen.getByText("100%")).toBeTruthy();
+  });
+
+  it("hides allergen rows when Safe for a person is selected", () => {
+    const soyGroups = [
+      {
+        aisle: "pantry" as const,
+        items: [
+          {
+            name: "soy sauce",
+            quantity: "1",
+            unit: "tbsp",
+            aisle: "pantry" as const,
+            sources: [] as string[],
+          },
+          {
+            name: "rice",
+            quantity: "1",
+            unit: "cup",
+            aisle: "pantry" as const,
+            sources: [] as string[],
+          },
+        ],
+      },
+    ];
+    render(
+      <ShoppingListView
+        planId="plan-a"
+        weekLabel="Aug 31-Sep 6, 2026"
+        groups={soyGroups}
+        people={[maya]}
+      />,
+    );
+    expect(screen.getByText(/soy sauce/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Safe for Maya/i }));
+    expect(screen.queryByText(/soy sauce/i)).toBeNull();
+    expect(screen.getByText(/rice/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /All household/i }));
+    expect(screen.getByText(/soy sauce/i)).toBeTruthy();
+  });
+
+  it("shows allergy and source chips on a row", () => {
+    render(
+      <ShoppingListView
+        planId="plan-a"
+        weekLabel="Aug 31-Sep 6, 2026"
+        groups={[
+          {
+            aisle: "pantry",
+            items: [
+              {
+                name: "soy sauce",
+                quantity: "1",
+                unit: "tbsp",
+                aisle: "pantry",
+                sources: ["Sheet Pan Miso Salmon"],
+              },
+            ],
+          },
+        ]}
+        people={[maya]}
+      />,
+    );
+    expect(screen.getByText("Maya · soy")).toBeTruthy();
+    expect(screen.getByText("Sheet Pan Miso Salmon")).toBeTruthy();
+  });
+
+  it("lists household people in the dietary guards sidebar", () => {
+    render(
+      <ShoppingListView
+        planId="plan-a"
+        weekLabel="Aug 31-Sep 6, 2026"
+        groups={groups}
+        people={[maya]}
+      />,
+    );
+    expect(screen.getByRole("heading", { name: /Household dietary guards/i })).toBeTruthy();
+    expect(screen.getByText("Maya")).toBeTruthy();
+    expect(screen.getByText("soy")).toBeTruthy();
+    expect(screen.getByText("gluten")).toBeTruthy();
+  });
+
+  it("does not show Safe-for filters when nobody has allergies", () => {
+    render(
+      <ShoppingListView
+        planId="plan-a"
+        weekLabel="Aug 31-Sep 6, 2026"
+        groups={groups}
+        people={[{ ...maya, allergies: [] }]}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: /All household/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Safe for Maya/i })).toBeNull();
+  });
+
+  it("asks to fill the plan when the list is empty", () => {
+    render(
+      <ShoppingListView
+        planId="plan-a"
+        weekLabel="Aug 31-Sep 6, 2026"
+        groups={[]}
+      />,
+    );
+    expect(
+      screen.getByText("Fill the plan to build a shopping list."),
+    ).toBeTruthy();
+    expect(screen.queryByText(/items marked gathered/i)).toBeNull();
   });
 });
