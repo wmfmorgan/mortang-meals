@@ -2,6 +2,11 @@ import { and, eq, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { householdInvites, householdMembers } from "@/lib/schema";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  ensureAuthUserForInvite,
+  normalizeInviteEmail,
+  sendInviteMagicLink,
+} from "./invite-email";
 
 const INVITE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const INVITE_CODE_LENGTH = 8;
@@ -16,6 +21,7 @@ export type MemberRow = {
 export type InviteRow = {
   id: string;
   code: string;
+  invitedEmail: string | null;
   expiresAt: Date;
   useCount: number;
   maxUses: number;
@@ -103,6 +109,7 @@ export async function listInvites(householdId: string): Promise<InviteRow[]> {
     .select({
       id: householdInvites.id,
       code: householdInvites.code,
+      invitedEmail: householdInvites.invitedEmail,
       expiresAt: householdInvites.expiresAt,
       useCount: householdInvites.useCount,
       maxUses: householdInvites.maxUses,
@@ -115,6 +122,7 @@ export async function listInvites(householdId: string): Promise<InviteRow[]> {
   return rows.map((row) => ({
     id: row.id,
     code: row.code,
+    invitedEmail: row.invitedEmail,
     expiresAt: new Date(row.expiresAt),
     useCount: row.useCount,
     maxUses: row.maxUses,
@@ -126,10 +134,28 @@ export async function listInvites(householdId: string): Promise<InviteRow[]> {
 export async function createInvite(
   householdId: string,
   createdBy: string,
-): Promise<{ id: string; code: string; expiresAt: Date; joinPath: string }> {
+  email: string,
+): Promise<{
+  id: string;
+  code: string;
+  expiresAt: Date;
+  joinPath: string;
+  emailedTo: string;
+}> {
   await requireOwner(householdId, createdBy, "invite");
+  const invitedEmail = normalizeInviteEmail(email);
+  const { userId: inviteeUserId } = await ensureAuthUserForInvite(invitedEmail);
 
   const db = getDb();
+  const [existingMembership] = await db
+    .select({ householdId: householdMembers.householdId })
+    .from(householdMembers)
+    .where(eq(householdMembers.userId, inviteeUserId))
+    .limit(1);
+  if (existingMembership) {
+    throw new Error("That person already belongs to a household");
+  }
+
   const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
   let lastError: unknown;
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -141,6 +167,7 @@ export async function createInvite(
           householdId,
           code,
           createdBy,
+          invitedEmail,
           expiresAt: expiresAt.toISOString(),
           maxUses: 1,
           useCount: 0,
@@ -149,14 +176,22 @@ export async function createInvite(
       if (!row) {
         throw new Error("Failed to create invite");
       }
+      const joinPath = `/join?code=${code}`;
+      await sendInviteMagicLink(invitedEmail, joinPath);
       return {
         id: row.id,
         code,
         expiresAt,
-        joinPath: `/join?code=${code}`,
+        joinPath,
+        emailedTo: invitedEmail,
       };
     } catch (error) {
       lastError = error;
+      // Retry only likely invite-code unique collisions from the insert.
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/unique|duplicate|household_invites_code/i.test(message)) {
+        throw error instanceof Error ? error : new Error(message);
+      }
     }
   }
   throw lastError instanceof Error
@@ -230,11 +265,13 @@ export async function removeMember(
 export async function acceptInvite(
   code: string,
   userId: string,
+  email: string,
 ): Promise<{ householdId: string }> {
   const normalized = code.trim().toUpperCase();
   if (!normalized) {
     throw new Error("Invalid invite code");
   }
+  const acceptorEmail = normalizeInviteEmail(email);
 
   const db = getDb();
 
@@ -257,6 +294,14 @@ export async function acceptInvite(
 
     if (!invite) {
       throw new Error("Invalid invite code");
+    }
+    if (!invite.invitedEmail) {
+      throw new Error("Invite expired; request a new one");
+    }
+    if (normalizeInviteEmail(invite.invitedEmail) !== acceptorEmail) {
+      throw new Error(
+        "This invite was sent to a different email. Sign in with the invited address or ask for a new invite.",
+      );
     }
     if (invite.revokedAt) {
       throw new Error("Invite revoked");
