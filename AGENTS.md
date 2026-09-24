@@ -81,7 +81,7 @@ Thin `src/app/api/*/route.ts` files parse JSON, resolve the session household, a
 | `/` Plans | Home. Week switcher, slot picker (cells to fill), fill-empty-slots from the library, takeout, leftovers, week grid, recipe flyout, library flyout. Labels are Monday–Sunday ranges. Visiting `/` with no `?plan=` opens this calendar week if the current plan is in the past. `?plan=` opens a historical plan. |
 | `/meals` | Library: generate drafts (batch or one recipe), approve/reject queue, then search / filter / group, import-from-URL, add-recipe. Catalog is unique by title. Saved meals can be rated 1–5 stars. |
 | `/meals/new` | Redirects to `/meals` (manual add is an inline collapsible card there). |
-| `/meals/[id]` | Full recipe editor (title, why, time, method, ingredients, steps). Swap only if the meal is on the current plan. |
+| `/meals/[id]` | Counter Cook Mode (mise en place + active step). Edit is a secondary mode on the same page. |
 | `/shopping-list` | Derived list for the open plan (`?plan=` supported). Not stored. |
 | `/household` | Household & Dietary: **members** (owner invites by email + revoke/remove), people, notes, cook prefs (expertise / involved / max cook time), and appliance/method checklist. Servings for AI drafts are set on Meals. |
 | `/kitchen` | Redirects to `/household` (kitchen content lives on Household). |

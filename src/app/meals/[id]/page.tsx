@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MealDetail } from "@/components/meal-detail";
 import { requirePageHousehold } from "@/lib/request-auth";
@@ -33,18 +32,13 @@ export default async function RecipePage({
       : meal.slot;
 
   return (
-    <article className="recipe-page mx-auto max-w-2xl">
-      <Link
-        href="/meals"
-        className="no-print mb-6 inline-block text-sm text-herb no-underline hover:text-ink"
-      >
-        ← Meals
-      </Link>
+    <article className="recipe-page cook-page">
       <MealDetail
         meal={meal}
         servings={`Serves ${household.servings}`}
         canSwap={onCurrentWeek}
         eyebrow={eyebrow}
+        people={household.people}
       />
     </article>
   );
