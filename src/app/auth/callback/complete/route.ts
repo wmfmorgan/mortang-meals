@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
 import { resolveConfirmAuth } from "@/app/auth/confirm/confirm-params";
-import type { ConfirmOtpType } from "@/app/auth/confirm/otp-type";
+import { parseConfirmOtpType } from "@/app/auth/confirm/otp-type";
+import { verifyTokenHash } from "@/app/auth/callback/verify-otp";
 import { acceptPendingInviteForUser } from "@/household/members-repo";
 import { safeNextPath } from "@/lib/safe-next-path";
 import { createClient } from "@/lib/supabase/server";
@@ -12,35 +13,24 @@ function failPath(next: string): string {
     : "/login?error=confirm";
 }
 
-async function verifyToken(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  token_hash: string,
-  type: ConfirmOtpType,
-) {
-  let { error } = await supabase.auth.verifyOtp({ type, token_hash });
-  if (!error) return null;
-  // Templates sometimes disagree with the OTP kind (email vs magiclink).
-  const fallback: ConfirmOtpType =
-    type === "email" ? "magiclink" : type === "magiclink" ? "email" : type;
-  if (fallback !== type) {
-    ({ error } = await supabase.auth.verifyOtp({
-      type: fallback,
-      token_hash,
-    }));
-  }
-  return error;
-}
-
 /**
- * Server-side magic-link / OTP confirm.
- * Sets session cookies on the redirect response so middleware sees the user
- * (client-side confirm + router.replace often races and dumps existing users
- * back on /login).
+ * Consumes the magic-link OTP. GET /auth/callback only renders a Continue
+ * button so email scanners (Outlook Safe Links) do not burn the token.
  */
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const next = safeNextPath(searchParams.get("next")) ?? "/";
-  const auth = resolveConfirmAuth(searchParams);
+export async function POST(request: NextRequest) {
+  const form = await request.formData();
+  const next = safeNextPath(String(form.get("next") ?? "")) ?? "/";
+  const query = new URLSearchParams();
+  const token_hash = String(form.get("token_hash") ?? "");
+  const type = parseConfirmOtpType(String(form.get("type") ?? "") || null);
+  const code = String(form.get("code") ?? "");
+  if (token_hash && type) {
+    query.set("token_hash", token_hash);
+    query.set("type", type);
+  } else if (code) {
+    query.set("code", code);
+  }
+  const auth = resolveConfirmAuth(query);
 
   if (auth.kind === "invalid" || auth.kind === "implicit") {
     redirect(failPath(next));
@@ -50,7 +40,11 @@ export async function GET(request: NextRequest) {
   let error: { message: string } | null = null;
 
   if (auth.kind === "token") {
-    error = await verifyToken(supabase, auth.token_hash, auth.type);
+    error = await verifyTokenHash(
+      (input) => supabase.auth.verifyOtp(input),
+      auth.token_hash,
+      auth.type,
+    );
   } else {
     ({ error } = await supabase.auth.exchangeCodeForSession(auth.code));
   }
