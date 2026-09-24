@@ -1481,6 +1481,38 @@ a.badge-link:hover {
   color: var(--color-herb);
 }
 
+.cook-view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.2rem;
+  border-radius: 9999px;
+  background: var(--color-surface-low);
+}
+
+.cook-view-switch [role="radio"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.35rem 0.9rem;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--color-herb);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.cook-view-switch [role="radio"][aria-checked="true"] {
+  background: var(--color-paper);
+  color: var(--color-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(44, 36, 22, 0.12);
+}
+
 .cook-stepper-btn {
   display: inline-flex;
   align-items: center;
@@ -1521,6 +1553,27 @@ a.badge-link:hover {
 .cook-wake[aria-pressed="true"] {
   background: var(--color-olive);
   color: var(--color-paper);
+}
+
+.cook-timer-minutes {
+  width: 3.25rem;
+  min-height: 44px;
+  padding: 0 0.35rem;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: center;
+  appearance: textfield;
+}
+
+.cook-timer-minutes::-webkit-outer-spin-button,
+.cook-timer-minutes::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
 }
 
 .cook-timer-value {
@@ -1723,6 +1776,81 @@ a.badge-link:hover {
 .cook-instruction {
   font-size: 1.05rem;
   line-height: 1.55;
+}
+
+.cook-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cook-overview-step {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  width: 100%;
+  min-height: 44px;
+  padding: 1rem 1.1rem;
+  border: 0;
+  border-radius: 1rem;
+  background: var(--color-surface-low);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cook-overview-step[data-done="true"] {
+  color: var(--color-herb);
+}
+
+.cook-overview-step[aria-current="step"] {
+  background: var(--color-paper);
+  box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+.cook-overview-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 1.75rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  background: var(--color-wheat);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.cook-overview-step[data-done="true"] .cook-overview-index {
+  background: var(--color-olive);
+  color: var(--color-paper);
+}
+
+.cook-overview-step[aria-current="step"] .cook-overview-index {
+  background: var(--color-primary);
+  color: var(--color-paper);
+}
+
+.cook-overview-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.cook-overview-heading {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.cook-overview .cook-instruction {
+  margin: 0;
 }
 
 .cook-stage-image {

@@ -145,6 +145,70 @@ describe("CookMode", () => {
     expect(screen.getByRole("button", { name: "Edit" })).toBeTruthy();
   });
 
+  it("defaults to Step-by-Step and shows one instruction", () => {
+    const { container } = renderCook();
+    expect(
+      screen.getByRole("radio", { name: "Step-by-Step" }).getAttribute("aria-checked"),
+    ).toBe("true");
+    expect(
+      screen.getByRole("radio", { name: "All Steps Overview" }).getAttribute("aria-checked"),
+    ).toBe("false");
+    expect(container.querySelector(".cook-instruction")?.textContent).toBe(
+      "Preheat the oven to 425",
+    );
+    expect(screen.queryByRole("list", { name: "All steps" })).toBeNull();
+  });
+
+  it("shows every step after All Steps Overview is selected", () => {
+    renderCook();
+    fireEvent.click(screen.getByRole("radio", { name: "All Steps Overview" }));
+    const list = screen.getByRole("list", { name: "All steps" });
+    expect([...list.querySelectorAll("li")].map((item) => item.textContent)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("Preheat the oven to 425"),
+        expect.stringContaining("Roast until the flesh flakes"),
+      ]),
+    );
+    expect(screen.queryByRole("button", { name: /next/i })).toBeNull();
+    expect(sessionStorage.getItem("mortang.cookView.meal-salmon")).toBe(
+      JSON.stringify("overview"),
+    );
+  });
+
+  it("restores All Steps Overview from sessionStorage", async () => {
+    sessionStorage.setItem("mortang.cookView.meal-salmon", JSON.stringify("overview"));
+    renderCook();
+    await vi.waitFor(() => {
+      expect(
+        screen.getByRole("radio", { name: "All Steps Overview" }).getAttribute("aria-checked"),
+      ).toBe("true");
+      expect(screen.getByRole("list", { name: "All steps" })).toBeTruthy();
+    });
+  });
+
+  it("hides the view switch when there are no steps", () => {
+    renderCook({ meal: { ...meal, steps: [] } });
+    expect(screen.queryByRole("radiogroup", { name: "Cooking view" })).toBeNull();
+    expect(screen.getByText("No method steps yet.")).toBeTruthy();
+  });
+
+  it("keeps the active step highlighted in overview and after switching back", () => {
+    const { container } = renderCook();
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(screen.getByRole("radio", { name: "All Steps Overview" }));
+    expect(
+      screen
+        .getByRole("button", { name: /2\. Roast until the flesh flakes/i })
+        .getAttribute("aria-current"),
+    ).toBe("step");
+
+    fireEvent.click(screen.getByRole("button", { name: /1\. Preheat the oven to 425/i }));
+    fireEvent.click(screen.getByRole("radio", { name: "Step-by-Step" }));
+    expect(container.querySelector(".cook-instruction")?.textContent).toBe(
+      "Preheat the oven to 425",
+    );
+  });
+
   it("writes checked ingredients to sessionStorage", () => {
     renderCook();
     fireEvent.click(screen.getByRole("checkbox"));
@@ -485,5 +549,67 @@ describe("CookMode", () => {
     expect(screen.getByRole("timer", { name: "Cook timer" }).textContent).toBe(
       "00:00",
     );
+  });
+
+  it("lets the cook set a custom timer duration in minutes", () => {
+    renderCook();
+    const input = screen.getByRole("spinbutton", { name: "Timer minutes" }) as HTMLInputElement;
+    expect(input.value).toBe("35");
+
+    fireEvent.change(input, { target: { value: "8" } });
+    fireEvent.blur(input);
+
+    expect(input.value).toBe("8");
+    expect(screen.getByRole("timer", { name: "Cook timer" }).textContent).toBe("08:00");
+    expect(sessionStorage.getItem("mortang.cookTimerMin.meal-salmon")).toBe(
+      JSON.stringify(8),
+    );
+  });
+
+  it("resets to the custom minutes, not cookMinutes", async () => {
+    vi.useFakeTimers();
+    renderCook();
+    const input = screen.getByRole("spinbutton", { name: "Timer minutes" });
+    fireEvent.change(input, { target: { value: "2" } });
+    fireEvent.blur(input);
+
+    fireEvent.click(screen.getByRole("button", { name: "Play" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(screen.getByRole("timer", { name: "Cook timer" }).textContent).toBe("01:59");
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+    expect(screen.getByRole("timer", { name: "Cook timer" }).textContent).toBe("02:00");
+    expect(screen.getByRole("button", { name: "Play" })).toBeTruthy();
+  });
+
+  it("clamps typed minutes to 1–180 and pauses if running", async () => {
+    vi.useFakeTimers();
+    renderCook();
+    fireEvent.click(screen.getByRole("button", { name: "Play" }));
+    const input = screen.getByRole("spinbutton", { name: "Timer minutes" });
+    fireEvent.change(input, { target: { value: "999" } });
+    fireEvent.blur(input);
+    expect((input as HTMLInputElement).value).toBe("180");
+    expect(screen.getByRole("timer", { name: "Cook timer" }).textContent).toBe("180:00");
+    expect(screen.getByRole("button", { name: "Play" })).toBeTruthy();
+
+    fireEvent.change(input, { target: { value: "0" } });
+    fireEvent.blur(input);
+    expect((input as HTMLInputElement).value).toBe("1");
+    expect(screen.getByRole("timer", { name: "Cook timer" }).textContent).toBe("01:00");
+  });
+
+  it("restores custom timer minutes from sessionStorage", async () => {
+    sessionStorage.setItem("mortang.cookTimerMin.meal-salmon", JSON.stringify(12));
+    renderCook();
+    await vi.waitFor(() => {
+      expect(
+        (screen.getByRole("spinbutton", { name: "Timer minutes" }) as HTMLInputElement)
+          .value,
+      ).toBe("12");
+      expect(screen.getByRole("timer", { name: "Cook timer" }).textContent).toBe("12:00");
+    });
   });
 });
