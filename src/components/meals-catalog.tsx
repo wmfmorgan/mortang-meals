@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { cookMealHref } from "@/lib/cook-exit";
 import type { DayOfWeek, Meal, Person } from "@/lib/types";
 import {
   filterCatalogMeals,
@@ -119,7 +120,7 @@ export function MealsCatalog({
             meal={item}
             people={people}
             onOpen={setSelected}
-            onCook={(next) => router.push(`/meals/${next.id}`)}
+            onCook={(next) => router.push(cookMealHref(next.id, "meals"))}
             onAddToPlan={setPlacing}
             onRate={(stars) => {
               void onRate(item.id, stars);
@@ -284,6 +285,7 @@ export function MealsCatalog({
           servings={servings}
           onClose={() => setSelected(null)}
           canSwap={Boolean(currentPlanId && openMeal.planId === currentPlanId)}
+          from="meals"
           eyebrow={recipeEyebrow(
             openMeal,
             Boolean(currentPlanId && openMeal.planId === currentPlanId),

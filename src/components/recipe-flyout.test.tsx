@@ -48,9 +48,24 @@ describe("RecipeFlyout", () => {
   it("links details through to the full recipe page", () => {
     render(<RecipeFlyout meal={meal} servings={2} onClose={() => {}} />);
     const link = screen.getByRole("link", { name: /open full recipe/i });
-    expect(link.getAttribute("href")).toBe("/meals/meal-salmon");
+    expect(link.getAttribute("href")).toBe("/meals/meal-salmon?from=meals");
     expect(screen.getByText("salmon")).toBeTruthy();
     expect(screen.queryByText("Found with web search")).toBeNull();
+  });
+
+  it("sends Open full recipe back toward Plans when from=plans", () => {
+    render(
+      <RecipeFlyout
+        meal={meal}
+        servings={2}
+        onClose={() => {}}
+        from="plans"
+        planId="plan-1"
+      />,
+    );
+    expect(
+      screen.getByRole("link", { name: "Open full recipe" }).getAttribute("href"),
+    ).toBe("/meals/meal-salmon?from=plans&plan=plan-1");
   });
 
   it("shows a star when the meal was generated with web search", () => {

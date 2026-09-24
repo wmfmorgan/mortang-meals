@@ -257,6 +257,8 @@ export function ThisWeekPlanner({
           servings={servings}
           onClose={() => setSelected(null)}
           canSwap={false}
+          from="plans"
+          planId={plan?.id}
           showOpenFullRecipe={
             selected?.type === "meal" || selectedExtra?.mode === "recipe"
           }

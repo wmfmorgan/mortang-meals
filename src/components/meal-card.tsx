@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ExtraKind, Meal, MealExtra } from "@/lib/types";
+import { cookMealHref } from "@/lib/cook-exit";
 import { readUseIngredients } from "@/lib/use-ingredients";
 import { MealExtras } from "./meal-extras";
 import { MealImage } from "./meal-image";
@@ -348,7 +349,13 @@ export function LeftoversIcon() {
   );
 }
 
-function CompactCookButton({ mealId }: { mealId: string }) {
+function CompactCookButton({
+  mealId,
+  planId,
+}: {
+  mealId: string;
+  planId?: string;
+}) {
   const router = useRouter();
   return (
     <div className="meal-card-cook-row">
@@ -357,7 +364,7 @@ function CompactCookButton({ mealId }: { mealId: string }) {
         className="btn btn-primary library-pill meal-card-cook"
         onClick={(event) => {
           event.stopPropagation();
-          router.push(`/meals/${mealId}`);
+          router.push(cookMealHref(mealId, "plans", planId));
         }}
       >
         Cook
@@ -376,6 +383,7 @@ export function MealCard({
   editable = false,
   canSwap = false,
   compact = false,
+  planId,
 }: {
   meal: Meal;
   onOpen?: (meal: Meal) => void;
@@ -387,6 +395,7 @@ export function MealCard({
   canSwap?: boolean;
   /** Week grid: title + extras + leftovers + delete only. */
   compact?: boolean;
+  planId?: string;
 }) {
   return (
     <article
@@ -433,7 +442,9 @@ export function MealCard({
           onOpenExtra={onOpenExtra}
         />
       )}
-      {compact && !meal.takeout ? <CompactCookButton mealId={meal.id} /> : null}
+      {compact && !meal.takeout ? (
+        <CompactCookButton mealId={meal.id} planId={planId} />
+      ) : null}
       {compact ? (
         editable ? (
           <div className="meal-card-actions meal-card-action-icons">

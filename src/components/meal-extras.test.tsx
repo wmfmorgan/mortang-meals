@@ -249,8 +249,20 @@ describe("MealCard extras", () => {
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     fireEvent.click(cook);
-    expect(router.push).toHaveBeenCalledWith("/meals/meal-salmon");
+    expect(router.push).toHaveBeenCalledWith(
+      "/meals/meal-salmon?from=plans",
+    );
     expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("keeps the open week on compact Cook", () => {
+    render(
+      <MealCard meal={meal()} editable compact planId="plan-1" />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Cook" }));
+    expect(router.push).toHaveBeenCalledWith(
+      "/meals/meal-salmon?from=plans&plan=plan-1",
+    );
   });
 
   it("hides Cook on takeout compact cards", () => {

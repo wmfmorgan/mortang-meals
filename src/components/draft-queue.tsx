@@ -102,6 +102,7 @@ export function DraftQueue({
           servings={servings}
           onClose={() => setSelected(null)}
           canSwap={false}
+          from="meals"
           eyebrow={recipeEyebrow(selected)}
         />
       ) : null}
