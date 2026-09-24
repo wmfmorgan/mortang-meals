@@ -2128,6 +2128,7 @@ a.badge-link:hover {
 }
 
 .library-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -2164,9 +2165,101 @@ a.badge-link:hover {
 }
 
 .library-card-actions {
+  position: relative;
+  z-index: 2;
   padding: 0 1rem 1rem;
   display: flex;
   gap: 0.5rem;
+}
+
+.library-card-open {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.library-card-badges {
+  position: absolute;
+  top: 0.65rem;
+  left: 0.65rem;
+  z-index: 1;
+  display: flex;
+  pointer-events: none;
+  gap: 0.4rem;
+}
+
+.library-card-badge {
+  padding: 0.15rem 0.65rem;
+  border: 1px solid #ebdccb;
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--color-ink);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.library-card-badge-slot {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--color-linen) 95%, transparent);
+  color: var(--color-herb);
+}
+
+.library-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.library-card-meta-ings {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-herb);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-card-rating {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+.library-card-title {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.3;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.library-card-why {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  color: var(--color-herb);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.library-card-servings {
+  margin: 0;
+  color: var(--color-herb);
+  font-size: 0.8rem;
+}
+
+.library-card-actions .btn-secondary {
+  flex: 1;
 }
 
 @media (min-width: 640px) {
