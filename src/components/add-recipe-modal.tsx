@@ -5,7 +5,7 @@ import type { MealSlot, Person } from "@/lib/types";
 import { RECIPE_SLOTS } from "@/lib/types";
 import { useGeneration } from "./generation-provider";
 import { LibraryGenerateForm } from "./library-generate-form";
-import { MealDetail } from "./meal-detail";
+import { LEAVE_RECIPE_MESSAGE, MealDetail } from "./meal-detail";
 
 type ModalView = "chooser" | "ai" | "manual";
 
@@ -38,15 +38,32 @@ export function AddRecipeModal({
   const [view, setView] = useState<ModalView>("chooser");
   const [url, setUrl] = useState("");
   const [importSlot, setImportSlot] = useState<MealSlot>("dinner");
+  const [manualDirty, setManualDirty] = useState(false);
   const allergies = uniqueAllergies(people);
+
+  function confirmLeaveManual(): boolean {
+    if (view !== "manual" || !manualDirty) return true;
+    return window.confirm(LEAVE_RECIPE_MESSAGE);
+  }
+
+  function requestClose() {
+    if (!confirmLeaveManual()) return;
+    onClose();
+  }
+
+  function requestBack() {
+    if (!confirmLeaveManual()) return;
+    setView("chooser");
+    setManualDirty(false);
+  }
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") requestClose();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, view, manualDirty]);
 
   function onImport(event: React.FormEvent) {
     event.preventDefault();
@@ -69,7 +86,7 @@ export function AddRecipeModal({
         type="button"
         className="library-modal-backdrop"
         aria-label="Close"
-        onClick={onClose}
+        onClick={requestClose}
       />
       <div
         className="library-modal"
@@ -83,7 +100,7 @@ export function AddRecipeModal({
               <button
                 type="button"
                 className="btn btn-ghost"
-                onClick={() => setView("chooser")}
+                onClick={requestBack}
               >
                 Back to options
               </button>
@@ -97,7 +114,7 @@ export function AddRecipeModal({
             className="icon-button"
             aria-label="Close modal"
             title="Close modal"
-            onClick={onClose}
+            onClick={requestClose}
           >
             <CloseIcon />
           </button>
@@ -202,6 +219,7 @@ export function AddRecipeModal({
             canSwap={false}
             onSaved={() => {}}
             onClose={onClose}
+            onDirtyChange={setManualDirty}
           />
         ) : null}
       </div>

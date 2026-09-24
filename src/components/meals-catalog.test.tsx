@@ -134,6 +134,12 @@ describe("MealsCatalog", () => {
     expect(screen.getByText("Manual Recipe Entry")).toBeTruthy();
   });
 
+  it("marks Filter as a mobile-only toggle", () => {
+    renderCatalog();
+    const filter = screen.getByRole("button", { name: "Filter" });
+    expect(filter.className.split(/\s+/)).toContain("library-filter-toggle");
+  });
+
   it("filters the catalog by search", () => {
     renderCatalog({ meals: [meal(), yogurt] });
     expect(screen.getByText("Lemon herb salmon")).toBeTruthy();

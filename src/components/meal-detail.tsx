@@ -14,7 +14,7 @@ function emptyIngredient(): Ingredient {
   return { name: "", quantity: "", unit: "", aisle: "other" };
 }
 
-const LEAVE_RECIPE_MESSAGE =
+export const LEAVE_RECIPE_MESSAGE =
   "Leave without saving? Your changes will be lost.";
 
 const EMPTY_DRAFT: Meal = {
@@ -68,6 +68,7 @@ export function MealDetail({
   mode = "edit",
   onClose,
   onSaved,
+  onDirtyChange,
 }: {
   meal?: Meal;
   servings: string;
@@ -77,6 +78,7 @@ export function MealDetail({
   mode?: "edit" | "create";
   onClose?: () => void;
   onSaved?: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const creating = mode === "create";
   const source = meal ?? EMPTY_DRAFT;
@@ -106,6 +108,10 @@ export function MealDetail({
       slot !== source.slot ||
       JSON.stringify(steps) !== JSON.stringify(source.steps) ||
       JSON.stringify(ingredients) !== JSON.stringify(source.ingredients));
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
 
   useEffect(() => {
     if (!dirty) return;

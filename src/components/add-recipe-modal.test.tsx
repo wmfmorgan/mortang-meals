@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Person } from "@/lib/types";
 import { RECIPE_SLOTS } from "@/lib/types";
 import { AddRecipeModal } from "./add-recipe-modal";
+import { LEAVE_RECIPE_MESSAGE } from "./meal-detail";
 
 const startImport = vi.hoisted(() => vi.fn());
 const startLibrary = vi.hoisted(() => vi.fn());
@@ -179,6 +180,63 @@ describe("AddRecipeModal manual", () => {
     expect(screen.getByText("Manual Recipe Entry")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("closes a clean manual form without confirming", () => {
+    const confirm = vi.spyOn(window, "confirm");
+    const { onClose } = renderModal();
+    fireEvent.click(screen.getByRole("button", { name: "Start Blank" }));
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(confirm).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
+    confirm.mockRestore();
+  });
+
+  it("asks before discarding a dirty form on Escape, X, and backdrop", () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const { onClose } = renderModal();
+    fireEvent.click(screen.getByRole("button", { name: "Start Blank" }));
+    fireEvent.change(screen.getByLabelText(/^title$/i), {
+      target: { value: "Weeknight chili" },
+    });
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(confirm).toHaveBeenCalledWith(LEAVE_RECIPE_MESSAGE);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/^title$/i)).toBeTruthy();
+
+    confirm.mockClear();
+    fireEvent.click(screen.getByTitle("Close modal"));
+    expect(confirm).toHaveBeenCalledWith(LEAVE_RECIPE_MESSAGE);
+    expect(onClose).not.toHaveBeenCalled();
+
+    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(confirm).toHaveBeenCalledWith(LEAVE_RECIPE_MESSAGE);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    confirm.mockRestore();
+  });
+
+  it("asks before Back to options when the manual form is dirty", () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const { onClose } = renderModal();
+    fireEvent.click(screen.getByRole("button", { name: "Start Blank" }));
+    fireEvent.change(screen.getByLabelText(/^title$/i), {
+      target: { value: "Weeknight chili" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Back to options" }));
+    expect(confirm).toHaveBeenCalledWith(LEAVE_RECIPE_MESSAGE);
+    expect(screen.getByLabelText(/^title$/i)).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
+
+    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByRole("button", { name: "Back to options" }));
+    expect(screen.getByText("Manual Recipe Entry")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+    confirm.mockRestore();
   });
 });
 

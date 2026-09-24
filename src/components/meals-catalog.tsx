@@ -148,7 +148,7 @@ export function MealsCatalog({
         <div className="library-hero-actions">
           <button
             type="button"
-            className="btn btn-secondary library-pill"
+            className="btn btn-secondary library-pill library-filter-toggle"
             aria-pressed={chipsOpen}
             onClick={() => setChipsOpen((open) => !open)}
           >

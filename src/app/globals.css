@@ -2151,6 +2151,12 @@ a.badge-link:hover {
   }
 }
 
+@media (min-width: 768px) {
+  .library-filter-toggle {
+    display: none;
+  }
+}
+
 .library-status {
   display: flex;
   flex-wrap: wrap;
