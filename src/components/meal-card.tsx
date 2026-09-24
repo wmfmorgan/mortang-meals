@@ -348,6 +348,24 @@ export function LeftoversIcon() {
   );
 }
 
+function CompactCookButton({ mealId }: { mealId: string }) {
+  const router = useRouter();
+  return (
+    <div className="meal-card-cook-row">
+      <button
+        type="button"
+        className="btn btn-primary library-pill meal-card-cook"
+        onClick={(event) => {
+          event.stopPropagation();
+          router.push(`/meals/${mealId}`);
+        }}
+      >
+        Cook
+      </button>
+    </div>
+  );
+}
+
 export function MealCard({
   meal,
   onOpen,
@@ -415,6 +433,7 @@ export function MealCard({
           onOpenExtra={onOpenExtra}
         />
       )}
+      {compact && !meal.takeout ? <CompactCookButton mealId={meal.id} /> : null}
       {compact ? (
         editable ? (
           <div className="meal-card-actions meal-card-action-icons">

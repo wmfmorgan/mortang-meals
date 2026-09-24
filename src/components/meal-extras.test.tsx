@@ -17,6 +17,7 @@ vi.mock("next/navigation", () => ({
 afterEach(() => {
   cleanup();
   router.refresh.mockReset();
+  router.push.mockReset();
 });
 
 function meal(overrides: Partial<Meal> = {}): Meal {
@@ -222,5 +223,43 @@ describe("MealCard extras", () => {
         "Sheet-pan miso-glazed salmon with roasted broccoli and sesame",
       ),
     ).toBeTruthy();
+  });
+
+  it("puts a centered Cook control above compact action icons", () => {
+    const onOpen = vi.fn();
+    render(
+      <MealCard
+        meal={meal()}
+        editable
+        compact
+        onOpen={onOpen}
+        onChooseExtra={vi.fn()}
+        onLeftover={vi.fn()}
+      />,
+    );
+    const cook = screen.getByRole("button", { name: "Cook" });
+    const cookRow = document.querySelector(".meal-card-cook-row");
+    const actions = document.querySelector(
+      ".meal-card-compact .meal-card-action-icons",
+    );
+    expect(cookRow).toBeTruthy();
+    expect(cookRow!.contains(cook)).toBe(true);
+    expect(
+      cookRow!.compareDocumentPosition(actions!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    fireEvent.click(cook);
+    expect(router.push).toHaveBeenCalledWith("/meals/meal-salmon");
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("hides Cook on takeout compact cards", () => {
+    render(<MealCard meal={meal({ takeout: true })} editable compact />);
+    expect(screen.queryByRole("button", { name: "Cook" })).toBeNull();
+  });
+
+  it("shows Cook on leftover compact cards", () => {
+    render(<MealCard meal={meal({ leftover: true })} editable compact />);
+    expect(screen.getByRole("button", { name: "Cook" })).toBeTruthy();
   });
 });
