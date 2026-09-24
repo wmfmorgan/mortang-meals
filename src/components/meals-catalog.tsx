@@ -1,63 +1,105 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Meal, MealSlot, Person } from "@/lib/types";
-import { RECIPE_SLOTS } from "@/lib/types";
-import { filterCatalogMeals, groupCatalogMeals, mealDate } from "@/meals/catalog";
+import type { DayOfWeek, Meal, Person } from "@/lib/types";
+import {
+  filterCatalogMeals,
+  groupCatalogMeals,
+  mealMatchesChip,
+  sortCatalogMeals,
+  type CatalogChip,
+  type CatalogGroupBy,
+  type CatalogSort,
+} from "@/meals/catalog";
+import { AddRecipeModal } from "./add-recipe-modal";
+import { AddToPlanDrawer } from "./add-to-plan-drawer";
 import { CollapsibleCard } from "./collapsible-card";
-import { useGeneration } from "./generation-provider";
 import { DraftQueue } from "./draft-queue";
-import { LibraryGenerateForm } from "./library-generate-form";
-import { DeleteButton, MealBadges } from "./meal-card";
-import { MealImage } from "./meal-image";
-import { MealDetail } from "./meal-detail";
+import { LibraryRecipeCard } from "./library-recipe-card";
 import { RecipeFlyout, recipeEyebrow } from "./recipe-flyout";
-import { StarRating } from "./star-rating";
 
-type GroupBy = "slot" | "date" | "none";
+const CHIPS: { id: CatalogChip; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "safe", label: "All Safe" },
+  { id: "quick", label: "Under 20m" },
+  { id: "sheet", label: "Sheet Pan" },
+  { id: "slow", label: "Slow Cooker" },
+];
+
+const GROUPS: { id: Extract<CatalogGroupBy, "none" | "slot" | "method">; label: string }[] = [
+  { id: "none", label: "All" },
+  { id: "slot", label: "Meal Type" },
+  { id: "method", label: "Method" },
+];
+
+function weekdayName(day: DayOfWeek): string {
+  return day.charAt(0).toUpperCase() + day.slice(1);
+}
+
+function allergyPeopleNames(people: Person[]): string[] {
+  return people
+    .filter(
+      (person) =>
+        person.name.trim() && person.allergies.some((term) => term.trim()),
+    )
+    .map((person) => person.name.trim());
+}
 
 export function MealsCatalog({
   meals,
   drafts = [],
   people = [],
+  householdName = "",
   servings,
   currentPlanId,
+  weekStart,
 }: {
   meals: Meal[];
   drafts?: Meal[];
   people?: Person[];
+  householdName?: string;
   servings: number;
   currentPlanId: string | null;
+  weekStart: string;
 }) {
   const router = useRouter();
-  const { state, startImport } = useGeneration();
   const [search, setSearch] = useState("");
-  const [slot, setSlot] = useState<MealSlot | "all">("all");
-  const [date, setDate] = useState<string | "all">("all");
-  const [groupBy, setGroupBy] = useState<GroupBy>("slot");
-  const [url, setUrl] = useState("");
-  const [importSlot, setImportSlot] = useState<MealSlot>("dinner");
+  const [groupBy, setGroupBy] = useState<Extract<CatalogGroupBy, "none" | "slot" | "method">>("slot");
+  const [sort, setSort] = useState<CatalogSort>("loved");
+  const [chip, setChip] = useState<CatalogChip>("all");
+  const [view, setView] = useState<"grid" | "list">("grid");
+  const [chipsOpen, setChipsOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [placing, setPlacing] = useState<Meal | null>(null);
   const [selected, setSelected] = useState<Meal | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
-  const dates = useMemo(() => {
-    return [...new Set(meals.map(mealDate))].sort((a, b) => b.localeCompare(a));
-  }, [meals]);
-
-  const filtered = filterCatalogMeals(meals, { search, slot, date });
-  const groups = groupCatalogMeals(filtered, groupBy);
+  const allergies = people.flatMap((person) => person.allergies);
+  const visible = sortCatalogMeals(
+    filterCatalogMeals(meals, { search }).filter((item) =>
+      mealMatchesChip(item, chip, allergies),
+    ),
+    sort,
+  );
+  const groups = groupCatalogMeals(visible, groupBy);
   const openMeal = selected
     ? (meals.find((item) => item.id === selected.id) ?? selected)
     : null;
-  const pending = state.status === "running";
+  const allergyNames = allergyPeopleNames(people);
+  const lede = allergyNames.length
+    ? `Allergies for ${allergyNames.join(" & ")} stay excluded on generate.`
+    : householdName
+      ? `Favorite household recipes and weeknight ideas for ${householdName}.`
+      : "Favorite household recipes and weeknight ideas.";
+  const hasAllergies = allergies.some((term) => term.trim());
+  const gridClass = view === "list" ? "library-grid is-list" : "library-grid";
 
-  async function onImport(event: React.FormEvent) {
-    event.preventDefault();
-    const next = url.trim();
-    if (!next) return;
-    setUrl("");
-    await startImport({ url: next, slot: importSlot });
-  }
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
 
   async function onRate(mealId: string, stars: number) {
     await fetch("/api/library/rate", {
@@ -68,168 +110,154 @@ export function MealsCatalog({
     router.refresh();
   }
 
-  return (
-    <div className="space-y-6">
-      <CollapsibleCard title="Generate Meals with AI">
-        <LibraryGenerateForm people={people} />
-      </CollapsibleCard>
+  function renderGrid(items: Meal[]) {
+    return (
+      <div className={gridClass}>
+        {items.map((item) => (
+          <LibraryRecipeCard
+            key={item.id}
+            meal={item}
+            people={people}
+            onOpen={setSelected}
+            onCook={(next) => router.push(`/meals/${next.id}`)}
+            onAddToPlan={setPlacing}
+            onRate={(stars) => {
+              void onRate(item.id, stars);
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
 
-      <CollapsibleCard title="Import Recipe from URL">
-        <form className="space-y-3" onSubmit={onImport}>
-          <p className="mt-0 text-sm text-herb">
-            Grok reads the page and saves it as a normal meal, with a link back
-            to the source.
-          </p>
-          <div className="flex flex-wrap items-end gap-2">
-            <label className="field min-w-[16rem] flex-1">
-              Recipe URL
-              <input
-                className="input"
-                type="url"
-                required
-                value={url}
-                onChange={(event) => setUrl(event.target.value)}
-                placeholder="https://"
-              />
-            </label>
-            <label className="field">
-              Meal
-              <select
-                className="input"
-                value={importSlot}
-                onChange={(event) =>
-                  setImportSlot(event.target.value as MealSlot)
-                }
-              >
-                {RECIPE_SLOTS.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button type="submit" className="btn btn-primary" disabled={pending}>
-              {pending && state.kind === "import" ? "Importing…" : "Import"}
+  return (
+    <div className="library-page">
+      <header className="library-hero">
+        <div className="library-hero-copy">
+          <div className="library-hero-kicker">
+            <p className="page-eyebrow" style={{ margin: 0 }}>
+              Household Collection
+            </p>
+            {householdName ? (
+              <span className="library-hero-household">{householdName}</span>
+            ) : null}
+          </div>
+          <h1 className="page-title">Recipe Library</h1>
+          <p className="page-lede">{lede}</p>
+        </div>
+        <div className="library-hero-actions">
+          <button
+            type="button"
+            className="btn btn-secondary library-pill library-filter-toggle"
+            aria-pressed={chipsOpen}
+            onClick={() => setChipsOpen((open) => !open)}
+          >
+            Filter
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary library-pill"
+            onClick={() => setAdding(true)}
+          >
+            New Recipe
+          </button>
+        </div>
+      </header>
+
+      <div className="library-toolbar">
+        <div className="library-toolbar-row">
+          <label className="field library-search-field">
+            Search
+            <input
+              className="input library-search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="title, ingredient, method"
+            />
+          </label>
+          <div className="library-group-control">
+            <span className="page-eyebrow" style={{ margin: 0 }}>
+              Group
+            </span>
+            <div className="library-segmented" role="group" aria-label="Group">
+              {GROUPS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  aria-pressed={groupBy === item.id}
+                  onClick={() => setGroupBy(item.id)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <label className="field">
+            Sort
+            <select
+              className="input"
+              value={sort}
+              onChange={(event) => setSort(event.target.value as CatalogSort)}
+            >
+              <option value="loved">Most Loved</option>
+              <option value="fast">Under 20 Mins</option>
+              <option value="recent">Recently Cooked</option>
+            </select>
+          </label>
+          <div className="library-view-toggle" role="group" aria-label="View">
+            <button
+              type="button"
+              aria-pressed={view === "grid"}
+              onClick={() => setView("grid")}
+            >
+              Grid
+            </button>
+            <button
+              type="button"
+              aria-pressed={view === "list"}
+              onClick={() => setView("list")}
+            >
+              List
             </button>
           </div>
-        </form>
-      </CollapsibleCard>
+        </div>
+        <div
+          className={chipsOpen ? "library-chips is-open" : "library-chips"}
+          role="group"
+          aria-label="Filters"
+        >
+          {CHIPS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="library-chip"
+              aria-pressed={chip === item.id}
+              onClick={() => setChip(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      <CollapsibleCard title="Manually Add a Recipe">
-        <MealDetail mode="create" servings={`Serves ${servings}`} canSwap={false} />
-      </CollapsibleCard>
+      <div className="library-status">
+        <span>
+          Showing {visible.length} recipe{visible.length === 1 ? "" : "s"}
+        </span>
+        {hasAllergies ? (
+          <span className="library-pill library-status-pill">Allergies checked</span>
+        ) : null}
+      </div>
 
       {drafts.length > 0 ? (
         <DraftQueue drafts={drafts} servings={servings} />
       ) : null}
 
-      <div className="surface flex flex-wrap items-end gap-3 p-4">
-        <label className="field min-w-[12rem] flex-1">
-          Search
-          <input
-            className="input"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="title, ingredient, method"
-          />
-        </label>
-        <label className="field">
-          Meal
-          <select
-            className="input"
-            value={slot}
-            onChange={(event) =>
-              setSlot(event.target.value as MealSlot | "all")
-            }
-          >
-            <option value="all">all</option>
-            {RECIPE_SLOTS.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          Date
-          <select
-            className="input"
-            value={date}
-            onChange={(event) => setDate(event.target.value)}
-          >
-            <option value="all">all</option>
-            {dates.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          Group by
-          <select
-            className="input"
-            value={groupBy}
-            onChange={(event) => setGroupBy(event.target.value as GroupBy)}
-          >
-            <option value="slot">breakfast / lunch / dinner / side / dessert</option>
-            <option value="date">date generated</option>
-            <option value="none">none</option>
-          </select>
-        </label>
-      </div>
-
       {groups.length === 0 ? (
         <p className="text-sm text-herb">No meals match those filters.</p>
       ) : (
         groups.map((group) => {
-          const grid = (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {group.meals.map((meal) => (
-                <article
-                  key={meal.id}
-                  className="meal-card p-4"
-                  data-slot={meal.slot}
-                >
-                  <button
-                    type="button"
-                    className="meal-card-open w-full text-left"
-                    onClick={() => setSelected(meal)}
-                  >
-                    <MealImage imageUrl={meal.imageUrl} />
-                    <h3 className="mt-0 mb-0 flex items-start gap-2">
-                      <MealBadges meal={meal} />
-                      <span className="meal-card-title">{meal.title}</span>
-                    </h3>
-                    <p className="meal-meta">
-                      {meal.slot} · {meal.cookMinutes} min · {meal.method}
-                    </p>
-                    <p className="meal-meta">Servings: {meal.servings}</p>
-                    <p className="meal-why">{meal.whyItFits}</p>
-                    <p className="meal-meta">{mealDate(meal)}</p>
-                  </button>
-                  <div className="meal-card-actions mt-2">
-                    <StarRating
-                      value={meal.stars}
-                      onChange={(stars) => {
-                        void onRate(meal.id, stars);
-                      }}
-                    />
-                    <DeleteButton
-                      meal={meal}
-                      icon="trash"
-                      confirmMessage="Delete this meal from the library?"
-                      onDeleted={() => {
-                        setSelected((current) =>
-                          current?.id === meal.id ? null : current,
-                        );
-                      }}
-                    />
-                  </div>
-                </article>
-              ))}
-            </div>
-          );
+          const grid = renderGrid(group.meals);
           if (!group.label) {
             return (
               <section key={group.key} className="space-y-3">
@@ -264,6 +292,33 @@ export function MealsCatalog({
             void onRate(openMeal.id, stars);
           }}
         />
+      ) : null}
+
+      {adding ? (
+        <AddRecipeModal
+          people={people}
+          servings={servings}
+          onClose={() => setAdding(false)}
+        />
+      ) : null}
+
+      {placing ? (
+        <AddToPlanDrawer
+          meal={placing}
+          weekStart={weekStart}
+          onPlaced={(day, slot) => {
+            setToast(`Added to ${weekdayName(day)} ${slot}`);
+            setPlacing(null);
+            router.refresh();
+          }}
+          onClose={() => setPlacing(null)}
+        />
+      ) : null}
+
+      {toast ? (
+        <p className="library-toast" role="status">
+          {toast}
+        </p>
       ) : null}
     </div>
   );

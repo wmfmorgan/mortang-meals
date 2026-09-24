@@ -14,7 +14,7 @@ function emptyIngredient(): Ingredient {
   return { name: "", quantity: "", unit: "", aisle: "other" };
 }
 
-const LEAVE_RECIPE_MESSAGE =
+export const LEAVE_RECIPE_MESSAGE =
   "Leave without saving? Your changes will be lost.";
 
 const EMPTY_DRAFT: Meal = {
@@ -46,6 +46,19 @@ function servingsFromLabel(label: string): number {
   return match ? Math.max(1, Number(match[1]) || 2) : 2;
 }
 
+const COOK_MINUTE_CHIPS = [15, 25, 45, 60] as const;
+const METHOD_CHIPS = [
+  "stovetop",
+  "sheet pan",
+  "slow cooker",
+  "oven",
+  "grill",
+] as const;
+
+function clampServings(value: number): number {
+  return Math.min(24, Math.max(1, value));
+}
+
 export function MealDetail({
   meal,
   servings,
@@ -53,6 +66,9 @@ export function MealDetail({
   eyebrow,
   people = [],
   mode = "edit",
+  onClose,
+  onSaved,
+  onDirtyChange,
 }: {
   meal?: Meal;
   servings: string;
@@ -60,6 +76,9 @@ export function MealDetail({
   eyebrow?: string;
   people?: Person[];
   mode?: "edit" | "create";
+  onClose?: () => void;
+  onSaved?: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const creating = mode === "create";
   const source = meal ?? EMPTY_DRAFT;
@@ -89,6 +108,10 @@ export function MealDetail({
       slot !== source.slot ||
       JSON.stringify(steps) !== JSON.stringify(source.steps) ||
       JSON.stringify(ingredients) !== JSON.stringify(source.ingredients));
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -148,6 +171,10 @@ export function MealDetail({
   function resetForm() {
     if (creating) {
       if (dirty && !window.confirm(LEAVE_RECIPE_MESSAGE)) return;
+      if (onClose) {
+        onClose();
+        return;
+      }
       router.push("/meals");
       return;
     }
@@ -193,7 +220,12 @@ export function MealDetail({
         return;
       }
       if (creating) {
-        router.push("/meals");
+        onSaved?.();
+        if (onClose) {
+          onClose();
+        } else {
+          router.push("/meals");
+        }
         router.refresh();
         return;
       }
@@ -351,21 +383,72 @@ export function MealDetail({
                 required
               />
             </label>
-            <label className="field">
-              Servings
-              <input
-                className="input"
-                type="number"
-                min={1}
-                max={24}
-                value={mealServings}
-                onChange={(event) =>
-                  setMealServings(Math.max(1, Number(event.target.value) || 1))
-                }
-                required
-              />
-            </label>
-            <label className="field">
+            {creating ? (
+              <div className="library-time-chips" role="group" aria-label="Cook minute presets">
+                {COOK_MINUTE_CHIPS.map((minutes) => (
+                  <button
+                    key={minutes}
+                    type="button"
+                    aria-pressed={cookMinutes === String(minutes)}
+                    onClick={() => setCookMinutes(String(minutes))}
+                  >
+                    {minutes} min
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {creating ? (
+              <div className="library-stepper sm:col-span-2">
+                <span className="text-sm">Servings</span>
+                <div className="library-stepper-controls">
+                  <button
+                    type="button"
+                    aria-label="Decrease servings"
+                    disabled={mealServings <= 1}
+                    onClick={() => setMealServings(clampServings(mealServings - 1))}
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min={1}
+                    max={24}
+                    aria-label="Servings"
+                    value={mealServings}
+                    onChange={(event) =>
+                      setMealServings(
+                        clampServings(Number(event.target.value) || 1),
+                      )
+                    }
+                    required
+                  />
+                  <button
+                    type="button"
+                    aria-label="Increase servings"
+                    disabled={mealServings >= 24}
+                    onClick={() => setMealServings(clampServings(mealServings + 1))}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <label className="field">
+                Servings
+                <input
+                  className="input"
+                  type="number"
+                  min={1}
+                  max={24}
+                  value={mealServings}
+                  onChange={(event) =>
+                    setMealServings(Math.max(1, Number(event.target.value) || 1))
+                  }
+                  required
+                />
+              </label>
+            )}
+            <label className="field sm:col-span-2">
               Method
               <input
                 className="input"
@@ -375,23 +458,40 @@ export function MealDetail({
               />
             </label>
             {creating ? (
-              <label className="field">
-                Meal
-                <select
-                  className="input"
-                  value={slot}
-                  required
-                  onChange={(event) =>
-                    setSlot(event.target.value as MealSlot)
-                  }
-                >
-                  {RECIPE_SLOTS.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div
+                className="library-method-chips sm:col-span-2"
+                role="group"
+                aria-label="Cooking method"
+              >
+                {METHOD_CHIPS.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    aria-pressed={method === item}
+                    onClick={() => setMethod(item)}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {creating ? (
+              <div
+                className="library-segmented sm:col-span-2"
+                role="group"
+                aria-label="Meal"
+              >
+                {RECIPE_SLOTS.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    aria-pressed={slot === item}
+                    onClick={() => setSlot(item)}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
             ) : null}
           </div>
 

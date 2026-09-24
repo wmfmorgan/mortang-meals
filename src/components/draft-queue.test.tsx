@@ -42,6 +42,14 @@ const draft: Meal = {
 };
 
 describe("DraftQueue", () => {
+  it("renders drafts with library-card chrome", () => {
+    const { container } = render(<DraftQueue drafts={[draft]} servings={2} />);
+    expect(container.querySelector(".library-card")).toBeTruthy();
+    expect(screen.getByText("Draft chili")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Approve" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Reject" })).toBeTruthy();
+  });
+
   it("approves a draft", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
     vi.stubGlobal("fetch", fetchMock);

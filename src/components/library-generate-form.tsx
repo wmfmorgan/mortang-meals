@@ -45,6 +45,12 @@ const DIET_CHOICES = [
   "gluten-free",
 ] as const;
 
+const PREFERENCE_CHIPS = [
+  { label: "Quick < 20m", phrase: "under 20 minutes" },
+  { label: "High protein", phrase: "high-protein" },
+  { label: "Kid-approved", phrase: "kid-approved" },
+] as const;
+
 const emptySlot = (): SlotFields => ({
   on: false,
   count: 4,
@@ -58,6 +64,38 @@ function mergeSlot(
   defaults: Partial<SlotFields> = {},
 ): SlotFields {
   return { ...emptySlot(), ...defaults, ...current, ...prefs };
+}
+
+function clampServings(value: number): number {
+  return Math.min(24, Math.max(1, value));
+}
+
+function personNotes(person: Person): string {
+  const bits = [...person.allergies, ...person.avoidances]
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return bits.length > 0 ? bits.join(" · ") : "No restrictions";
+}
+
+function togglePhrase(value: string, phrase: string): string {
+  const parts = value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const key = phrase.toLowerCase();
+  const exists = parts.some((part) => part.toLowerCase() === key);
+  const next = exists
+    ? parts.filter((part) => part.toLowerCase() !== key)
+    : [...parts, phrase];
+  return next.join(", ");
+}
+
+function phraseActive(value: string, phrase: string): boolean {
+  const key = phrase.toLowerCase();
+  return value
+    .split(",")
+    .map((part) => part.trim().toLowerCase())
+    .includes(key);
 }
 
 function DietField({
@@ -139,9 +177,16 @@ function defaultForm(people: Person[]): FormState {
   };
 }
 
-export function LibraryGenerateForm({ people }: { people: Person[] }) {
+export function LibraryGenerateForm({
+  people,
+  onStarted,
+}: {
+  people: Person[];
+  onStarted?: () => void;
+}) {
   const { startLibrary, state } = useGeneration();
   const [form, setForm] = useState<FormState>(() => defaultForm(people));
+  const [activeSlot, setActiveSlot] = useState<MealSlot>("dinner");
   const pending = state.status === "running";
 
   useEffect(() => {
@@ -197,6 +242,25 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
     persist({ ...form, [slot]: { ...form[slot], ...patch } });
   }
 
+  function chipTarget(): string {
+    if (form.mode === "one") return form.requestText;
+    const slot = form[activeSlot].on
+      ? activeSlot
+      : (RECIPE_SLOTS.find((item) => form[item].on) ?? "dinner");
+    return form[slot].diet;
+  }
+
+  function applyChip(phrase: string) {
+    if (form.mode === "one") {
+      persist({ ...form, requestText: togglePhrase(form.requestText, phrase) });
+      return;
+    }
+    const slot = form[activeSlot].on
+      ? activeSlot
+      : (RECIPE_SLOTS.find((item) => form[item].on) ?? "dinner");
+    setSlot(slot, { diet: togglePhrase(form[slot].diet, phrase) });
+  }
+
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     const body: Record<string, unknown> = {
@@ -222,7 +286,8 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
         };
       }
     }
-    await startLibrary(body);
+    void startLibrary(body);
+    onStarted?.();
   }
 
   return (
@@ -257,15 +322,27 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
         {people.length === 0 ? (
           <p className="m-0 text-sm text-herb">Add people on Household first.</p>
         ) : (
-          <div className="library-people-row">
-            <div className="library-people-checks">
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() =>
+                  persist({
+                    ...form,
+                    personIds: people.map((person) => person.id),
+                  })
+                }
+              >
+                Select all
+              </button>
+            </div>
+            <div className="library-people-cards">
               {people.map((person) => (
-                <label
-                  key={person.id}
-                  className="flex items-center gap-2 text-sm"
-                >
+                <label key={person.id} className="library-person-card">
                   <input
                     type="checkbox"
+                    className="sr-only"
                     checked={form.personIds.includes(person.id)}
                     onChange={(event) => {
                       const next = event.target.checked
@@ -274,28 +351,58 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
                       persist({ ...form, personIds: next });
                     }}
                   />
-                  {person.name}
+                  <span className="library-person-card-name">{person.name}</span>
+                  <span className="library-person-card-notes">
+                    {personNotes(person)}
+                  </span>
                 </label>
               ))}
             </div>
-            <label className="library-servings-field">
+            <div className="library-stepper">
               <span className="text-sm">Servings Override</span>
-              <input
-                className="input"
-                type="number"
-                min={1}
-                max={24}
-                aria-label="Servings Override"
-                value={form.servings}
-                onChange={(event) =>
-                  persist({
-                    ...form,
-                    servings: Math.max(1, Number(event.target.value) || 1),
-                  })
-                }
-              />
-            </label>
-          </div>
+              <div className="library-stepper-controls">
+                <button
+                  type="button"
+                  aria-label="Decrease servings"
+                  disabled={form.servings <= 1}
+                  onClick={() =>
+                    persist({
+                      ...form,
+                      servings: clampServings(form.servings - 1),
+                    })
+                  }
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  min={1}
+                  max={24}
+                  aria-label="Servings Override"
+                  value={form.servings}
+                  onChange={(event) =>
+                    persist({
+                      ...form,
+                      servings: clampServings(Number(event.target.value) || 1),
+                    })
+                  }
+                />
+                <button
+                  type="button"
+                  aria-label="Increase servings"
+                  disabled={form.servings >= 24}
+                  onClick={() =>
+                    persist({
+                      ...form,
+                      servings: clampServings(form.servings + 1),
+                    })
+                  }
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </fieldset>
 
@@ -318,12 +425,11 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
             <select
               className="input"
               value={form.requestSlot}
-              onChange={(event) =>
-                persist({
-                  ...form,
-                  requestSlot: event.target.value as MealSlot,
-                })
-              }
+              onChange={(event) => {
+                const requestSlot = event.target.value as MealSlot;
+                setActiveSlot(requestSlot);
+                persist({ ...form, requestSlot });
+              }}
             >
               {RECIPE_SLOTS.map((slot) => (
                 <option key={slot} value={slot}>
@@ -335,6 +441,20 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
         </div>
       ) : null}
 
+      <div className="library-chips" role="group" aria-label="Preference chips">
+        {PREFERENCE_CHIPS.map((chip) => (
+          <button
+            key={chip.label}
+            type="button"
+            className="library-chip"
+            aria-pressed={phraseActive(chipTarget(), chip.phrase)}
+            onClick={() => applyChip(chip.phrase)}
+          >
+            {chip.label}
+          </button>
+        ))}
+      </div>
+
       {(form.mode === "batch" ? RECIPE_SLOTS : [form.requestSlot]).map((slot) => {
         const fields = slotFields(slot);
         return (
@@ -344,7 +464,10 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
                 <input
                   type="checkbox"
                   checked={fields.on}
-                  onChange={(event) => setSlot(slot, { on: event.target.checked })}
+                  onChange={(event) => {
+                    setActiveSlot(slot);
+                    setSlot(slot, { on: event.target.checked });
+                  }}
                 />
                 {slot}
               </label>
@@ -358,7 +481,10 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
                 <DietField
                   slot={slot}
                   value={fields.diet}
-                  onChange={(diet) => setSlot(slot, { diet })}
+                  onChange={(diet) => {
+                    setActiveSlot(slot);
+                    setSlot(slot, { diet });
+                  }}
                 />
                 <div className="flex flex-wrap items-end gap-2">
                   {form.mode === "batch" ? (
@@ -397,7 +523,7 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
       <div className="library-generate-actions">
         <button
           type="submit"
-          className="btn btn-primary"
+          className="btn btn-primary library-pill"
           disabled={
             pending ||
             people.length === 0 ||
@@ -409,7 +535,7 @@ export function LibraryGenerateForm({ people }: { people: Person[] }) {
         >
           {pending && state.kind === "library"
             ? "Generating…"
-            : "Generate Meal Drafts"}
+            : "Generate Recipes with AI"}
         </button>
         <GenerationStatus variant="inline" />
       </div>
