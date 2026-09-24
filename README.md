@@ -36,17 +36,25 @@ Dashboard work — create the projects if they do not exist yet; this repo does 
 1. Create a hosted Supabase project and a Vercel project for this app.
 2. Disable public signup (Authentication → Providers / Allow new users). Keep **Email** provider on. Invite-only = signup off + admin-created users (password and/or magic link; no Google; app OTP uses `shouldCreateUser: false`).
 3. Configure **custom SMTP** under Authentication → Emails (required for magic links on hosted). Without SMTP, password sign-in still works; magic-link emails will not send.
-4. Auth URL configuration:
-   - **Site URL** = the production app origin (e.g. `https://your-app.vercel.app`)
-   - **Redirect URLs** allowlist must include `{SiteURL}/auth/confirm` (and preview origins if you test magic links there)
-5. Magic-link **email template** must point at the confirm route with a token hash, for example:
+4. Auth URL configuration (Authentication → URL Configuration):
+   - **Site URL** = `https://www.mortang.com` (canonical production origin)
+   - **Redirect URLs** must include at least:
+     - `https://www.mortang.com/auth/confirm`
+     - `https://www.mortang.com/**`
+     - optional: `https://mortang-meals.vercel.app/**` for the Vercel alias
+   - Do **not** rely on `*.vercel.app` team deployment hostnames for magic links unless those exact origins are allowlisted.
+5. Magic-link **email template** (Authentication → Emails → Magic Link) must use the token-hash confirm link — **not** the default `{{ .ConfirmationURL }}` verify link. Body example (same as `supabase/templates/magic_link.html`):
 
-   `{SiteURL}/auth/confirm?token_hash={{ .TokenHash }}&type=email`
+   ```html
+   <h2>Sign in to Mortang Meals</h2>
+   <p><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email">Sign in</a></p>
+   ```
 
-   (Local template in `supabase/templates/magic_link.html` uses the same shape with `{{ .SiteURL }}`.)
+   The default hosted template (`/auth/v1/verify?token=pkce_…`) needs a same-browser PKCE cookie and a matching allowlisted `redirect_to`; it commonly dumps users back on `/login`.
 6. `supabase link` then `supabase db push` (or apply `supabase/migrations/` in the dashboard).
 7. Set Vercel env (Production; use a separate DB for Preview — **do not** point preview deploys at the production database). With the Vercel ↔ Supabase Marketplace integration, `POSTGRES_*` and `NEXT_PUBLIC_SUPABASE_*` are injected automatically; also set:
    - `XAI_API_KEY`
+   - `NEXT_PUBLIC_SITE_URL=https://www.mortang.com` — magic-link `emailRedirectTo` uses this instead of the current `*.vercel.app` host
    - Optional `DATABASE_URL` (transaction pooler) — if omitted, the app uses `POSTGRES_PRISMA_URL` / `POSTGRES_URL`
    - `SUPABASE_SERVICE_ROLE_KEY` — required in production for household member emails on `/household` (and for tests / import script on a trusted machine; never expose to the browser). Without it the page still loads with “Unknown email”.
 8. Add or update yourself in Studio (Users) with email, optional password, email confirmed. Sign in once at `/login` with password or magic link.

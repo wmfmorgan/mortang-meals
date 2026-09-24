@@ -133,6 +133,31 @@ describe("LoginForm", () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
+  it("uses NEXT_PUBLIC_SITE_URL for magic-link emailRedirectTo when set", async () => {
+    const previous = process.env.NEXT_PUBLIC_SITE_URL;
+    process.env.NEXT_PUBLIC_SITE_URL = "https://www.mortang.com";
+    try {
+      render(<LoginForm />);
+      fireEvent.change(screen.getByLabelText(/^email$/i), {
+        target: { value: "guest@example.com" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: /email me a link/i }));
+
+      await waitFor(() => {
+        expect(signInWithOtp).toHaveBeenCalledWith({
+          email: "guest@example.com",
+          options: {
+            shouldCreateUser: false,
+            emailRedirectTo: "https://www.mortang.com/auth/confirm",
+          },
+        });
+      });
+    } finally {
+      if (previous === undefined) delete process.env.NEXT_PUBLIC_SITE_URL;
+      else process.env.NEXT_PUBLIC_SITE_URL = previous;
+    }
+  });
+
   it("shows inbox message on successful OTP without navigating away", async () => {
     render(<LoginForm />);
     fireEvent.change(screen.getByLabelText(/^email$/i), {

@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { publicAppOrigin } from "@/lib/public-app-origin";
 import { createClient } from "@/lib/supabase/client";
 import { safeNextPath } from "@/lib/safe-next-path";
 
@@ -61,7 +62,7 @@ export function LoginForm({
     setPending(true);
     setStatus(null);
     const supabase = createClient();
-    const origin = window.location.origin;
+    const origin = publicAppOrigin(window.location.origin);
     const confirmUrl = new URL("/auth/confirm", origin);
     if (afterLogin !== "/") {
       confirmUrl.searchParams.set("next", afterLogin);
