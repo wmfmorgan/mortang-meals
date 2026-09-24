@@ -1,6 +1,6 @@
 # Magic-link login + shared household — design
 
-Status: approved 2026-09-23 (Part A implemented; Part B planned).
+Status: **shipped** 2026-09-23 (Part A + Part B on `feat/magic-link-shared-household`).
 
 ## Goal
 
@@ -20,11 +20,11 @@ Restore invite-only **magic-link** login alongside **password** sign-in, and let
 ### Behavior
 
 1. `/login` shows email + password and **Sign in**, plus **Email me a link** on the same email field.
-2. Password → `signInWithPassword({ email, password })`; success navigates home and refreshes.
-3. Magic link → `signInWithOtp` with `shouldCreateUser: false` and `emailRedirectTo` = `${origin}/auth/confirm`.
+2. Password → `signInWithPassword({ email, password })`; success navigates home (or `?next=`) and refreshes.
+3. Magic link → `signInWithOtp` with `shouldCreateUser: false` and `emailRedirectTo` = `${origin}/auth/confirm` (includes `next` when set).
 4. OTP success (and unknown-user / signup-disallowed errors) show the same generic copy: “If that address can sign in, check your inbox for a link.” Distinct errors (e.g. rate limit) still surface.
 5. `/auth/confirm` already handles `token_hash` + type (`email` | `magiclink` | `invite`), PKCE `code`, and implicit hash — reuse; do not invent a second callback.
-6. Middleware already allows `/login` and `/auth/*`.
+6. Middleware already allows `/login` and `/auth/*`. Unauthenticated deep links (e.g. `/join`) redirect to `/login?next=…` with an open-redirect guard.
 
 ### Invite-only
 
@@ -67,29 +67,35 @@ Without hosted SMTP, password sign-in still works; magic-link emails will not se
 
 - **`household_members`**: `household_id`, `user_id` (unique), role `owner` | `member`. Backfill existing `households.owner_id` as owners.
 - **`household_invites`**: 8-char unambiguous code, 7-day expiry, single-use, revocable by owner.
-- Resolve household via membership join (`getHouseholdForUser`); `upsertHousehold` creates the owner membership row.
+- Resolve household via membership join (`getHouseholdForUser`); `upsertHousehold` creates the owner membership row on insert; later saves update by household id and do not re-bind `owner_id`.
 - RLS helper `is_household_member(household_id)` and policies updated for correctness (app still uses privileged `DATABASE_URL`).
 
 ### UX
 
-- Owner on **Household**: members list (emails via service role), create/revoke invite, remove member.
-- `/join?code=` accept flow for invitees with no membership.
+- Owner on **Household**: members list (emails via service role), create/revoke invite, remove member (`HouseholdMembers` on `/household`).
+- `/join?code=` accept flow for invitees with no membership (`JoinForm` + `acceptInviteAction`).
 - Setup wizard links “Have an invite code?” when the user has no household yet.
+- Signed-out `/join` returns via `/login?next=/join?code=…`.
 
-### File map (Part B)
+### File map (Part B) — as shipped
 
 | Path | Responsibility |
 | --- | --- |
 | `supabase/migrations/20260923120000_household_members.sql` | Tables, backfill, RLS |
 | `src/lib/schema.ts` | Drizzle mirrors |
-| `src/household/repo.ts` | Membership-aware lookup + owner row on upsert |
+| `src/household/repo.ts` | Membership-aware lookup; owner row on create; update-by-id saves |
 | `src/household/members-repo.ts` | Invites + members CRUD/accept |
 | `src/lib/test-identity.ts` | Seed owner membership |
 | `src/lib/supabase/admin.ts` | Shared service-role client |
-| `src/app/household/actions.ts` | create/revoke/remove/accept |
-| `src/app/household/household-members.tsx` | UI section |
-| `src/app/join/*` | Join page |
-| `src/app/setup/setup-wizard.tsx` | Link to `/join` |
+| `src/lib/safe-next-path.ts` | Open-redirect guard for `?next=` |
+| `src/app/household/actions.ts` | create/revoke/remove/accept + household save |
+| `src/app/household/household-members.tsx` | UI section (owner controls) |
+| `src/app/household/page.tsx` | Loads members/invites/`isOwner`; wires `HouseholdMembers` |
+| `src/app/join/page.tsx` | Join route; requires signed-in user; passes `?code=` |
+| `src/app/join/join-form.tsx` | Accept form |
+| `src/app/setup/setup-wizard.tsx` | Link to `/join` when no household |
+| `src/lib/supabase/middleware.ts` | Unauthed → `/login?next=…` |
+| `src/app/login/*`, `src/app/auth/confirm/*` | Honor `next` after password / magic-link confirm |
 
 ### Success (Part B)
 
@@ -99,4 +105,4 @@ Without hosted SMTP, password sign-in still works; magic-link emails will not se
 
 ## Risks
 
-Hosted magic links fail without SMTP and a correct redirect allowlist / email template — verify on production after deploy, not only via local Mailpit.
+Hosted magic links fail without SMTP and a correct redirect allowlist / email template — verify on production after deploy, not only via local Mailpit. Production Postgres must apply `20260923120000_household_members.sql` (prefer SQL Editor paste on hosted Supabase) before shared-household code is live.

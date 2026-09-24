@@ -6,17 +6,17 @@ Read this before changing the app. It describes the **current** code, not the or
 
 ## What this is
 
-A single-household meal planner (one household per signed-in user). The user describes who they cook for and how they cook; the app generates a week of recipes, keeps a meal library, and derives a shopping list.
+A meal planner for one shared household at a time. The user describes who they cook for and how they cook; the app generates a week of recipes, keeps a meal library, and derives a shopping list. Multiple Auth users can share one household (same Plans, Meals, shopping list) via membership + invite codes.
 
-Auth is invite-only **email + password or magic link** (no Google). Signup stays off; OTP uses `shouldCreateUser: false`. Hosted on Vercel + Supabase Postgres is supported. The browser never calls an AI provider. Open signup, shared households, and Netlify stay out of scope.
+Auth is invite-only **email + password or magic link** (no Google). Signup stays off; OTP uses `shouldCreateUser: false`. Hosted on Vercel + Supabase Postgres is supported. The browser never calls an AI provider. Open signup and Netlify stay out of scope.
 
-Success path: sign in → set up household + kitchen → generate library drafts on Meals (or pick slots on Plans) → approve keepers → cook from a card → pin / swap / place from the library → shop from the merged list.
+Success path: sign in → set up household + kitchen (or `/join` with an invite) → generate library drafts on Meals (or pick slots on Plans) → approve keepers → cook from a card → pin / swap / place from the library → shop from the merged list.
 
 ## Stack and commands
 
 - Next.js 15 App Router (`src/`), React 19, TypeScript, Tailwind 4
 - Supabase Postgres + Drizzle via `postgres.js` (`DATABASE_URL`). Schema lives in `supabase/migrations/`; Drizzle is queries only.
-- Supabase Auth email + password **or** magic link (`@supabase/ssr`), invite-only (signup off + admin-created users; OTP `shouldCreateUser: false`), `households.owner_id`
+- Supabase Auth email + password **or** magic link (`@supabase/ssr`), invite-only (signup off + admin-created users; OTP `shouldCreateUser: false`). Household access via `household_members` (`households.owner_id` still marks the creating owner).
 - Zod for AI JSON and HTTP bodies
 - OpenAI SDK against xAI (`https://api.x.ai/v1`) or a custom OpenAI-compatible base URL
 - AI stays on Node route handlers (`maxDuration = 300`). Shared-key usage uses `AI_DAILY_CAP` (`src/ai/usage.ts`). No Edge Functions / Edge runtime for AI.
@@ -38,7 +38,7 @@ Env: copy `.env.example` to `.env.local`. Set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_
 - Browser talks only to Next.js API routes / server actions. Keys stay on the server.
 - Grok key is `process.env.XAI_API_KEY` only. Never store it in the database. Custom-provider keys may live in settings.
 - Automated tests mock the adapter (`complete`). No live model calls. DB tests use local `supabase start` + `createTestIdentity` / `deleteTestUser` (`src/lib/test-identity.ts`); `resetDbForTests()` truncates app tables only.
-- One household per user (`households.owner_id`). Every repo/handler call is scoped by `householdId`. Week is Monday–Sunday (`mondayOf` in `src/lib/week.ts`). Week slots are `breakfast | lunch | dinner` (21 cells). Library recipes may also be `side` or `dessert`.
+- One household membership per user (`household_members.user_id` unique). Resolve the session household with `getHouseholdForUser` (membership join), not `households.owner_id` alone. Every repo/handler call is scoped by that `householdId`. Members have equal edit access; only the household **owner** creates/revokes invites and removes members (app-admin Settings via `isAdminEmail` stays separate). Join only when the invitee has no membership yet. Week is Monday–Sunday (`mondayOf` in `src/lib/week.ts`). Week slots are `breakfast | lunch | dinner` (21 cells). Library recipes may also be `side` or `dessert`.
 - At most one plan has `isCurrent = 1`.
 - Last good plan / meal / extra is never replaced by a failed generate, swap, extra, import, or library generate. Failed library generate writes no drafts.
 - Ingredient `quantity` is a **string** (`"1"`, `"1/2"`, `"1/4"`). Never a number. Never `0` for a used ingredient.
@@ -62,7 +62,7 @@ HTTP handlers (auth → householdId)
     ├── domain (pure, easy to test)
     │     brief, schema, allergen, duplicates, extras, shopping-list, slot-mask, catalog
     ├── repos (Postgres via Drizzle; always take householdId)
-    │     household, kitchen, prefs, meals, settings, traces, ai_usage
+    │     household (+ members/invites), kitchen, prefs, meals, settings, traces, ai_usage
     └── adapter
           src/ai/adapter.ts  → xAI / custom OpenAI-compatible endpoint
 ```
@@ -75,14 +75,15 @@ Thin `src/app/api/*/route.ts` files parse JSON, resolve the session household, a
 
 | Route | Role |
 | --- | --- |
-| `/login` | Email + password **or** magic link (“Email me a link”). Invite-only; admin must create the user first. OTP never self-registers (`shouldCreateUser: false`). |
-| `/setup` | First-run wizard: household → kitchen checklist → slot mask. Redirect target when there is no household or no named people. |
+| `/login` | Email + password **or** magic link (“Email me a link”). Invite-only; admin must create the user first. OTP never self-registers (`shouldCreateUser: false`). Supports `?next=` return after sign-in. |
+| `/setup` | First-run wizard: household → kitchen checklist → slot mask. Redirect target when there is no household or no named people. Links “Have an invite code?” → `/join` when the user has no household yet. |
+| `/join` | Accept a household invite (`?code=`). Requires a signed-in user with **no** membership yet; then shares that household’s Plans / Meals / shopping list. |
 | `/` Plans | Home. Week switcher, slot picker (cells to fill), fill-empty-slots from the library, takeout, leftovers, week grid, recipe flyout, library flyout. Labels are Monday–Sunday ranges. Visiting `/` with no `?plan=` opens this calendar week if the current plan is in the past. `?plan=` opens a historical plan. |
 | `/meals` | Library: generate drafts (batch or one recipe), approve/reject queue, then search / filter / group, import-from-URL, add-recipe. Catalog is unique by title. Saved meals can be rated 1–5 stars. |
 | `/meals/new` | Redirects to `/meals` (manual add is an inline collapsible card there). |
 | `/meals/[id]` | Full recipe editor (title, why, time, method, ingredients, steps). Swap only if the meal is on the current plan. |
 | `/shopping-list` | Derived list for the open plan (`?plan=` supported). Not stored. |
-| `/household` | Household & Dietary: people, notes, cook prefs (expertise / involved / max cook time), and appliance/method checklist. Servings for AI drafts are set on Meals. |
+| `/household` | Household & Dietary: **members** (owner invite/revoke/remove), people, notes, cook prefs (expertise / involved / max cook time), and appliance/method checklist. Servings for AI drafts are set on Meals. |
 | `/kitchen` | Redirects to `/household` (kitchen content lives on Household). |
 | `/settings` | Global provider mode/URL/model/key/web search/reasoning effort (all households). Developer tools is per-admin household. Nav + route limited to admin email. |
 | `/developer` | Last 25 AI traces. Admin email only, and only when developer tools is on. |
@@ -93,7 +94,11 @@ Generation UX is global (`GenerationProvider` in `AppShell`): NDJSON stream in t
 
 ## Data model
 
-**Household** — one row per user (`owner_id` unique). Name, `dietStyle` (legacy / fallback), notes, servings, people. Created on first authenticated setup / invite acceptance path.
+**Household** — shared meal unit. `owner_id` is the creating owner (unique among owners historically; access is via membership). Name, `dietStyle` (legacy / fallback), notes, servings, people. Created on first authenticated setup; partners join via invite instead of creating a second household.
+
+**Household member** — `household_members` row: `household_id`, `user_id` (unique globally), role `owner` | `member`. `getHouseholdForUser` / `requirePageHousehold` resolve through this table. `upsertHousehold` inserts the owner membership on create; later saves update by household id and do not re-bind `owner_id`.
+
+**Household invite** — `household_invites`: 8-char unambiguous code, 7-day expiry, single-use by default, revocable by owner. Accept via `/join` / `acceptInvite` only when the user has no membership. Join path: `/join?code=CODE`.
 
 **Person** — name, age, optional sex, allergies (hard exclude), avoidances (soft prefer-to-skip). Blank-name people are dropped on save (`normalizePeople`).
 
@@ -209,7 +214,10 @@ Brief (`src/household/brief.ts`) includes people, notes, allergies, avoidances, 
 | `src/lib/use-ingredients.ts` | Session persistence for assigned ingredients |
 | `src/lib/generate-progress.ts` | Progress % / step labels for generate, import, and library |
 | `src/lib/week.ts` | `mondayOf` |
-| `src/household/*` | Household repo, brief, people normalize |
+| `src/household/*` | Household repo (membership-aware lookup), members/invites repo, brief, people normalize |
+| `src/app/household/household-members.tsx` | Household members + invite UI (owner controls) |
+| `src/app/join/*` | Join page + accept form |
+| `src/lib/supabase/admin.ts` | Shared service-role client (member emails) |
 | `src/kitchen/*` | Items repo, prefs repo, built-in defaults |
 | `src/meals/schema.ts` | Zod + JSON Schema for model output |
 | `src/meals/repo.ts` | Plans and meals persistence (merge, place, pin, library, import, typed create, drafts, stars) |
@@ -262,7 +270,7 @@ All mutating meal/AI routes are `POST` JSON unless noted. Generate, import, and 
 | `POST /api/settings/test` | tiny `pong` call + `test` trace |
 | `GET/DELETE /api/traces` | list / clear |
 
-Household and kitchen writes are server actions (`src/app/household/actions.ts`, `src/app/kitchen/actions.ts`), not REST.
+Household, membership (invite/revoke/remove/accept), and kitchen writes are server actions (`src/app/household/actions.ts`, `src/app/kitchen/actions.ts`), not REST.
 
 ## UI behavior worth keeping
 
