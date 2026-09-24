@@ -118,4 +118,48 @@ describe("LoginForm", () => {
     expect(replace).not.toHaveBeenCalled();
     expect(refresh).not.toHaveBeenCalled();
   });
+
+  it("maps signup-disallowed OTP errors to the same inbox message", async () => {
+    signInWithOtp.mockResolvedValueOnce({
+      error: { message: "Signups not allowed for otp" },
+    });
+    render(<LoginForm />);
+    fireEvent.change(screen.getByLabelText(/^email$/i), {
+      target: { value: "unknown@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /email me a link/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/If that address can sign in, check your inbox for a link\./),
+      ).toBeTruthy();
+    });
+    expect(screen.queryByText(/signups not allowed/i)).toBeNull();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("still shows distinct OTP transport errors", async () => {
+    signInWithOtp.mockResolvedValueOnce({
+      error: { message: "Request rate limit reached" },
+    });
+    render(<LoginForm />);
+    fireEvent.change(screen.getByLabelText(/^email$/i), {
+      target: { value: "guest@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /email me a link/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/request rate limit reached/i)).toBeTruthy();
+    });
+  });
+
+  it("requires an email before sending a magic link", async () => {
+    render(<LoginForm />);
+    fireEvent.click(screen.getByRole("button", { name: /email me a link/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/enter your email/i)).toBeTruthy();
+    });
+    expect(signInWithOtp).not.toHaveBeenCalled();
+  });
 });

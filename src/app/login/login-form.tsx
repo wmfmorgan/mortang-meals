@@ -4,6 +4,20 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+const OTP_INBOX_MESSAGE =
+  "If that address can sign in, check your inbox for a link.";
+
+/** Unknown / non-invited addresses must not enumerate users. */
+function isOtpUnknownUserError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("signups not allowed") ||
+    lower.includes("user not found") ||
+    lower.includes("unable to validate email") ||
+    lower.includes("email not found")
+  );
+}
+
 export function LoginForm({ authError = null }: { authError?: string | null }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -31,12 +45,17 @@ export function LoginForm({ authError = null }: { authError?: string | null }) {
   }
 
   async function sendMagicLink() {
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setStatus("Enter your email.");
+      return;
+    }
     setPending(true);
     setStatus(null);
     const supabase = createClient();
     const origin = window.location.origin;
     const { error } = await supabase.auth.signInWithOtp({
-      email,
+      email: trimmed,
       options: {
         shouldCreateUser: false,
         emailRedirectTo: `${origin}/auth/confirm`,
@@ -44,10 +63,12 @@ export function LoginForm({ authError = null }: { authError?: string | null }) {
     });
     setPending(false);
     if (error) {
-      setStatus(error.message);
+      setStatus(
+        isOtpUnknownUserError(error.message) ? OTP_INBOX_MESSAGE : error.message,
+      );
       return;
     }
-    setStatus("If that address can sign in, check your inbox for a link.");
+    setStatus(OTP_INBOX_MESSAGE);
   }
 
   return (
