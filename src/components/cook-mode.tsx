@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import type { Meal, Person } from "@/lib/types";
 import { stepChipTitle } from "@/lib/step-title";
@@ -90,6 +90,23 @@ function clampServings(value: number): number {
   return Math.min(MAX_SERVINGS, Math.max(MIN_SERVINGS, Math.round(value)));
 }
 
+function secondsFromCookMinutes(cookMinutes: number): number {
+  if (!Number.isFinite(cookMinutes) || cookMinutes <= 0) return 0;
+  return Math.round(cookMinutes) * 60;
+}
+
+function formatMmSs(totalSeconds: number): string {
+  const clamped = Math.max(0, Math.floor(totalSeconds));
+  const minutes = Math.floor(clamped / 60);
+  const seconds = clamped % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function getWakeLock(): WakeLock | undefined {
+  if (typeof navigator === "undefined") return undefined;
+  return "wakeLock" in navigator ? navigator.wakeLock : undefined;
+}
+
 function ingredientLabel(item: { quantity: string; unit: string; name: string }): string {
   return `${item.quantity} ${item.unit} ${item.name}`.replace(/\s+/g, " ").trim();
 }
@@ -115,12 +132,95 @@ export function CookMode({
   const [displayServings, setDisplayServings] = useState(() =>
     clampServings(meal.servings || 1),
   );
+  const [wakeSupported, setWakeSupported] = useState(false);
+  const [wakeOn, setWakeOn] = useState(true);
+  const [wakeHeld, setWakeHeld] = useState(false);
+  const [remaining, setRemaining] = useState(() =>
+    secondsFromCookMinutes(meal.cookMinutes),
+  );
+  const [running, setRunning] = useState(false);
+  const sentinelRef = useRef<WakeLockSentinel | null>(null);
 
   useEffect(() => {
     setChecked(readChecks(meal.id, meal.ingredients.length));
     setActiveStep(readStep(meal.id, meal.steps.length));
     setDisplayServings(clampServings(meal.servings || 1));
-  }, [meal.id, meal.ingredients.length, meal.steps.length, meal.servings]);
+    setRemaining(secondsFromCookMinutes(meal.cookMinutes));
+    setRunning(false);
+  }, [
+    meal.id,
+    meal.ingredients.length,
+    meal.steps.length,
+    meal.servings,
+    meal.cookMinutes,
+  ]);
+
+  useEffect(() => {
+    const api = getWakeLock();
+    if (!api) return;
+
+    setWakeSupported(true);
+    if (!wakeOn) return;
+
+    let cancelled = false;
+
+    async function releaseSentinel(sentinel: WakeLockSentinel | null) {
+      if (!sentinel) return;
+      try {
+        await sentinel.release();
+      } catch {
+        /* ignore */
+      }
+    }
+
+    async function acquire() {
+      if (cancelled) return;
+      try {
+        const sentinel = await api.request("screen");
+        if (cancelled) {
+          await releaseSentinel(sentinel);
+          return;
+        }
+        const previous = sentinelRef.current;
+        sentinelRef.current = sentinel;
+        setWakeHeld(true);
+        if (previous && previous !== sentinel) await releaseSentinel(previous);
+      } catch {
+        if (!cancelled) {
+          sentinelRef.current = null;
+          setWakeHeld(false);
+        }
+      }
+    }
+
+    void acquire();
+
+    function onVisibility() {
+      if (document.visibilityState === "visible") void acquire();
+    }
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
+      const sentinel = sentinelRef.current;
+      sentinelRef.current = null;
+      setWakeHeld(false);
+      void releaseSentinel(sentinel);
+    };
+  }, [wakeOn]);
+
+  useEffect(() => {
+    if (!running) return;
+    const id = window.setInterval(() => {
+      setRemaining((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [running]);
+
+  useEffect(() => {
+    if (remaining <= 0) setRunning(false);
+  }, [remaining]);
 
   const scaled = useMemo(
     () => scaleIngredients(meal.ingredients, meal.servings, displayServings),
@@ -155,6 +255,21 @@ export function CookMode({
     const next = Math.min(Math.max(0, index), lastIndex);
     setActiveStep(next);
     writeStep(meal.id, next);
+  }
+
+  function toggleWake() {
+    if (!wakeSupported) return;
+    setWakeOn((on) => !on);
+  }
+
+  function toggleTimer() {
+    if (remaining <= 0 && !running) return;
+    setRunning((on) => !on);
+  }
+
+  function resetTimer() {
+    setRunning(false);
+    setRemaining(secondsFromCookMinutes(meal.cookMinutes));
   }
 
   return (
@@ -200,6 +315,41 @@ export function CookMode({
               onClick={() => setDisplayServings((n) => clampServings(n + 1))}
             >
               +
+            </button>
+          </div>
+          <button
+            type="button"
+            className="cook-pill cook-wake"
+            aria-pressed={wakeHeld}
+            title={
+              wakeSupported ? undefined : "Not supported on this browser"
+            }
+            onClick={toggleWake}
+          >
+            Screen Awake
+          </button>
+          <div className="cook-pill">
+            <span className="cook-pill-label">Timer</span>
+            <span
+              className="cook-timer-value"
+              role="timer"
+              aria-label="Cook timer"
+            >
+              {formatMmSs(remaining)}
+            </span>
+            <button
+              type="button"
+              className="cook-timer-btn"
+              onClick={toggleTimer}
+            >
+              {running ? "Pause" : "Play"}
+            </button>
+            <button
+              type="button"
+              className="cook-timer-btn"
+              onClick={resetTimer}
+            >
+              Reset
             </button>
           </div>
         </div>

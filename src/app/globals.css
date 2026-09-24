@@ -1508,6 +1508,45 @@ a.badge-link:hover {
   font-weight: 600;
 }
 
+.cook-wake {
+  padding-right: 0.85rem;
+  border: 0;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.cook-wake[aria-pressed="true"] {
+  background: var(--color-olive);
+  color: var(--color-paper);
+}
+
+.cook-timer-value {
+  min-width: 4.25rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.cook-timer-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 0.7rem;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .cook-ribbon {
   margin: 1rem 0 0;
   padding: 0.65rem 0.9rem;
