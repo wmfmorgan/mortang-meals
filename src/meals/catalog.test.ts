@@ -4,6 +4,8 @@ import { EMPTY_EXTRAS } from "./extras";
 import {
   filterCatalogMeals,
   groupCatalogMeals,
+  mealMatchesChip,
+  sortCatalogMeals,
   uniqueCatalogMeals,
 } from "./catalog";
 
@@ -87,6 +89,20 @@ describe("groupCatalogMeals", () => {
     expect(groups[0]?.label).toBe("");
     expect(groups[0]?.meals.map((item) => item.id)).toEqual(["a", "b"]);
   });
+
+  it("groups by normalized method", () => {
+    const groups = groupCatalogMeals(
+      [
+        meal({ id: "a", method: "Sheet Pan" }),
+        meal({ id: "b", method: "sheet pan" }),
+        meal({ id: "c", method: "crockpot" }),
+        meal({ id: "d", method: "" }),
+      ],
+      "method",
+    );
+    expect(groups.map((g) => g.key)).toEqual(["crockpot", "sheet pan", "other"]);
+    expect(groups.find((g) => g.key === "sheet pan")?.meals).toHaveLength(2);
+  });
 });
 
 describe("uniqueCatalogMeals", () => {
@@ -98,6 +114,60 @@ describe("uniqueCatalogMeals", () => {
       meal({ id: "left", title: "Chili", leftover: true, stars: 5 }),
     ];
     expect(uniqueCatalogMeals(meals).map((item) => item.id)).toEqual(["copy"]);
+  });
+});
+
+describe("sortCatalogMeals", () => {
+  it("sorts loved by stars then createdAt", () => {
+    const meals = [
+      meal({ id: "a", stars: 2, createdAt: "2026-08-12T00:00:00.000Z" }),
+      meal({ id: "b", stars: 5, createdAt: "2026-08-10T00:00:00.000Z" }),
+      meal({ id: "c", stars: 5, createdAt: "2026-08-11T00:00:00.000Z" }),
+    ];
+    expect(sortCatalogMeals(meals, "loved").map((m) => m.id)).toEqual([
+      "c",
+      "b",
+      "a",
+    ]);
+  });
+
+  it("sorts fast by cookMinutes then title", () => {
+    expect(
+      sortCatalogMeals(
+        [meal({ id: "a", cookMinutes: 40 }), meal({ id: "b", cookMinutes: 12 })],
+        "fast",
+      ).map((m) => m.id),
+    ).toEqual(["b", "a"]);
+  });
+});
+
+describe("mealMatchesChip", () => {
+  it("chip quick is cookMinutes <= 20", () => {
+    expect(mealMatchesChip(meal({ cookMinutes: 20 }), "quick", [])).toBe(true);
+    expect(mealMatchesChip(meal({ cookMinutes: 21 }), "quick", [])).toBe(false);
+  });
+
+  it("chip sheet matches sheet/skillet/stovetop method", () => {
+    expect(
+      mealMatchesChip(meal({ method: "cast-iron skillet" }), "sheet", []),
+    ).toBe(true);
+    expect(mealMatchesChip(meal({ method: "oven bake" }), "sheet", [])).toBe(
+      false,
+    );
+  });
+
+  it("chip slow matches slow cooker / crock / instant pot", () => {
+    expect(mealMatchesChip(meal({ method: "Instant Pot" }), "slow", [])).toBe(
+      true,
+    );
+  });
+
+  it("chip safe hides allergen hits", () => {
+    const shrimp = meal({
+      ingredients: [{ name: "shrimp", quantity: "1", unit: "lb", aisle: "meat" }],
+    });
+    expect(mealMatchesChip(shrimp, "safe", ["shrimp"])).toBe(false);
+    expect(mealMatchesChip(meal(), "safe", ["shrimp"])).toBe(true);
   });
 });
 
