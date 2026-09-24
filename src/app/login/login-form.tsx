@@ -13,6 +13,10 @@ export function LoginForm({ authError = null }: { authError?: string | null }) {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!password.trim()) {
+      setStatus("Enter your password, or use Email me a link.");
+      return;
+    }
     setPending(true);
     setStatus(null);
     const supabase = createClient();
@@ -24,6 +28,26 @@ export function LoginForm({ authError = null }: { authError?: string | null }) {
     }
     router.replace("/");
     router.refresh();
+  }
+
+  async function sendMagicLink() {
+    setPending(true);
+    setStatus(null);
+    const supabase = createClient();
+    const origin = window.location.origin;
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: false,
+        emailRedirectTo: `${origin}/auth/confirm`,
+      },
+    });
+    setPending(false);
+    if (error) {
+      setStatus(error.message);
+      return;
+    }
+    setStatus("If that address can sign in, check your inbox for a link.");
   }
 
   return (
@@ -47,14 +71,23 @@ export function LoginForm({ authError = null }: { authError?: string | null }) {
           type="password"
           name="password"
           autoComplete="current-password"
-          required
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />
       </label>
-      <button type="submit" className="btn btn-primary" disabled={pending}>
-        Sign in
-      </button>
+      <div className="flex flex-wrap gap-3">
+        <button type="submit" className="btn btn-primary" disabled={pending}>
+          Sign in
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={pending}
+          onClick={() => void sendMagicLink()}
+        >
+          Email me a link
+        </button>
+      </div>
       {status ? (
         <p role="alert" className="alert">
           {status}

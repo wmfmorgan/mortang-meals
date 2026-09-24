@@ -9,7 +9,7 @@ export default async function LoginPage({
   const params = await searchParams;
   const authError =
     params.error === "confirm"
-      ? "Sign-in didn’t finish. Enter your email and password again."
+      ? "Sign-in didn’t finish. Try again with your password or a new email link."
       : null;
 
   return (
@@ -17,7 +17,7 @@ export default async function LoginPage({
       <PageHeader
         eyebrow="Account"
         title="Sign in"
-        lede="Invite-only. Use the email and password an admin set up for you."
+        lede="Invite-only. Sign in with the email an admin set up for you — password or email link."
       />
       <LoginForm authError={authError} />
     </div>

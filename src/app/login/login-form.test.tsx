@@ -2,8 +2,9 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { signInWithPassword } = vi.hoisted(() => ({
+const { signInWithPassword, signInWithOtp } = vi.hoisted(() => ({
   signInWithPassword: vi.fn().mockResolvedValue({ error: null }),
+  signInWithOtp: vi.fn().mockResolvedValue({ error: null }),
 }));
 
 const { replace, refresh } = vi.hoisted(() => ({
@@ -13,7 +14,7 @@ const { replace, refresh } = vi.hoisted(() => ({
 
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
-    auth: { signInWithPassword },
+    auth: { signInWithPassword, signInWithOtp },
   }),
 }));
 
@@ -27,18 +28,20 @@ afterEach(() => {
   cleanup();
   signInWithPassword.mockReset();
   signInWithPassword.mockResolvedValue({ error: null });
+  signInWithOtp.mockReset();
+  signInWithOtp.mockResolvedValue({ error: null });
   replace.mockReset();
   refresh.mockReset();
 });
 
 describe("LoginForm", () => {
-  it("shows email and password fields and no Google or magic-link controls", () => {
+  it("shows email and password fields with Sign in and Email me a link, no Google", () => {
     render(<LoginForm />);
     expect(screen.getByLabelText(/^email$/i)).toBeTruthy();
     expect(screen.getByLabelText(/^password$/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: /^sign in$/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /email me a link/i })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /continue with google/i })).toBeNull();
-    expect(screen.queryByRole("button", { name: /email me a link/i })).toBeNull();
   });
 
   it("signs in with email and password then goes home", async () => {
@@ -78,5 +81,41 @@ describe("LoginForm", () => {
       expect(screen.getByText(/invalid login credentials/i)).toBeTruthy();
     });
     expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("sends a magic link with shouldCreateUser false and emailRedirectTo /auth/confirm", async () => {
+    render(<LoginForm />);
+    fireEvent.change(screen.getByLabelText(/^email$/i), {
+      target: { value: "guest@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /email me a link/i }));
+
+    await waitFor(() => {
+      expect(signInWithOtp).toHaveBeenCalledWith({
+        email: "guest@example.com",
+        options: {
+          shouldCreateUser: false,
+          emailRedirectTo: expect.stringMatching(/\/auth\/confirm$/),
+        },
+      });
+    });
+    expect(signInWithPassword).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("shows inbox message on successful OTP without navigating away", async () => {
+    render(<LoginForm />);
+    fireEvent.change(screen.getByLabelText(/^email$/i), {
+      target: { value: "guest@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /email me a link/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/If that address can sign in, check your inbox for a link\./),
+      ).toBeTruthy();
+    });
+    expect(replace).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
   });
 });
