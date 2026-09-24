@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { MealDetail } from "@/components/meal-detail";
+import { cookExit } from "@/lib/cook-exit";
 import { requirePageHousehold } from "@/lib/request-auth";
 import { getCurrentPlan, getMeal } from "@/meals/repo";
 
@@ -15,13 +16,17 @@ const DAY_LABELS = {
 
 export default async function RecipePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string; plan?: string }>;
 }) {
   const { household, householdId } = await requirePageHousehold();
   const { id } = await params;
+  const query = await searchParams;
   const meal = await getMeal(householdId, id);
   if (!meal) notFound();
+  const exit = cookExit(query.from, query.plan);
 
   const current = await getCurrentPlan(householdId);
   const onCurrentWeek = Boolean(current?.meals.some((item) => item.id === meal.id));
@@ -39,6 +44,7 @@ export default async function RecipePage({
         canSwap={onCurrentWeek}
         eyebrow={eyebrow}
         people={household.people}
+        exit={exit}
       />
     </article>
   );
