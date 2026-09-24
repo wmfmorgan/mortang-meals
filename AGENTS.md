@@ -8,7 +8,7 @@ Read this before changing the app. It describes the **current** code, not the or
 
 A single-household meal planner (one household per signed-in user). The user describes who they cook for and how they cook; the app generates a week of recipes, keeps a meal library, and derives a shopping list.
 
-Auth is invite-only **email + password** (no magic-link emails). Hosted on Vercel + Supabase Postgres is supported. The browser never calls an AI provider. Open signup, shared households, and Netlify stay out of scope.
+Auth is invite-only **email + password or magic link** (no Google). Signup stays off; OTP uses `shouldCreateUser: false`. Hosted on Vercel + Supabase Postgres is supported. The browser never calls an AI provider. Open signup, shared households, and Netlify stay out of scope.
 
 Success path: sign in → set up household + kitchen → generate library drafts on Meals (or pick slots on Plans) → approve keepers → cook from a card → pin / swap / place from the library → shop from the merged list.
 
@@ -16,7 +16,7 @@ Success path: sign in → set up household + kitchen → generate library drafts
 
 - Next.js 15 App Router (`src/`), React 19, TypeScript, Tailwind 4
 - Supabase Postgres + Drizzle via `postgres.js` (`DATABASE_URL`). Schema lives in `supabase/migrations/`; Drizzle is queries only.
-- Supabase Auth email + password (`@supabase/ssr`), invite-only (signup off + admin-created users with passwords), `households.owner_id`
+- Supabase Auth email + password **or** magic link (`@supabase/ssr`), invite-only (signup off + admin-created users; OTP `shouldCreateUser: false`), `households.owner_id`
 - Zod for AI JSON and HTTP bodies
 - OpenAI SDK against xAI (`https://api.x.ai/v1`) or a custom OpenAI-compatible base URL
 - AI stays on Node route handlers (`maxDuration = 300`). Shared-key usage uses `AI_DAILY_CAP` (`src/ai/usage.ts`). No Edge Functions / Edge runtime for AI.
@@ -75,7 +75,7 @@ Thin `src/app/api/*/route.ts` files parse JSON, resolve the session household, a
 
 | Route | Role |
 | --- | --- |
-| `/login` | Email + password. Invite-only; admin must create the user with a password before Sign in works. |
+| `/login` | Email + password **or** magic link (“Email me a link”). Invite-only; admin must create the user first. OTP never self-registers (`shouldCreateUser: false`). |
 | `/setup` | First-run wizard: household → kitchen checklist → slot mask. Redirect target when there is no household or no named people. |
 | `/` Plans | Home. Week switcher, slot picker (cells to fill), fill-empty-slots from the library, takeout, leftovers, week grid, recipe flyout, library flyout. Labels are Monday–Sunday ranges. Visiting `/` with no `?plan=` opens this calendar week if the current plan is in the past. `?plan=` opens a historical plan. |
 | `/meals` | Library: generate drafts (batch or one recipe), approve/reject queue, then search / filter / group, import-from-URL, add-recipe. Catalog is unique by title. Saved meals can be rated 1–5 stars. |
