@@ -139,6 +139,13 @@ describe("LibraryGenerateForm", () => {
     expect(onStarted).toHaveBeenCalledTimes(1);
   });
 
+  it("does not show Quick, High protein, or Kid-approved preference chips", () => {
+    render(<LibraryGenerateForm people={[alex]} />);
+    expect(screen.queryByRole("button", { name: "Quick < 20m" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "High protein" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Kid-approved" })).toBeNull();
+  });
+
   it("shows people as selectable cards with a Select all control", () => {
     const sam: Person = {
       id: "p2",
