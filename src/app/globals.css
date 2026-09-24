@@ -2259,7 +2259,13 @@ a.badge-link:hover {
   z-index: 2;
   padding: 0 1rem 1rem;
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
+}
+
+.library-card-actions .btn {
+  white-space: nowrap;
 }
 
 .library-card-open {
@@ -2591,6 +2597,39 @@ a.badge-link:hover {
   background: var(--color-olive-deep);
   color: #fff;
   border-color: var(--color-olive-deep);
+}
+
+.library-group-control .library-segmented {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.2rem;
+  border: 1px solid #ebdccb;
+  border-radius: 9999px;
+  background: #fbf7ef;
+}
+
+.library-group-control .library-segmented button {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0.35rem 0.75rem;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.library-group-control .library-segmented button:hover {
+  color: var(--color-olive-deep);
+  border-color: transparent;
+}
+
+.library-group-control .library-segmented button[aria-pressed="true"] {
+  background: #fff;
+  color: var(--color-ink);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .library-time-chips,
