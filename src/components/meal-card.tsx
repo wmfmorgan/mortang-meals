@@ -163,14 +163,20 @@ export function MealBadges({ meal }: { meal: Meal }) {
 export function DeleteButton({
   meal,
   icon = "close",
+  confirmMessage,
+  onDeleted,
 }: {
   meal: Meal;
   icon?: "close" | "trash";
+  /** When set, asks before deleting (catalog cards). */
+  confirmMessage?: string;
+  onDeleted?: () => void;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
 
   async function onDelete() {
+    if (confirmMessage && !window.confirm(confirmMessage)) return;
     setPending(true);
     try {
       const res = await fetch("/api/delete", {
@@ -179,6 +185,7 @@ export function DeleteButton({
         body: JSON.stringify({ mealId: meal.id }),
       });
       if (!res.ok) return;
+      onDeleted?.();
       router.refresh();
     } finally {
       setPending(false);
@@ -192,7 +199,8 @@ export function DeleteButton({
       aria-label="Delete meal"
       title="Delete meal"
       disabled={pending}
-      onClick={() => {
+      onClick={(event) => {
+        event.stopPropagation();
         void onDelete();
       }}
     >

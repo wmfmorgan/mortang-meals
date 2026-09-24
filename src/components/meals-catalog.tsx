@@ -9,7 +9,7 @@ import { CollapsibleCard } from "./collapsible-card";
 import { useGeneration } from "./generation-provider";
 import { DraftQueue } from "./draft-queue";
 import { LibraryGenerateForm } from "./library-generate-form";
-import { MealBadges } from "./meal-card";
+import { DeleteButton, MealBadges } from "./meal-card";
 import { MealImage } from "./meal-image";
 import { MealDetail } from "./meal-detail";
 import { RecipeFlyout, recipeEyebrow } from "./recipe-flyout";
@@ -208,11 +208,21 @@ export function MealsCatalog({
                     <p className="meal-why">{meal.whyItFits}</p>
                     <p className="meal-meta">{mealDate(meal)}</p>
                   </button>
-                  <div className="mt-2">
+                  <div className="meal-card-actions mt-2">
                     <StarRating
                       value={meal.stars}
                       onChange={(stars) => {
                         void onRate(meal.id, stars);
+                      }}
+                    />
+                    <DeleteButton
+                      meal={meal}
+                      icon="trash"
+                      confirmMessage="Delete this meal from the library?"
+                      onDeleted={() => {
+                        setSelected((current) =>
+                          current?.id === meal.id ? null : current,
+                        );
                       }}
                     />
                   </div>

@@ -139,6 +139,42 @@ describe("MealsCatalog", () => {
     expect(screen.getByRole("option", { name: "none" })).toBeTruthy();
   });
 
+  it("shows a trash delete control on catalog cards", () => {
+    render(
+      <MealsCatalog meals={[meal]} servings={2} currentPlanId={null} />,
+    );
+    expect(screen.getByRole("button", { name: "Delete meal" })).toBeTruthy();
+  });
+
+  it("asks before deleting a catalog meal and posts only when confirmed", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const fetchMock = vi.mocked(fetch);
+    render(
+      <MealsCatalog meals={[meal]} servings={2} currentPlanId={null} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete meal" }));
+    expect(confirm).toHaveBeenCalledWith("Delete this meal from the library?");
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url) === "/api/delete"),
+    ).toBe(false);
+
+    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByRole("button", { name: "Delete meal" }));
+    await vi.waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(
+          ([url, init]) =>
+            String(url) === "/api/delete" &&
+            (init as RequestInit | undefined)?.method === "POST" &&
+            String((init as RequestInit).body) ===
+              JSON.stringify({ mealId: "meal-salmon" }),
+        ),
+      ).toBe(true);
+    });
+    confirm.mockRestore();
+  });
+
   it("shows drafts below add cards and above search", () => {
     const draft: Meal = {
       ...meal,
