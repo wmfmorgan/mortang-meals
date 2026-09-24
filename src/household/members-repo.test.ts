@@ -1,10 +1,11 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { resetDbForTests } from "@/lib/db";
 import {
   createAuthUserWithoutHousehold,
   createTestIdentity,
   deleteTestUser,
 } from "@/lib/test-identity";
+import * as adminModule from "@/lib/supabase/admin";
 import { getHouseholdForUser, upsertHousehold } from "./repo";
 import {
   acceptInvite,
@@ -153,5 +154,43 @@ describe("members repo", () => {
     await expect(
       removeMember(owner.householdId, guest.userId, guest.userId),
     ).rejects.toThrow(/only the household owner/i);
+  });
+
+  it("listMembers soft-fails when service role client is unavailable", async () => {
+    const owner = await ownerHousehold("soft-fail-admin");
+    const spy = vi.spyOn(adminModule, "createAdminClient").mockImplementation(() => {
+      throw new Error(
+        "NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required",
+      );
+    });
+    try {
+      const members = await listMembers(owner.householdId);
+      expect(members).toEqual([
+        { userId: owner.userId, role: "owner", email: null },
+      ]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("listMembers soft-fails when getUserById throws", async () => {
+    const owner = await ownerHousehold("soft-fail-lookup");
+    const spy = vi.spyOn(adminModule, "createAdminClient").mockReturnValue({
+      auth: {
+        admin: {
+          getUserById: async () => {
+            throw new Error("admin lookup failed");
+          },
+        },
+      },
+    } as ReturnType<typeof adminModule.createAdminClient>);
+    try {
+      const members = await listMembers(owner.householdId);
+      expect(members).toEqual([
+        { userId: owner.userId, role: "owner", email: null },
+      ]);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

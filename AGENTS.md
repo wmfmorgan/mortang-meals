@@ -29,7 +29,7 @@ npm test        # vitest run (needs local supabase start)
 npm run build
 ```
 
-Env: copy `.env.example` to `.env.local`. Set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `DATABASE_URL`, `XAI_API_KEY`. Tests also need `SUPABASE_SERVICE_ROLE_KEY`. There is no `MORTANG_DB_PATH`. Local Supabase in this repo uses **563xx** ports (see README).
+Env: copy `.env.example` to `.env.local`. Set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `DATABASE_URL`, `XAI_API_KEY`. `SUPABASE_SERVICE_ROLE_KEY` is required in production for household member emails on `/household` (and for tests / import); without it the page soft-fails to “Unknown email”. There is no `MORTANG_DB_PATH`. Local Supabase in this repo uses **563xx** ports (see README).
 
 `src/app/layout.tsx` is `force-dynamic`. Middleware (`src/middleware.ts`) requires a session except `/login` and auth routes.
 
@@ -217,7 +217,7 @@ Brief (`src/household/brief.ts`) includes people, notes, allergies, avoidances, 
 | `src/household/*` | Household repo (membership-aware lookup), members/invites repo, brief, people normalize |
 | `src/app/household/household-members.tsx` | Household members + invite UI (owner controls) |
 | `src/app/join/*` | Join page + accept form |
-| `src/lib/supabase/admin.ts` | Shared service-role client (member emails) |
+| `src/lib/supabase/admin.ts` | Shared service-role client (member emails on `/household`; required in prod for emails, soft-fails without it) |
 | `src/kitchen/*` | Items repo, prefs repo, built-in defaults |
 | `src/meals/schema.ts` | Zod + JSON Schema for model output |
 | `src/meals/repo.ts` | Plans and meals persistence (merge, place, pin, library, import, typed create, drafts, stars) |

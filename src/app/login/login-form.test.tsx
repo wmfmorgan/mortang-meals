@@ -79,6 +79,21 @@ describe("LoginForm", () => {
     });
   });
 
+  it("rejects unsafe next via safeNextPath and goes home", async () => {
+    render(<LoginForm next="//evil.example" />);
+    fireEvent.change(screen.getByLabelText(/^email$/i), {
+      target: { value: "guest@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText(/^password$/i), {
+      target: { value: "secret-pass" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    await waitFor(() => {
+      expect(replace).toHaveBeenCalledWith("/");
+    });
+  });
+
   it("shows an error when credentials are rejected", async () => {
     signInWithPassword.mockResolvedValueOnce({
       error: { message: "Invalid login credentials" },

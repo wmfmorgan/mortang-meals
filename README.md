@@ -16,7 +16,7 @@ This worktree’s `supabase/config.toml` uses **563xx** ports so it does not col
    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` — from `supabase status`
    - `DATABASE_URL` — direct local DB is fine: `postgresql://postgres:postgres@127.0.0.1:56322/postgres` (hosted deploys should use the transaction pooler URL)
    - `XAI_API_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY` — needed for tests and the SQLite import script (`supabase status`)
+   - `SUPABASE_SERVICE_ROLE_KEY` — production household member emails on `/household`; also tests and the SQLite import script (`supabase status`). Never expose to the browser.
 5. Auth is **email + password or magic link** (no Google). Signup stays off; magic link uses `shouldCreateUser: false`.
    - Studio → Authentication → Users → Add user: set email, optional password, confirm email (or update an existing user).
    - Magic-link emails land in **Mailpit** at `http://127.0.0.1:56324` (this repo’s local Supabase port). Open the message and follow the link through `/auth/confirm`.
@@ -48,7 +48,7 @@ Dashboard work — create the projects if they do not exist yet; this repo does 
 7. Set Vercel env (Production; use a separate DB for Preview — **do not** point preview deploys at the production database). With the Vercel ↔ Supabase Marketplace integration, `POSTGRES_*` and `NEXT_PUBLIC_SUPABASE_*` are injected automatically; also set:
    - `XAI_API_KEY`
    - Optional `DATABASE_URL` (transaction pooler) — if omitted, the app uses `POSTGRES_PRISMA_URL` / `POSTGRES_URL`
-   - `SUPABASE_SERVICE_ROLE_KEY` only if you run the import script against hosted from a trusted machine (never expose it to the browser)
+   - `SUPABASE_SERVICE_ROLE_KEY` — required in production for household member emails on `/household` (and for tests / import script on a trusted machine; never expose to the browser). Without it the page still loads with “Unknown email”.
 8. Add or update yourself in Studio (Users) with email, optional password, email confirmed. Sign in once at `/login` with password or magic link.
 9. Optional one-time migrate from the old local SQLite file. After first login/setup, run with **`--force`** (wipes that household’s app rows, not `auth.users`, then copies sqlite). Without `--force`, the empty current week from `openPlan` plus unique week constraints / duplicate people can fail the import:
 

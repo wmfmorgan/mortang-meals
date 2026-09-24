@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { safeNextPath } from "@/lib/safe-next-path";
 
 const OTP_INBOX_MESSAGE =
   "If that address can sign in, check your inbox for a link.";
@@ -30,7 +31,7 @@ export function LoginForm({
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<string | null>(authError);
   const [pending, setPending] = useState(false);
-  const afterLogin = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  const afterLogin = safeNextPath(next) ?? "/";
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();

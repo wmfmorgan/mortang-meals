@@ -15,13 +15,17 @@ export function ConfirmClient() {
 
     async function finish() {
       const params = new URLSearchParams(window.location.search);
-      const next = safeNextPath(params.get("next")) ?? "/";
+      const rawNext = safeNextPath(params.get("next"));
+      const next = rawNext ?? "/";
+      const confirmFailure = rawNext
+        ? `/login?error=confirm&next=${encodeURIComponent(rawNext)}`
+        : "/login?error=confirm";
       const auth = resolveBrowserConfirmAuth(
         window.location.search,
         window.location.hash,
       );
       if (auth.kind === "invalid") {
-        router.replace("/login?error=confirm");
+        router.replace(confirmFailure);
         return;
       }
 
@@ -45,7 +49,7 @@ export function ConfirmClient() {
       if (cancelled) return;
       if (error) {
         setMessage(error.message);
-        router.replace("/login?error=confirm");
+        router.replace(confirmFailure);
         return;
       }
       router.replace(next);

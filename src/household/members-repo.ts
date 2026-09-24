@@ -69,14 +69,29 @@ export async function listMembers(householdId: string): Promise<MemberRow[]> {
     .from(householdMembers)
     .where(eq(householdMembers.householdId, householdId));
 
-  const admin = createAdminClient();
+  // Emails need the service role; missing/failing admin must not 500 /household.
+  let admin: ReturnType<typeof createAdminClient> | null = null;
+  try {
+    admin = createAdminClient();
+  } catch {
+    admin = null;
+  }
+
   const members: MemberRow[] = [];
   for (const row of rows) {
-    const { data } = await admin.auth.admin.getUserById(row.userId);
+    let email: string | null = null;
+    if (admin) {
+      try {
+        const { data } = await admin.auth.admin.getUserById(row.userId);
+        email = data.user?.email ?? null;
+      } catch {
+        email = null;
+      }
+    }
     members.push({
       userId: row.userId,
       role: row.role as "owner" | "member",
-      email: data.user?.email ?? null,
+      email,
     });
   }
   return members;
