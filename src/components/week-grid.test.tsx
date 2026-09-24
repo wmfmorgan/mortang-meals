@@ -79,6 +79,7 @@ describe("WeekGrid", () => {
     expect(screen.getByText("Lemon herb salmon").className).toContain(
       "meal-card-title",
     );
+    expect(screen.getByRole("button", { name: "Cook" })).toBeTruthy();
     expect(screen.queryByRole("gridcell", { name: /breakfast/i })).toBeNull();
     expect(screen.getByRole("heading", { name: /^mon 5$/i })).toBeTruthy();
     expect(screen.queryByText(/01/)).toBeNull();

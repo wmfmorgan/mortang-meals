@@ -480,6 +480,20 @@ a.badge-link:hover {
   padding-top: 0.25rem;
 }
 
+.meal-card-compact .meal-card-cook-row {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 0.15rem 0 0.2rem;
+}
+
+.meal-card-compact .meal-card-cook {
+  min-height: 1.75rem;
+  padding: 0 0.7rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
 .meal-card-compact .meal-card-action-icons {
   flex-wrap: nowrap;
   justify-content: space-evenly;
