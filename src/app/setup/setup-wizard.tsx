@@ -120,7 +120,18 @@ export function SetupWizard({
       ) : null}
 
       {step === 1 ? (
-        <HouseholdFields value={draft} onChange={setDraft} />
+        <div className="space-y-4">
+          {household == null ? (
+            <p className="m-0 text-sm text-herb">
+              Have an invite code?{" "}
+              <a className="text-olive underline-offset-2 hover:underline" href="/join">
+                Join an existing household
+              </a>
+              .
+            </p>
+          ) : null}
+          <HouseholdFields value={draft} onChange={setDraft} />
+        </div>
       ) : null}
 
       {step === 2 ? (

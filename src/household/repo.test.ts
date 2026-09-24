@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 import { getDb, resetDbForTests } from "@/lib/db";
-import { householdMembers } from "@/lib/schema";
+import { householdMembers, households } from "@/lib/schema";
 import {
   createAuthUserWithoutHousehold,
   createTestIdentity,
@@ -101,6 +101,7 @@ describe("household repo", () => {
     users.push(ident.userId);
     const saved = await upsertHousehold({
       ownerId: ident.userId,
+      id: ident.householdId,
       name: "Mortang",
       dietStyle: "omnivore",
       notes: "",
@@ -111,5 +112,65 @@ describe("household repo", () => {
     const again = await getHouseholdForUser(ident.userId);
     expect(again?.id).toBe(ident.householdId);
     expect(again?.name).toBe("Mortang");
+  });
+
+  it("member B can save household fields without becoming a second owner", async () => {
+    const owner = await createTestIdentity("owner-save@example.com");
+    users.push(owner.userId);
+    await upsertHousehold({
+      ownerId: owner.userId,
+      id: owner.householdId,
+      name: "Shared",
+      dietStyle: "omnivore",
+      notes: "",
+      servings: 2,
+    });
+
+    const member = await createAuthUserWithoutHousehold(
+      `member-save-${crypto.randomUUID()}@example.com`,
+    );
+    users.push(member.userId);
+    await getDb()
+      .insert(householdMembers)
+      .values({
+        householdId: owner.householdId,
+        userId: member.userId,
+        role: "member",
+      });
+
+    // Mimic saveHouseholdAction passing the acting userId as ownerId.
+    const updated = await upsertHousehold({
+      id: owner.householdId,
+      ownerId: member.userId,
+      name: "Renamed by member",
+      dietStyle: "omnivore",
+      notes: "member notes",
+      servings: 4,
+    });
+
+    expect(updated.id).toBe(owner.householdId);
+    expect(updated.name).toBe("Renamed by member");
+    expect(updated.servings).toBe(4);
+    expect(updated.notes).toBe("member notes");
+
+    const [row] = await getDb()
+      .select()
+      .from(households)
+      .where(eq(households.id, owner.householdId));
+    expect(row?.ownerId).toBe(owner.userId);
+
+    const ownedByMember = await getDb()
+      .select()
+      .from(households)
+      .where(eq(households.ownerId, member.userId));
+    expect(ownedByMember).toHaveLength(0);
+
+    const memberships = await getDb()
+      .select()
+      .from(householdMembers)
+      .where(eq(householdMembers.userId, member.userId));
+    expect(memberships).toHaveLength(1);
+    expect(memberships[0]?.role).toBe("member");
+    expect(memberships[0]?.householdId).toBe(owner.householdId);
   });
 });

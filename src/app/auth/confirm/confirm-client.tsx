@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { safeNextPath } from "@/lib/safe-next-path";
 import { resolveBrowserConfirmAuth } from "./confirm-params";
 
 export function ConfirmClient() {
@@ -13,6 +14,8 @@ export function ConfirmClient() {
     let cancelled = false;
 
     async function finish() {
+      const params = new URLSearchParams(window.location.search);
+      const next = safeNextPath(params.get("next")) ?? "/";
       const auth = resolveBrowserConfirmAuth(
         window.location.search,
         window.location.hash,
@@ -45,7 +48,7 @@ export function ConfirmClient() {
         router.replace("/login?error=confirm");
         return;
       }
-      router.replace("/");
+      router.replace(next);
       router.refresh();
     }
 

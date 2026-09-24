@@ -18,12 +18,19 @@ function isOtpUnknownUserError(message: string): boolean {
   );
 }
 
-export function LoginForm({ authError = null }: { authError?: string | null }) {
+export function LoginForm({
+  authError = null,
+  next = null,
+}: {
+  authError?: string | null;
+  next?: string | null;
+}) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<string | null>(authError);
   const [pending, setPending] = useState(false);
+  const afterLogin = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -40,7 +47,7 @@ export function LoginForm({ authError = null }: { authError?: string | null }) {
       setPending(false);
       return;
     }
-    router.replace("/");
+    router.replace(afterLogin);
     router.refresh();
   }
 
@@ -54,11 +61,15 @@ export function LoginForm({ authError = null }: { authError?: string | null }) {
     setStatus(null);
     const supabase = createClient();
     const origin = window.location.origin;
+    const confirmUrl = new URL("/auth/confirm", origin);
+    if (afterLogin !== "/") {
+      confirmUrl.searchParams.set("next", afterLogin);
+    }
     const { error } = await supabase.auth.signInWithOtp({
       email: trimmed,
       options: {
         shouldCreateUser: false,
-        emailRedirectTo: `${origin}/auth/confirm`,
+        emailRedirectTo: confirmUrl.toString(),
       },
     });
     setPending(false);

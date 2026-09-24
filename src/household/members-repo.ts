@@ -111,7 +111,7 @@ export async function listInvites(householdId: string): Promise<InviteRow[]> {
 export async function createInvite(
   householdId: string,
   createdBy: string,
-): Promise<{ code: string; expiresAt: Date; joinPath: string }> {
+): Promise<{ id: string; code: string; expiresAt: Date; joinPath: string }> {
   await requireOwner(householdId, createdBy, "invite");
 
   const db = getDb();
@@ -120,15 +120,22 @@ export async function createInvite(
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = generateInviteCode();
     try {
-      await db.insert(householdInvites).values({
-        householdId,
-        code,
-        createdBy,
-        expiresAt: expiresAt.toISOString(),
-        maxUses: 1,
-        useCount: 0,
-      });
+      const [row] = await db
+        .insert(householdInvites)
+        .values({
+          householdId,
+          code,
+          createdBy,
+          expiresAt: expiresAt.toISOString(),
+          maxUses: 1,
+          useCount: 0,
+        })
+        .returning({ id: householdInvites.id });
+      if (!row) {
+        throw new Error("Failed to create invite");
+      }
       return {
+        id: row.id,
         code,
         expiresAt,
         joinPath: `/join?code=${code}`,

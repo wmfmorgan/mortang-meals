@@ -62,7 +62,6 @@ export async function upsertHousehold(
   input: Omit<Household, "id" | "people"> & { id?: string; ownerId: string },
 ): Promise<Household> {
   const db = getDb();
-  const id = input.id ?? crypto.randomUUID();
   const values = {
     name: input.name,
     dietStyle: input.dietStyle,
@@ -70,13 +69,23 @@ export async function upsertHousehold(
     servings: input.servings,
   };
 
+  // Existing household (owner or member): update by id — never re-bind owner_id.
+  if (input.id) {
+    const [row] = await db
+      .update(households)
+      .set(values)
+      .where(eq(households.id, input.id))
+      .returning();
+    if (!row) {
+      throw new Error("Household update failed");
+    }
+    return mapHousehold(row, await loadPeople(row.id));
+  }
+
+  const id = crypto.randomUUID();
   const [row] = await db
     .insert(households)
     .values({ id, ownerId: input.ownerId, ...values })
-    .onConflictDoUpdate({
-      target: households.ownerId,
-      set: values,
-    })
     .returning();
 
   if (!row) {
