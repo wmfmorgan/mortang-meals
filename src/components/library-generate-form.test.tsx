@@ -44,7 +44,7 @@ describe("LibraryGenerateForm", () => {
     fireEvent.change(screen.getByPlaceholderText("or type your own"), {
       target: { value: "italian" },
     });
-    fireEvent.submit(screen.getByRole("button", { name: "Generate Meal Drafts" }).closest("form")!);
+    fireEvent.submit(screen.getByRole("button", { name: "Generate Recipes with AI" }).closest("form")!);
     expect(startLibrary).toHaveBeenCalledWith({
       personIds: ["p1"],
       servings: 1,
@@ -55,7 +55,7 @@ describe("LibraryGenerateForm", () => {
   it("fills diet from a preset choice", async () => {
     render(<LibraryGenerateForm people={[alex]} />);
     fireEvent.click(screen.getByRole("button", { name: "keto" }));
-    fireEvent.submit(screen.getByRole("button", { name: "Generate Meal Drafts" }).closest("form")!);
+    fireEvent.submit(screen.getByRole("button", { name: "Generate Recipes with AI" }).closest("form")!);
     expect(startLibrary).toHaveBeenCalledWith({
       personIds: ["p1"],
       servings: 1,
@@ -69,7 +69,7 @@ describe("LibraryGenerateForm", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "side" }));
     fireEvent.click(screen.getByRole("button", { name: "keto" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "dessert" }));
-    fireEvent.submit(screen.getByRole("button", { name: "Generate Meal Drafts" }).closest("form")!);
+    fireEvent.submit(screen.getByRole("button", { name: "Generate Recipes with AI" }).closest("form")!);
     expect(startLibrary).toHaveBeenCalledWith({
       personIds: ["p1"],
       servings: 1,
@@ -97,7 +97,7 @@ describe("LibraryGenerateForm", () => {
     fireEvent.change(screen.getByPlaceholderText("or type your own"), {
       target: { value: "italian" },
     });
-    fireEvent.submit(screen.getByRole("button", { name: "Generate Meal Drafts" }).closest("form")!);
+    fireEvent.submit(screen.getByRole("button", { name: "Generate Recipes with AI" }).closest("form")!);
     expect(startLibrary).toHaveBeenCalledWith({
       personIds: ["p1"],
       servings: 1,
@@ -119,12 +119,49 @@ describe("LibraryGenerateForm", () => {
       target: { value: "italian" },
     });
     fireEvent.submit(
-      screen.getByRole("button", { name: "Generate Meal Drafts" }).closest("form")!,
+      screen.getByRole("button", { name: "Generate Recipes with AI" }).closest("form")!,
     );
     expect(startLibrary).toHaveBeenCalledWith({
       personIds: ["p1"],
       servings: 4,
       dinner: { count: 4, diet: "italian", avoidances: "" },
     });
+  });
+
+  it("calls onStarted after startLibrary is invoked", async () => {
+    const onStarted = vi.fn();
+    render(<LibraryGenerateForm people={[alex]} onStarted={onStarted} />);
+    fireEvent.click(screen.getByRole("button", { name: "keto" }));
+    fireEvent.submit(
+      screen.getByRole("button", { name: "Generate Recipes with AI" }).closest("form")!,
+    );
+    expect(startLibrary).toHaveBeenCalled();
+    expect(onStarted).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows people as selectable cards with a Select all control", () => {
+    const sam: Person = {
+      id: "p2",
+      name: "Sam",
+      age: 8,
+      sex: "male",
+      allergies: ["peanuts"],
+      avoidances: ["cilantro"],
+    };
+    render(<LibraryGenerateForm people={[alex, sam]} />);
+    expect(screen.getByRole("checkbox", { name: /alex/i })).toBeTruthy();
+    expect(screen.getByRole("checkbox", { name: /sam/i })).toBeTruthy();
+    expect(screen.getByText("peanuts · cilantro")).toBeTruthy();
+    fireEvent.click(screen.getByRole("checkbox", { name: /alex/i }));
+    expect((screen.getByRole("checkbox", { name: /alex/i }) as HTMLInputElement).checked).toBe(
+      false,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Select all" }));
+    expect((screen.getByRole("checkbox", { name: /alex/i }) as HTMLInputElement).checked).toBe(
+      true,
+    );
+    expect((screen.getByRole("checkbox", { name: /sam/i }) as HTMLInputElement).checked).toBe(
+      true,
+    );
   });
 });

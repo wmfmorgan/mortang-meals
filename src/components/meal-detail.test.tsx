@@ -243,15 +243,12 @@ describe("MealDetail create", () => {
     expect(screen.queryByText("New recipe")).toBeNull();
     expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
     expect(screen.getByLabelText(/^title$/i)).toBeTruthy();
-    expect(screen.getByLabelText(/^meal$/i)).toBeTruthy();
-    const mealSelect = screen.getByLabelText(/^meal$/i) as HTMLSelectElement;
-    expect([...mealSelect.options].map((option) => option.value)).toEqual([
-      "breakfast",
-      "lunch",
-      "dinner",
-      "side",
-      "dessert",
-    ]);
+    const mealGroup = screen.getByRole("group", { name: /^meal$/i });
+    expect(mealGroup).toBeTruthy();
+    expect(
+      [...mealGroup.querySelectorAll("button")].map((button) => button.textContent),
+    ).toEqual(["breakfast", "lunch", "dinner", "side", "dessert"]);
+    expect(screen.queryByText(/prep time/i)).toBeNull();
     expect(
       (screen.getByLabelText(/^why it fits$/i) as HTMLTextAreaElement).required,
     ).toBe(false);
@@ -284,9 +281,7 @@ describe("MealDetail create", () => {
     fireEvent.change(screen.getByLabelText(/^method$/i), {
       target: { value: "dutch oven" },
     });
-    fireEvent.change(screen.getByLabelText(/^meal$/i), {
-      target: { value: "lunch" },
-    });
+    fireEvent.click(screen.getByRole("button", { name: "lunch" }));
     fireEvent.change(screen.getByLabelText(/^qty$/i), {
       target: { value: "2" },
     });
@@ -319,5 +314,72 @@ describe("MealDetail create", () => {
     await vi.waitFor(() => {
       expect(router.push).toHaveBeenCalledWith("/meals");
     });
+  });
+
+  it("uses onClose instead of router.push on cancel when provided", () => {
+    const onClose = vi.fn();
+    render(
+      <MealDetail
+        mode="create"
+        servings="Serves 2"
+        canSwap={false}
+        onClose={onClose}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("calls onSaved then onClose after a successful create", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ meal: { id: "meal-chili" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const onSaved = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <MealDetail
+        mode="create"
+        servings="Serves 2"
+        canSwap={false}
+        onSaved={onSaved}
+        onClose={onClose}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText(/^title$/i), {
+      target: { value: "Grandma chili" },
+    });
+    fireEvent.change(screen.getByLabelText(/^cook minutes$/i), {
+      target: { value: "45" },
+    });
+    fireEvent.change(screen.getByLabelText(/^method$/i), {
+      target: { value: "dutch oven" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Step 1" }), {
+      target: { value: "Simmer" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await vi.waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onSaved.mock.invocationCallOrder[0]).toBeLessThan(
+      onClose.mock.invocationCallOrder[0]!,
+    );
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("writes cook minutes and method from chips", () => {
+    render(
+      <MealDetail mode="create" servings="Serves 2" canSwap={false} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "15 min" }));
+    expect((screen.getByLabelText(/^cook minutes$/i) as HTMLInputElement).value).toBe(
+      "15",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "sheet pan" }));
+    expect((screen.getByLabelText(/^method$/i) as HTMLInputElement).value).toBe(
+      "sheet pan",
+    );
   });
 });

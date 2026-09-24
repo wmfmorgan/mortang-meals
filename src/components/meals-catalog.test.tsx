@@ -84,7 +84,7 @@ describe("MealsCatalog", () => {
       screen.getByRole("button", { name: "Generate Meals with AI" }),
     );
     expect(
-      screen.getByRole("button", { name: "Generate Meal Drafts" }),
+      screen.getByRole("button", { name: "Generate Recipes with AI" }),
     ).toBeTruthy();
 
     fireEvent.click(
