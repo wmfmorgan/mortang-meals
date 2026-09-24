@@ -1,15 +1,23 @@
 // @vitest-environment happy-dom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mondayOf, shiftMonday } from "@/lib/week";
 import { WeekSwitcher } from "./week-switcher";
 
+const router = vi.hoisted(() => ({
+  refresh: vi.fn(),
+  push: vi.fn(),
+}));
+
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
+  useRouter: () => router,
 }));
 
 afterEach(() => {
   cleanup();
+  router.refresh.mockReset();
+  router.push.mockReset();
+  vi.unstubAllGlobals();
 });
 
 describe("WeekSwitcher", () => {
@@ -37,5 +45,53 @@ describe("WeekSwitcher", () => {
       (screen.getByRole("button", { name: "Current week" }) as HTMLButtonElement)
         .disabled,
     ).toBe(false);
+  });
+
+  it("opens Previous week on that plan URL so / does not snap back to this calendar week", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          plan: { id: "plan-prev", weekStart: "2026-08-24" },
+        }),
+      })),
+    );
+    render(<WeekSwitcher weekStart="2026-08-31" />);
+    fireEvent.click(screen.getByRole("button", { name: "Previous week" }));
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith("/?plan=plan-prev");
+    });
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/plans/open",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ weekStart: "2026-08-24" }),
+      }),
+    );
+  });
+
+  it("opens Next week on that plan URL", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          plan: { id: "plan-next", weekStart: "2026-09-07" },
+        }),
+      })),
+    );
+    render(<WeekSwitcher weekStart="2026-08-31" />);
+    fireEvent.click(screen.getByRole("button", { name: "Next week" }));
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith("/?plan=plan-next");
+    });
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/plans/open",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ weekStart: "2026-09-07" }),
+      }),
+    );
   });
 });
