@@ -2315,6 +2315,9 @@ a.badge-link:hover {
   bottom: 0.75rem;
   z-index: 41;
   width: min(24rem, calc(100% - 1.5rem));
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
   background: #fff;
   border: 1px solid #ebdccb;
   border-radius: 1.5rem;
@@ -2322,8 +2325,112 @@ a.badge-link:hover {
   overflow: auto;
 }
 
+.library-drawer-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.library-drawer-recipe {
+  padding: 1rem;
+  border: 1px solid #ebdccb;
+  border-radius: 1rem;
+  background: #fbf7ef;
+}
+
+.library-drawer-recipe .page-eyebrow {
+  margin-bottom: 0.35rem;
+}
+
+.library-drawer-recipe-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
 .library-day-pills {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 0.35rem;
+}
+
+.library-day-pills button {
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid #ebdccb;
+  border-radius: 0.75rem;
+  background: #fbf7ef;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.library-day-pills button:hover {
+  border-color: var(--color-olive-deep);
+}
+
+.library-day-pills button[aria-pressed="true"] {
+  background: var(--color-olive-deep);
+  color: #fff;
+  border-color: var(--color-olive-deep);
+}
+
+.library-slot-radios {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.library-slot-radio {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.5rem;
+  border: 1px solid #ebdccb;
+  border-radius: 1rem;
+  background: #fff;
+  color: var(--color-ink);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.library-slot-radio input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.library-slot-radio:has(:checked) {
+  border-color: var(--color-olive-deep);
+  background: var(--color-linen);
+  color: var(--color-olive-deep);
+}
+
+.library-drawer-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid #ebdccb;
+}
+
+.library-drawer-actions .btn {
+  width: 100%;
+}
+
+.library-drawer-actions .btn-ghost {
+  min-height: 44px;
 }
