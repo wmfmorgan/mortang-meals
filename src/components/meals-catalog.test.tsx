@@ -1,12 +1,15 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Meal } from "@/lib/types";
+import type { Meal, Person } from "@/lib/types";
 import { EMPTY_EXTRAS } from "@/meals/extras";
 import { MealsCatalog } from "./meals-catalog";
 
+const refresh = vi.hoisted(() => vi.fn());
+const push = vi.hoisted(() => vi.fn());
+
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
+  useRouter: () => ({ refresh, push }),
 }));
 
 vi.mock("./generation-provider", () => ({
@@ -20,6 +23,8 @@ vi.mock("./generation-provider", () => ({
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  refresh.mockReset();
+  push.mockReset();
 });
 
 beforeEach(() => {
@@ -32,126 +37,173 @@ beforeEach(() => {
   );
 });
 
-const meal: Meal = {
-  id: "meal-salmon",
-  planId: "",
-  day: "monday",
-  slot: "dinner",
-  title: "Lemon herb salmon",
-  whyItFits: "High-protein",
-  cookMinutes: 30,
-  method: "sheet pan",
-  ingredients: [{ name: "salmon", quantity: "1", unit: "lb", aisle: "meat" }],
-  steps: ["Roast"],
-  usedWebSearch: false,
-  pinned: false,
-  createdAt: "2026-08-10T12:00:00.000Z",
-  sourceUrl: "https://example.com/salmon",
-        imageUrl: null,
-        extras: EMPTY_EXTRAS,
-  draft: false,
-  stars: 0,
-  takeout: false,
-  leftover: false,
-  servings: 2,
+function meal(overrides: Partial<Meal> = {}): Meal {
+  return {
+    id: "meal-salmon",
+    planId: "",
+    day: "monday",
+    slot: "dinner",
+    title: "Lemon herb salmon",
+    whyItFits: "High-protein",
+    cookMinutes: 30,
+    method: "sheet pan",
+    ingredients: [{ name: "salmon", quantity: "1", unit: "lb", aisle: "meat" }],
+    steps: ["Roast"],
+    usedWebSearch: false,
+    pinned: false,
+    createdAt: "2026-08-10T12:00:00.000Z",
+    sourceUrl: "https://example.com/salmon",
+    imageUrl: null,
+    extras: EMPTY_EXTRAS,
+    draft: false,
+    stars: 0,
+    takeout: false,
+    leftover: false,
+    servings: 2,
+    ...overrides,
+  };
+}
+
+const yogurt: Meal = meal({
+  id: "meal-yogurt",
+  slot: "breakfast",
+  title: "Yogurt bowl",
+  whyItFits: "Quick morning",
+  cookMinutes: 10,
+  method: "stovetop",
+  ingredients: [{ name: "yogurt", quantity: "1", unit: "cup", aisle: "dairy" }],
+  sourceUrl: null,
+});
+
+const soup: Meal = meal({
+  id: "meal-soup",
+  slot: "lunch",
+  title: "Tomato soup",
+  whyItFits: "Cozy",
+  cookMinutes: 25,
+  method: "stovetop",
+  ingredients: [{ name: "tomato", quantity: "2", unit: "cup", aisle: "produce" }],
+  sourceUrl: null,
+});
+
+const alex: Person = {
+  id: "p1",
+  name: "Alex",
+  age: 40,
+  sex: "male",
+  allergies: ["shrimp"],
+  avoidances: [],
 };
 
+function renderCatalog(
+  overrides: Partial<Parameters<typeof MealsCatalog>[0]> = {},
+) {
+  return render(
+    <MealsCatalog
+      meals={[meal()]}
+      drafts={[]}
+      people={[]}
+      householdName="Mortang"
+      servings={2}
+      currentPlanId={null}
+      weekStart="2026-08-10"
+      {...overrides}
+    />,
+  );
+}
+
 describe("MealsCatalog", () => {
-  it("collapses generate/import/manual by default and uses the new titles", () => {
-    render(
-      <MealsCatalog meals={[meal]} servings={2} currentPlanId={null} />,
-    );
+  it("opens the New Recipe chooser and drops collapsible generate/import/manual cards", () => {
+    renderCatalog();
+
+    expect(screen.getByRole("heading", { name: "Recipe Library" })).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Generate Meals with AI" }).getAttribute(
-        "aria-expanded",
-      ),
-    ).toBe("false");
-    expect(
-      screen
-        .getByRole("button", { name: "Import Recipe from URL" })
-        .getAttribute("aria-expanded"),
-    ).toBe("false");
-    expect(
-      screen
-        .getByRole("button", { name: "Manually Add a Recipe" })
-        .getAttribute("aria-expanded"),
-    ).toBe("false");
-    expect(screen.queryByLabelText("Recipe URL")).toBeNull();
-    expect(screen.queryByText("New recipe")).toBeNull();
-    expect(screen.queryByText("Add recipe")).toBeNull();
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Generate Meals with AI" }),
-    );
-    expect(
-      screen.getByRole("button", { name: "Generate Recipes with AI" }),
-    ).toBeTruthy();
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Import Recipe from URL" }),
-    );
-    expect(screen.getByLabelText("Recipe URL")).toBeTruthy();
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Manually Add a Recipe" }),
-    );
-    expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
-    expect(screen.queryByText("New recipe")).toBeNull();
-    expect(screen.queryByText("Add recipe")).toBeNull();
-  });
-
-  it("keeps catalog meal-type sections expanded and collapsible with a chevron control", () => {
-    render(
-      <MealsCatalog meals={[meal]} servings={2} currentPlanId={null} />,
-    );
-    const dinner = screen.getByRole("button", { name: /^dinner$/i });
-    expect(dinner.getAttribute("aria-expanded")).toBe("true");
-    expect(dinner.querySelector(".collapsible-chevron.is-open")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /lemon herb salmon/i })).toBeTruthy();
-    fireEvent.click(dinner);
-    expect(dinner.getAttribute("aria-expanded")).toBe("false");
-    expect(dinner.querySelector(".collapsible-chevron.is-open")).toBeNull();
-    expect(dinner.querySelector(".collapsible-chevron")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /lemon herb salmon/i })).toBeNull();
-  });
-
-  it("shows servings on catalog cards and opens the recipe flyout", () => {
-    render(
-      <MealsCatalog meals={[meal]} servings={2} currentPlanId={null} />,
-    );
-
-    expect(screen.getByText("Servings: 2")).toBeTruthy();
-    expect(
-      screen.queryByRole("link", { name: /lemon herb salmon/i }),
+      screen.queryByRole("button", { name: "Generate Meals with AI" }),
     ).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /lemon herb salmon/i }));
-    expect(screen.getByRole("dialog", { name: /lemon herb salmon/i })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /open full recipe/i }).getAttribute("href")).toBe(
-      "/meals/meal-salmon",
-    );
-    expect(screen.getAllByText("Imported from a URL").length).toBeGreaterThan(0);
+    expect(
+      screen.queryByRole("button", { name: "Import Recipe from URL" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Manually Add a Recipe" }),
+    ).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "New Recipe" }));
+    expect(screen.getByRole("heading", { name: "Add New Recipe" })).toBeTruthy();
+    expect(screen.getByText("Import from URL")).toBeTruthy();
+    expect(screen.getByText("Create with AI Chef")).toBeTruthy();
+    expect(screen.getByText("Manual Recipe Entry")).toBeTruthy();
   });
 
-  it("offers a none grouping option", () => {
-    render(
-      <MealsCatalog meals={[meal]} servings={2} currentPlanId={null} />,
-    );
-    expect(screen.getByRole("option", { name: "none" })).toBeTruthy();
+  it("filters the catalog by search", () => {
+    renderCatalog({ meals: [meal(), yogurt] });
+    expect(screen.getByText("Lemon herb salmon")).toBeTruthy();
+    expect(screen.getByText("Yogurt bowl")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Search"), {
+      target: { value: "yogurt" },
+    });
+    expect(screen.queryByText("Lemon herb salmon")).toBeNull();
+    expect(screen.getByText("Yogurt bowl")).toBeTruthy();
   });
 
-  it("shows a trash delete control on catalog cards", () => {
-    render(
-      <MealsCatalog meals={[meal]} servings={2} currentPlanId={null} />,
-    );
-    expect(screen.getByRole("button", { name: "Delete meal" })).toBeTruthy();
+  it("groups Meal Type with expanded Breakfast/Lunch/Dinner headings", () => {
+    renderCatalog({ meals: [meal(), yogurt, soup] });
+
+    fireEvent.click(screen.getByRole("button", { name: "Meal Type" }));
+    const breakfast = screen.getByRole("button", { name: /^breakfast$/i });
+    const lunch = screen.getByRole("button", { name: /^lunch$/i });
+    const dinner = screen.getByRole("button", { name: /^dinner$/i });
+    expect(breakfast.getAttribute("aria-expanded")).toBe("true");
+    expect(lunch.getAttribute("aria-expanded")).toBe("true");
+    expect(dinner.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("Lemon herb salmon")).toBeTruthy();
+    expect(screen.getByText("Yogurt bowl")).toBeTruthy();
+    expect(screen.getByText("Tomato soup")).toBeTruthy();
+  });
+
+  it("hides a 30-minute meal when the Under 20m chip is pressed", () => {
+    renderCatalog({ meals: [meal(), yogurt] });
+    expect(screen.getByText("Lemon herb salmon")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Under 20m" }));
+    expect(screen.queryByText("Lemon herb salmon")).toBeNull();
+    expect(screen.getByText("Yogurt bowl")).toBeTruthy();
+  });
+
+  it("sends Cook to the recipe page", () => {
+    renderCatalog();
+    const cookLink = screen.queryByRole("link", { name: "Cook" });
+    if (cookLink) {
+      expect(cookLink.getAttribute("href")).toBe("/meals/meal-salmon");
+      return;
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Cook" }));
+    expect(push).toHaveBeenCalledWith("/meals/meal-salmon");
+  });
+
+  it("opens Add to Plan, toasts on place, and closes the drawer", async () => {
+    renderCatalog();
+    fireEvent.click(screen.getByRole("button", { name: "+ Add to Plan" }));
+    const drawer = screen.getByRole("dialog", { name: "Add to Meal Plan" });
+    expect(drawer).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Thursday" }));
+    fireEvent.click(within(drawer).getByRole("radio", { name: "Lunch" }));
+    fireEvent.click(within(drawer).getByRole("button", { name: "Confirm" }));
+
+    await vi.waitFor(() => {
+      expect(screen.getByRole("status").textContent).toMatch(
+        /Added to Thursday lunch/i,
+      );
+    });
+    expect(screen.queryByRole("dialog", { name: "Add to Meal Plan" })).toBeNull();
+    expect(refresh).toHaveBeenCalled();
   });
 
   it("asks before deleting a catalog meal and posts only when confirmed", async () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     const fetchMock = vi.mocked(fetch);
-    render(
-      <MealsCatalog meals={[meal]} servings={2} currentPlanId={null} />,
-    );
+    renderCatalog();
 
     fireEvent.click(screen.getByRole("button", { name: "Delete meal" }));
     expect(confirm).toHaveBeenCalledWith("Delete this meal from the library?");
@@ -175,46 +227,28 @@ describe("MealsCatalog", () => {
     confirm.mockRestore();
   });
 
-  it("shows drafts below add cards and above search", () => {
-    const draft: Meal = {
-      ...meal,
+  it("opens the recipe flyout from the card title/photo", () => {
+    renderCatalog();
+    fireEvent.click(screen.getByRole("button", { name: /lemon herb salmon/i }));
+    expect(screen.getByRole("dialog", { name: /lemon herb salmon/i })).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: /open full recipe/i }).getAttribute("href"),
+    ).toBe("/meals/meal-salmon");
+  });
+
+  it("renders drafts when they are passed", () => {
+    const draft: Meal = meal({
       id: "draft-chili",
       title: "Draft chili",
       sourceUrl: null,
-        imageUrl: null,
-        draft: true,
-    };
-    render(
-      <MealsCatalog
-        meals={[meal]}
-        drafts={[draft]}
-        people={[
-          {
-            id: "p1",
-            name: "Alex",
-            age: 40,
-            sex: "male",
-            allergies: [],
-            avoidances: [],
-          },
-        ]}
-        servings={2}
-        currentPlanId={null}
-      />,
-    );
-    const generate = screen.getByRole("button", {
-      name: "Generate Meals with AI",
+      draft: true,
     });
-    const draftsHeading = screen.getByText("Review before they join the library");
-    const search = screen.getByLabelText("Search");
-    expect(
-      generate.compareDocumentPosition(draftsHeading) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    expect(
-      draftsHeading.compareDocumentPosition(search) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    renderCatalog({
+      meals: [meal()],
+      drafts: [draft],
+      people: [alex],
+    });
+    expect(screen.getByText("Review before they join the library")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Approve" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Reject" })).toBeTruthy();
     expect(screen.getByText("Draft chili")).toBeTruthy();

@@ -1,6 +1,6 @@
-import { PageHeader } from "@/components/page-header";
 import { MealsCatalog } from "@/components/meals-catalog";
 import { requirePageHousehold } from "@/lib/request-auth";
+import { mondayOf } from "@/lib/week";
 import { getCurrentPlan, listCatalogMeals, listDraftMeals } from "@/meals/repo";
 
 export default async function MealsPage() {
@@ -9,19 +9,14 @@ export default async function MealsPage() {
   const current = await getCurrentPlan(householdId);
 
   return (
-    <div>
-      <PageHeader
-        eyebrow="Library"
-        title="Meals"
-        lede="Generate or import drafts, type a recipe by hand, approve, then search the library."
-      />
-      <MealsCatalog
-        meals={meals}
-        drafts={await listDraftMeals(householdId)}
-        people={household.people}
-        servings={household.servings}
-        currentPlanId={current?.id ?? null}
-      />
-    </div>
+    <MealsCatalog
+      meals={meals}
+      drafts={await listDraftMeals(householdId)}
+      people={household.people}
+      householdName={household.name}
+      servings={household.servings}
+      currentPlanId={current?.id ?? null}
+      weekStart={current?.weekStart ?? mondayOf(new Date())}
+    />
   );
 }
