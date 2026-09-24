@@ -44,14 +44,16 @@ Dashboard work — create the projects if they do not exist yet; this repo does 
      - `https://www.mortang.com/**`
      - optional: `https://mortang-meals.vercel.app/**` for the Vercel alias
    - Do **not** rely on `*.vercel.app` team deployment hostnames for magic links unless those exact origins are allowlisted.
-5. Magic-link **email template** (Authentication → Emails → Magic Link) must use the **server** callback with a token hash — **not** the default `{{ .ConfirmationURL }}` verify link. Body example (same as `supabase/templates/magic_link.html`):
+5. Auth **email templates** (Authentication → Emails) must use the **server** callback with a token hash — **not** the default `{{ .ConfirmationURL }}` verify link. Paste the branded HTML from this repo:
 
-   ```html
-   <h2>Sign in to Mortang Meals</h2>
-   <p><a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=email">Sign in</a></p>
-   ```
+   - Magic Link → `supabase/templates/magic_link.html`  
+     href: `{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=email`
+   - Invite user → `supabase/templates/invite.html`  
+     href: `{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=invite`
 
-   `/auth/callback` verifies the OTP on the server and sets session cookies before redirecting (required for existing users with middleware). The default hosted template (`/auth/v1/verify?token=pkce_…`) needs a same-browser PKCE cookie and commonly dumps users back on `/login`.
+   Set Auth **Site URL** to `https://www.mortang.com` so `{{ .SiteURL }}` in those emails is the canonical origin.
+
+   Do **not** use `/auth/confirm` or `{{ .ConfirmationURL }}`. `/auth/callback` verifies the OTP on the server and sets session cookies before redirecting (required for existing users with middleware). The default hosted template (`/auth/v1/verify?token=pkce_…`) needs a same-browser PKCE cookie and commonly dumps users back on `/login`. Household invites sent from the app use the **Magic Link** template (`signInWithOtp`); the **Invite user** template is for Auth invite emails (`type=invite`).
 6. `supabase link` then `supabase db push` (or apply `supabase/migrations/` in the dashboard).
 7. Set Vercel env (Production; use a separate DB for Preview — **do not** point preview deploys at the production database). With the Vercel ↔ Supabase Marketplace integration, `POSTGRES_*` and `NEXT_PUBLIC_SUPABASE_*` are injected automatically; also set:
    - `XAI_API_KEY`
