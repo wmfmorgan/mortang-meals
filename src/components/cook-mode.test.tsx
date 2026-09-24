@@ -75,8 +75,10 @@ describe("CookMode", () => {
   });
 
   it("shows the first step and advances with Next", () => {
-    renderCook();
-    expect(screen.getByText("Preheat the oven to 425")).toBeTruthy();
+    const { container } = renderCook();
+    expect(container.querySelector(".cook-instruction")?.textContent).toBe(
+      "Preheat the oven to 425",
+    );
     expect(
       screen
         .getByRole("button", { name: "1. Preheat the oven to 425" })
@@ -85,7 +87,9 @@ describe("CookMode", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
-    expect(screen.getByText("Roast until the flesh flakes")).toBeTruthy();
+    expect(container.querySelector(".cook-instruction")?.textContent).toBe(
+      "Roast until the flesh flakes",
+    );
     expect(
       screen
         .getByRole("button", { name: "2. Roast until the flesh flakes" })
@@ -168,7 +172,7 @@ describe("CookMode", () => {
 
   it("clamps an invalid stored step index to 0", async () => {
     sessionStorage.setItem("mortang.cookStep.meal-salmon", JSON.stringify(99));
-    renderCook();
+    const { container } = renderCook();
     await vi.waitFor(() => {
       expect(
         screen
@@ -176,13 +180,28 @@ describe("CookMode", () => {
           .getAttribute("aria-current"),
       ).toBe("step");
     });
-    expect(screen.getByText("Preheat the oven to 425")).toBeTruthy();
+    expect(container.querySelector(".cook-instruction")?.textContent).toBe(
+      "Preheat the oven to 425",
+    );
   });
 
   it("shows empty-steps copy and no Next", () => {
     renderCook({ meal: { ...meal, steps: [] } });
     expect(screen.getByText("No method steps yet.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /next/i })).toBeNull();
+    expect(screen.getByRole("list", { name: "Full method" })).toBeTruthy();
+  });
+
+  it("renders a print-only list of every ingredient and numbered step", () => {
+    renderCook();
+    const method = screen.getByRole("list", { name: "Full method" });
+    const print = method.closest(".cook-print-only");
+    expect(print).toBeTruthy();
+    expect([...method.querySelectorAll("li")].map((item) => item.textContent)).toEqual([
+      "Preheat the oven to 425",
+      "Roast until the flesh flakes",
+    ]);
+    expect(print!.textContent).toContain("1 lb salmon");
   });
 
   it("hides stars on drafts", () => {
@@ -199,10 +218,14 @@ describe("CookMode", () => {
 
   it("scales ingredient quantities with the servings stepper", () => {
     renderCook();
-    expect(screen.getByText("1 lb salmon")).toBeTruthy();
+    expect(screen.getByRole("checkbox", { name: "1 lb salmon" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Increase servings" }));
     fireEvent.click(screen.getByRole("button", { name: "Increase servings" }));
-    expect(screen.getByText("2 lb salmon")).toBeTruthy();
+    expect(screen.getByRole("checkbox", { name: "2 lb salmon" })).toBeTruthy();
+    expect(
+      screen.getByRole("list", { name: "Full method" }).closest(".cook-print-only")
+        ?.textContent,
+    ).toContain("2 lb salmon");
   });
 
   it("shows the allergen ribbon from household people", () => {

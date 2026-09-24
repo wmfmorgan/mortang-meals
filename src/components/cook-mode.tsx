@@ -314,7 +314,7 @@ export function CookMode({
           {meal.cookMinutes} min · Feeds {displayServings} · {meal.method}
         </p>
         {meal.sourceUrl ? <SourceLink href={meal.sourceUrl} /> : null}
-        <div className="cook-utils">
+        <div className="cook-utils no-print">
           <button
             type="button"
             className="cook-pill cook-wake"
@@ -418,7 +418,7 @@ export function CookMode({
         <section className="cook-stage">
           {hasSteps ? (
             <>
-              <nav className="cook-card cook-steps-card" aria-label="Cooking steps">
+              <nav className="cook-card cook-steps-card no-print" aria-label="Cooking steps">
                 <div className="cook-steps">
                   {meal.steps.map((step, index) => (
                     <button
@@ -445,7 +445,7 @@ export function CookMode({
                   <MealImage imageUrl={meal.imageUrl} />
                 </div>
                 <p className="cook-instruction">{currentStep}</p>
-                <div className="cook-stage-nav">
+                <div className="cook-stage-nav no-print">
                   <button
                     type="button"
                     className="btn btn-secondary"
@@ -487,6 +487,21 @@ export function CookMode({
           ) : null}
         </section>
       </div>
+
+      <section className="cook-print-only">
+        <ul>
+          {scaled.map((item, index) => (
+            <li key={`print-ing-${index}-${item.name}`}>
+              {ingredientLabel(item)}
+            </li>
+          ))}
+        </ul>
+        <ol aria-label="Full method">
+          {meal.steps.map((step, index) => (
+            <li key={`print-step-${index}`}>{step}</li>
+          ))}
+        </ol>
+      </section>
     </div>
   );
 }
