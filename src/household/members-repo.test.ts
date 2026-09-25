@@ -15,6 +15,7 @@ import {
   listInvites,
   listMembers,
   removeMember,
+  resendInvite,
   revokeInvite,
 } from "./members-repo";
 
@@ -203,6 +204,49 @@ describe("members repo", () => {
     expect(await getHouseholdForUser(guest.userId)).toBeNull();
     const members = await listMembers(owner.householdId);
     expect(members.map((m) => m.userId)).toEqual([owner.userId]);
+  });
+
+  it("owner resends magic link for an unused invite", async () => {
+    const send = mockSendMagicLink();
+    const owner = await ownerHousehold("resend-owner");
+    const guest = await createAuthUserWithoutHousehold(
+      `resend-guest-${crypto.randomUUID()}@example.com`,
+    );
+    users.push(guest.userId);
+    const invite = await createInvite(
+      owner.householdId,
+      owner.userId,
+      guest.email,
+    );
+    send.mockClear();
+
+    const listed = await listInvites(owner.householdId);
+    const resent = await resendInvite(
+      owner.householdId,
+      listed[0]!.id,
+      owner.userId,
+    );
+    expect(resent.code).toBe(invite.code);
+    expect(resent.emailedTo).toBe(guest.email.toLowerCase());
+    expect(resent.joinPath).toBe(invite.joinPath);
+    expect(inviteEmail.sendInviteMagicLink).toHaveBeenCalledWith(
+      guest.email.toLowerCase(),
+      invite.joinPath,
+    );
+    expect(resent.expiresAt.getTime()).toBeGreaterThan(Date.now() + 6 * 24 * 60 * 60 * 1000);
+  });
+
+  it("cannot resend a revoked invite", async () => {
+    mockSendMagicLink();
+    const owner = await ownerHousehold("resend-revoked");
+    const guest = await createAuthUserWithoutHousehold();
+    users.push(guest.userId);
+    await createInvite(owner.householdId, owner.userId, guest.email);
+    const listed = await listInvites(owner.householdId);
+    await revokeInvite(owner.householdId, listed[0]!.id, owner.userId);
+    await expect(
+      resendInvite(owner.householdId, listed[0]!.id, owner.userId),
+    ).rejects.toThrow(/revoked/i);
   });
 
   it("revoke blocks accept", async () => {

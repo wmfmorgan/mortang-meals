@@ -6,6 +6,7 @@ import {
   acceptInvite,
   acceptPendingInviteForUser,
   createInvite,
+  resendInvite,
   removeMember,
   revokeInvite,
 } from "@/household/members-repo";
@@ -105,6 +106,36 @@ export async function createInviteAction(
     };
   } catch (error) {
     return { ok: false, error: actionError(error, "Couldn’t create invite.") };
+  }
+}
+
+export async function resendInviteAction(
+  inviteId: string,
+): Promise<
+  | {
+      ok: true;
+      id: string;
+      code: string;
+      expiresAt: string;
+      joinPath: string;
+      emailedTo: string;
+    }
+  | { ok: false; error: string }
+> {
+  const { userId, householdId } = await requirePageHousehold();
+  try {
+    const invite = await resendInvite(householdId, inviteId, userId);
+    revalidatePath("/household");
+    return {
+      ok: true,
+      id: invite.id,
+      code: invite.code,
+      expiresAt: invite.expiresAt.toISOString(),
+      joinPath: invite.joinPath,
+      emailedTo: invite.emailedTo,
+    };
+  } catch (error) {
+    return { ok: false, error: actionError(error, "Couldn’t resend invite.") };
   }
 }
 

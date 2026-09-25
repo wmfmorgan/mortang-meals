@@ -7,6 +7,7 @@ import { publicAppOrigin } from "@/lib/public-app-origin";
 import {
   createInviteAction,
   removeMemberAction,
+  resendInviteAction,
   revokeInviteAction,
 } from "./actions";
 
@@ -77,28 +78,62 @@ export function HouseholdMembers({
         setError(result.error);
         return;
       }
-      const origin =
-        publicAppOrigin(window.location.origin) || window.location.origin;
-      const joinUrl = `${origin}${result.joinPath}`;
-      setCreated({
+      applySentInvite(result);
+      refresh();
+    });
+  }
+
+  function applySentInvite(result: {
+    id: string;
+    code: string;
+    expiresAt: string;
+    joinPath: string;
+    emailedTo: string;
+  }) {
+    const origin =
+      publicAppOrigin(window.location.origin) || window.location.origin;
+    setCreated({
+      code: result.code,
+      joinUrl: `${origin}${result.joinPath}`,
+      emailedTo: result.emailedTo,
+    });
+    setInviteEmail("");
+    setInvites((current) => {
+      const next = {
+        id: result.id,
         code: result.code,
-        joinUrl,
-        emailedTo: result.emailedTo,
-      });
-      setInviteEmail("");
-      setInvites((current) => [
-        {
-          id: result.id,
-          code: result.code,
-          invitedEmail: result.emailedTo,
-          expiresAt: result.expiresAt,
-          useCount: 0,
-          maxUses: 1,
-          revokedAt: null,
-          createdAt: new Date().toISOString(),
-        },
-        ...current,
-      ]);
+        invitedEmail: result.emailedTo,
+        expiresAt: result.expiresAt,
+        useCount: 0,
+        maxUses: 1,
+        revokedAt: null,
+        createdAt: new Date().toISOString(),
+      };
+      if (current.some((invite) => invite.id === result.id)) {
+        return current.map((invite) =>
+          invite.id === result.id
+            ? {
+                ...invite,
+                invitedEmail: result.emailedTo,
+                expiresAt: result.expiresAt,
+              }
+            : invite,
+        );
+      }
+      return [next, ...current];
+    });
+  }
+
+  function onResend(inviteId: string) {
+    setError(null);
+    setCopied(false);
+    startTransition(async () => {
+      const result = await resendInviteAction(inviteId);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      applySentInvite(result);
       refresh();
     });
   }
@@ -274,14 +309,26 @@ export function HouseholdMembers({
                         {new Date(invite.expiresAt).toLocaleDateString()}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      disabled={pending}
-                      onClick={() => onRevoke(invite.id)}
-                    >
-                      Revoke
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      {invite.invitedEmail ? (
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          disabled={pending}
+                          onClick={() => onResend(invite.id)}
+                        >
+                          {pending ? "Sending…" : "Resend"}
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        disabled={pending}
+                        onClick={() => onRevoke(invite.id)}
+                      >
+                        Revoke
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
