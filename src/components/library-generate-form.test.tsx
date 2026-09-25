@@ -146,6 +146,52 @@ describe("LibraryGenerateForm", () => {
     expect(screen.queryByRole("button", { name: "Kid-approved" })).toBeNull();
   });
 
+  it("defaults servings to selected people and follows the selection", () => {
+    const sam: Person = {
+      id: "p2",
+      name: "Sam",
+      age: 8,
+      sex: "male",
+      allergies: [],
+      avoidances: [],
+    };
+    render(<LibraryGenerateForm people={[alex, sam]} />);
+    const servings = () =>
+      screen.getByLabelText("Servings Override") as HTMLInputElement;
+    expect(servings().value).toBe("2");
+    fireEvent.click(screen.getByRole("checkbox", { name: /sam/i }));
+    expect(servings().value).toBe("1");
+    fireEvent.click(screen.getByRole("button", { name: "Select all" }));
+    expect(servings().value).toBe("2");
+  });
+
+  it("clears a diet chip on a second click and generates without a diet", () => {
+    render(<LibraryGenerateForm people={[alex]} />);
+    fireEvent.click(screen.getByRole("button", { name: "keto" }));
+    expect(
+      screen.getByRole("button", { name: "keto" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "keto" }));
+    expect(
+      screen.getByRole("button", { name: "keto" }).getAttribute("aria-pressed"),
+    ).toBe("false");
+    fireEvent.submit(
+      screen.getByRole("button", { name: "Generate Recipes with AI" }).closest("form")!,
+    );
+    expect(startLibrary).toHaveBeenCalledWith({
+      personIds: ["p1"],
+      servings: 1,
+      dinner: { count: 4, diet: "", avoidances: "" },
+    });
+  });
+
+  it("does not attach a datalist to the custom diet field", () => {
+    render(<LibraryGenerateForm people={[alex]} />);
+    const diet = screen.getByPlaceholderText("or type your own");
+    expect(diet.getAttribute("list")).toBeNull();
+    expect(diet.hasAttribute("required")).toBe(false);
+  });
+
   it("shows people as selectable cards with a Select all control", () => {
     const sam: Person = {
       id: "p2",

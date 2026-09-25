@@ -81,9 +81,7 @@ function DietField({
   onChange: (diet: string) => void;
 }) {
   const inputId = `${slot}-diet`;
-  const listId = `${slot}-diet-choices`;
   const dessert = slot === "dessert";
-  const choices = dessert ? DESSERT_CRITERIA : DIET_CHOICES;
   const selected = dessert ? parseDessertCriteria(value) : [];
   return (
     <div className="field min-w-[10rem] flex-1">
@@ -111,7 +109,7 @@ function DietField({
                 type="button"
                 className="diet-choice"
                 aria-pressed={value === choice}
-                onClick={() => onChange(choice)}
+                onClick={() => onChange(value === choice ? "" : choice)}
               >
                 {choice}
               </button>
@@ -121,16 +119,9 @@ function DietField({
         id={inputId}
         className="input"
         value={value}
-        required
-        list={listId}
         onChange={(event) => onChange(event.target.value)}
         placeholder={dessert ? "low-sugar, gluten-free, dairy-free" : "or type your own"}
       />
-      <datalist id={listId}>
-        {choices.map((choice) => (
-          <option key={choice} value={choice} />
-        ))}
-      </datalist>
     </div>
   );
 }
@@ -172,15 +163,12 @@ export function LibraryGenerateForm({
           const personIds = (prefs.personIds ?? current.personIds).filter((id) =>
             people.some((person) => person.id === id),
           );
-          const servings =
-            typeof prefs.servings === "number" && prefs.servings >= 1
-              ? prefs.servings
-              : current.servings;
+          const selected = personIds.length > 0 ? personIds : current.personIds;
           return {
             ...current,
             ...prefs,
-            personIds: personIds.length > 0 ? personIds : current.personIds,
-            servings,
+            personIds: selected,
+            servings: Math.max(1, selected.length),
             breakfast: mergeSlot(current.breakfast, prefs.breakfast),
             lunch: mergeSlot(current.lunch, prefs.lunch),
             dinner: mergeSlot(current.dinner, prefs.dinner, { on: true }),
@@ -280,12 +268,14 @@ export function LibraryGenerateForm({
               <button
                 type="button"
                 className="btn btn-ghost"
-                onClick={() =>
+                onClick={() => {
+                  const personIds = people.map((person) => person.id);
                   persist({
                     ...form,
-                    personIds: people.map((person) => person.id),
-                  })
-                }
+                    personIds,
+                    servings: Math.max(1, personIds.length),
+                  });
+                }}
               >
                 Select all
               </button>
@@ -301,7 +291,11 @@ export function LibraryGenerateForm({
                       const next = event.target.checked
                         ? [...form.personIds, person.id]
                         : form.personIds.filter((id) => id !== person.id);
-                      persist({ ...form, personIds: next });
+                      persist({
+                        ...form,
+                        personIds: next,
+                        servings: Math.max(1, next.length),
+                      });
                     }}
                   />
                   <span className="library-person-card-name">{person.name}</span>

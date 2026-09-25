@@ -95,6 +95,27 @@ describe("AddRecipeModal chooser", () => {
     ]);
   });
 
+  it("lists AI Chef first, then Import, then Manual, with olive action buttons", () => {
+    renderModal();
+    const titles = screen
+      .getAllByRole("heading", { level: 3 })
+      .map((node) => node.textContent);
+    expect(titles).toEqual([
+      "Create with AI Chef",
+      "Import from URL",
+      "Manual Recipe Entry",
+    ]);
+    expect(screen.getByRole("button", { name: "Generate" }).className).toContain(
+      "btn-primary",
+    );
+    expect(screen.getByRole("button", { name: "Import" }).className).toContain(
+      "btn-primary",
+    );
+    expect(
+      screen.getByRole("button", { name: "Start Blank" }).className,
+    ).toContain("btn-primary");
+  });
+
   it("imports a URL then closes", async () => {
     const { onClose } = renderModal();
     fireEvent.change(screen.getByLabelText("Recipe URL"), {

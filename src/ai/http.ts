@@ -116,7 +116,7 @@ const extraBodySchema = z.object({
 
 const librarySlotGroupSchema = z.object({
   count: z.number().int().min(1).max(12),
-  diet: z.string().trim().min(1),
+  diet: z.string().trim().default(""),
   avoidances: z.string().optional().default(""),
 });
 
@@ -128,7 +128,7 @@ const libraryGenerateBodySchema = z
       .object({
         slot: z.enum(["breakfast", "lunch", "dinner", "side", "dessert"]),
         text: z.string().trim().min(1),
-        diet: z.string().trim().min(1),
+        diet: z.string().trim().default(""),
         avoidances: z.string().optional().default(""),
       })
       .optional(),

@@ -124,6 +124,23 @@ export function AddRecipeModal({
           <div className="library-modal-options">
             <section className="library-modal-option">
               <div>
+                <h3 className="library-modal-option-title">Create with AI Chef</h3>
+                <p className="library-modal-option-copy">
+                  Draft recipes for selected people. Diet and avoidances apply
+                  only to this run.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary library-pill"
+                onClick={() => setView("ai")}
+              >
+                Generate
+              </button>
+            </section>
+
+            <section className="library-modal-option">
+              <div>
                 <h3 className="library-modal-option-title">Import from URL</h3>
                 <p className="library-modal-option-copy">
                   Paste a recipe URL. The page is read and saved with a link
@@ -166,23 +183,6 @@ export function AddRecipeModal({
 
             <section className="library-modal-option">
               <div>
-                <h3 className="library-modal-option-title">Create with AI Chef</h3>
-                <p className="library-modal-option-copy">
-                  Draft recipes for selected people. Diet and avoidances apply
-                  only to this run.
-                </p>
-              </div>
-              <button
-                type="button"
-                className="btn btn-secondary library-pill"
-                onClick={() => setView("ai")}
-              >
-                Generate
-              </button>
-            </section>
-
-            <section className="library-modal-option">
-              <div>
                 <h3 className="library-modal-option-title">
                   Manual Recipe Entry
                 </h3>
@@ -192,7 +192,7 @@ export function AddRecipeModal({
               </div>
               <button
                 type="button"
-                className="btn btn-secondary library-pill"
+                className="btn btn-primary library-pill"
                 onClick={() => setView("manual")}
               >
                 Start Blank
