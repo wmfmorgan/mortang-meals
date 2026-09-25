@@ -3,12 +3,14 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const createInviteAction = vi.fn();
+const resendInviteAction = vi.fn();
 const revokeInviteAction = vi.fn();
 const removeMemberAction = vi.fn();
 const refresh = vi.fn();
 
 vi.mock("./actions", () => ({
   createInviteAction: (...args: unknown[]) => createInviteAction(...args),
+  resendInviteAction: (...args: unknown[]) => resendInviteAction(...args),
   revokeInviteAction: (...args: unknown[]) => revokeInviteAction(...args),
   removeMemberAction: (...args: unknown[]) => removeMemberAction(...args),
 }));
@@ -22,6 +24,7 @@ import { HouseholdMembers } from "./household-members";
 afterEach(() => {
   cleanup();
   createInviteAction.mockReset();
+  resendInviteAction.mockReset();
   revokeInviteAction.mockReset();
   removeMemberAction.mockReset();
   refresh.mockReset();
@@ -91,4 +94,43 @@ describe("HouseholdMembers", () => {
       screen.getByText(/only the household owner can invite/i),
     ).toBeTruthy();
   });
+
+  it("owner can resend an active invite email", async () => {
+    resendInviteAction.mockResolvedValue({
+      ok: true,
+      id: "inv-1",
+      code: "ABCD2345",
+      expiresAt: new Date(Date.now() + 86400000).toISOString(),
+      joinPath: "/join?code=ABCD2345",
+      emailedTo: "partner@example.com",
+    });
+
+    render(
+      <HouseholdMembers
+        members={members}
+        invites={[
+          {
+            id: "inv-1",
+            code: "ABCD2345",
+            invitedEmail: "partner@example.com",
+            expiresAt: new Date(Date.now() + 86400000).toISOString(),
+            useCount: 0,
+            maxUses: 1,
+            revokedAt: null,
+            createdAt: new Date().toISOString(),
+          },
+        ]}
+        isOwner
+        currentUserId="owner-1"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /^resend$/i }));
+
+    await waitFor(() => {
+      expect(resendInviteAction).toHaveBeenCalledWith("inv-1");
+      expect(screen.getByText(/invite sent to/i)).toBeTruthy();
+    });
+  });
 });
+

@@ -199,6 +199,70 @@ export async function createInvite(
     : new Error("Failed to create invite");
 }
 
+export async function resendInvite(
+  householdId: string,
+  inviteId: string,
+  actorUserId: string,
+): Promise<{
+  id: string;
+  code: string;
+  expiresAt: Date;
+  joinPath: string;
+  emailedTo: string;
+}> {
+  await requireOwner(householdId, actorUserId, "invite");
+  const db = getDb();
+  const [invite] = await db
+    .select({
+      id: householdInvites.id,
+      code: householdInvites.code,
+      invitedEmail: householdInvites.invitedEmail,
+      expiresAt: householdInvites.expiresAt,
+      useCount: householdInvites.useCount,
+      maxUses: householdInvites.maxUses,
+      revokedAt: householdInvites.revokedAt,
+    })
+    .from(householdInvites)
+    .where(
+      and(
+        eq(householdInvites.id, inviteId),
+        eq(householdInvites.householdId, householdId),
+      ),
+    )
+    .limit(1);
+
+  if (!invite) {
+    throw new Error("Invite not found");
+  }
+  if (invite.revokedAt) {
+    throw new Error("Invite was revoked");
+  }
+  if (invite.useCount >= invite.maxUses) {
+    throw new Error("Invite already used");
+  }
+  if (!invite.invitedEmail) {
+    throw new Error("This invite has no email");
+  }
+
+  const invitedEmail = normalizeInviteEmail(invite.invitedEmail);
+  await ensureAuthUserForInvite(invitedEmail);
+  const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
+  await db
+    .update(householdInvites)
+    .set({ expiresAt: expiresAt.toISOString() })
+    .where(eq(householdInvites.id, invite.id));
+
+  const joinPath = `/join?code=${invite.code}`;
+  await sendInviteMagicLink(invitedEmail, joinPath);
+  return {
+    id: invite.id,
+    code: invite.code,
+    expiresAt,
+    joinPath,
+    emailedTo: invitedEmail,
+  };
+}
+
 export async function revokeInvite(
   householdId: string,
   inviteId: string,
