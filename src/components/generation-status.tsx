@@ -2,7 +2,6 @@
 
 import { useEffect, useId, useState } from "react";
 import {
-  elapsedLabel,
   jobTitle,
   progressForPhase,
   stepStatus,
@@ -37,16 +36,9 @@ export function GenerationStatus({
   variant?: "nav" | "inline";
 }) {
   const { state, cancel, dismiss } = useGeneration();
-  const [now, setNow] = useState(() => Date.now());
   const [hovered, setHovered] = useState(false);
   const [pinned, setPinned] = useState(false);
   const panelId = useId();
-
-  useEffect(() => {
-    if (state.status !== "running" || !state.startedAt) return;
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, [state.status, state.startedAt]);
 
   useEffect(() => {
     setHovered(false);
@@ -72,11 +64,13 @@ export function GenerationStatus({
   );
   const steps = stepsFor(kind);
   const chipLabel =
-    state.status === "running"
-      ? `${title} · ${percent}%${
-          state.startedAt ? ` · ${elapsedLabel(state.startedAt, now)}` : ""
-        }`
-      : title;
+    state.status === "running" ? `${title} · ${percent}%` : title;
+  const chipClass =
+    state.status === "error"
+      ? "nav-job-chip is-error"
+      : state.status === "success"
+        ? "nav-job-chip is-success"
+        : "nav-job-chip";
 
   return (
     <div
@@ -87,9 +81,7 @@ export function GenerationStatus({
       onMouseLeave={() => setHovered(false)}
     >
       <div
-        className={
-          state.status === "error" ? "nav-job-chip is-error" : "nav-job-chip"
-        }
+        className={chipClass}
         role={state.status === "error" ? "alert" : "status"}
         aria-live="polite"
       >

@@ -50,6 +50,13 @@ describe("DraftQueue", () => {
     expect(screen.getByRole("button", { name: "Reject" })).toBeTruthy();
   });
 
+  it("wraps drafts in a review band with a count and Draft badge", () => {
+    const { container } = render(<DraftQueue drafts={[draft]} servings={2} />);
+    expect(screen.getByText("1 to review")).toBeTruthy();
+    expect(screen.getByText("Draft")).toBeTruthy();
+    expect(container.querySelector(".library-drafts-band")).toBeTruthy();
+  });
+
   it("approves a draft", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
     vi.stubGlobal("fetch", fetchMock);
