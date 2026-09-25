@@ -237,22 +237,22 @@ export function LibraryGenerateForm({
         Drafts land in a queue below. Approve to keep them; reject to delete.
         Diet and avoidances here apply only to this run.
       </p>
-      <div className="meal-extra-toggle" role="group" aria-label="Generate mode">
+      <div className="cook-view-switch" role="radiogroup" aria-label="Generate mode">
         <button
           type="button"
-          className="meal-extra-mode"
-          aria-pressed={form.mode === "batch"}
+          role="radio"
+          aria-checked={form.mode === "batch"}
           onClick={() => persist({ ...form, mode: "batch" })}
         >
-          Batch
+          Multiple Recipes
         </button>
         <button
           type="button"
-          className="meal-extra-mode"
-          aria-pressed={form.mode === "one"}
+          role="radio"
+          aria-checked={form.mode === "one"}
           onClick={() => persist({ ...form, mode: "one" })}
         >
-          One recipe
+          One Recipe
         </button>
       </div>
 

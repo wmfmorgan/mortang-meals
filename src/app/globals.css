@@ -1566,6 +1566,8 @@ a.badge-link:hover {
   font: inherit;
   font-size: 0.875rem;
   font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
   cursor: pointer;
 }
 
