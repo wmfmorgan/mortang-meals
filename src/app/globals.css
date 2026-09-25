@@ -1285,6 +1285,28 @@ a.badge-link:hover {
   background: var(--color-alert-wash);
 }
 
+.nav-job-chip.is-success {
+  border-color: var(--color-olive);
+  animation: nav-job-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes nav-job-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-olive) 40%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--color-olive) 0%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-job-chip.is-success {
+    animation: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-olive) 22%, transparent);
+  }
+}
+
 .nav-job-toggle {
   display: inline-flex;
   min-width: 0;
@@ -2264,6 +2286,20 @@ a.badge-link:hover {
   grid-template-columns: 1fr;
 }
 
+.library-drafts-band {
+  padding: 1.15rem 1.2rem 1.25rem;
+  border: 1px solid var(--color-olive);
+  border-radius: 1.5rem;
+  background: color-mix(in srgb, var(--color-linen) 78%, var(--color-paper));
+}
+
+.library-drafts-count {
+  color: var(--color-olive);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
 .library-card {
   position: relative;
   display: flex;
@@ -2342,6 +2378,12 @@ a.badge-link:hover {
   color: var(--color-ink);
   font-size: 0.6875rem;
   font-weight: 600;
+}
+
+.library-card-badge.library-card-badge-draft {
+  border-color: transparent;
+  background: var(--color-olive);
+  color: var(--color-paper);
 }
 
 .library-card-badge-slot {

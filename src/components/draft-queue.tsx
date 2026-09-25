@@ -38,8 +38,10 @@ export function DraftQueue({
     }
   }
 
+  const countLabel = `${drafts.length} to review`;
+
   return (
-    <section className="space-y-3">
+    <section className="library-drafts-band space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <p className="page-eyebrow" style={{ margin: 0 }}>
@@ -49,6 +51,7 @@ export function DraftQueue({
             Review before they join the library
           </h2>
         </div>
+        <p className="library-drafts-count m-0">{countLabel}</p>
       </div>
       <div className="library-grid">
         {drafts.map((meal) => (
@@ -62,6 +65,9 @@ export function DraftQueue({
             <div className="library-card-photo">
               <MealImage imageUrl={meal.imageUrl} />
               <div className="library-card-badges">
+                <span className="library-card-badge library-card-badge-draft library-pill">
+                  Draft
+                </span>
                 <span className="library-card-badge library-pill">
                   {meal.cookMinutes} min
                 </span>

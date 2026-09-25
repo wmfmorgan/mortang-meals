@@ -52,6 +52,28 @@ describe("GenerationStatus", () => {
     expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
   });
 
+  it("shows percent without elapsed time while running", () => {
+    generation.state.status = "running";
+    generation.state.phase = "calling";
+    generation.state.attempt = 1;
+    generation.state.startedAt = Date.now() - 5000;
+    render(<GenerationStatus />);
+    expect(screen.getByText("Generating library · 38%")).toBeTruthy();
+    expect(screen.queryByText(/5s/)).toBeNull();
+    expect(screen.queryByText(/\d+m /)).toBeNull();
+  });
+
+  it("pulses the chip when drafts are ready", () => {
+    generation.state = {
+      ...generation.state,
+      status: "success",
+      phase: "done",
+      message: "Drafts are ready",
+    };
+    render(<GenerationStatus />);
+    expect(screen.getByRole("status").className).toContain("is-success");
+  });
+
   it("shows progress details on hover while running", () => {
     generation.state.status = "running";
     render(<GenerationStatus />);
