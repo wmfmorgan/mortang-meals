@@ -200,6 +200,24 @@ describe("generateLibraryMeals", () => {
     expect(system).not.toContain("Fill only these slots");
   });
 
+  it("omits a diet line when the form diet is blank", async () => {
+    const adapter = fakeAdapter([
+      { ok: true, text: JSON.stringify({ meals: [dinner("Sheet pan chicken")] }) },
+    ]);
+    await generateLibraryMeals({
+      household,
+      kitchen,
+      groups: [{ slot: "dinner", count: 1, diet: "", avoidances: "" }],
+      reservedTitles: [],
+      adapter,
+      logTrace: () => {},
+      settings,
+    });
+    const system = adapter.requests[0].messages[0].content;
+    expect(system).toContain("dinner: 1 recipe.");
+    expect(system).not.toContain("Diet:");
+  });
+
   it("generates dessert recipes and applies dessert criteria as hard excludes", async () => {
     const dessert = extraRecipe("dessert", "Coconut berry cups", "coconut");
     const adapter = fakeAdapter([

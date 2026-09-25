@@ -143,8 +143,11 @@ export async function generateLibraryMeals(input: {
   const allergies = collectAllergies(input.household);
   const dietExcludes: string[] = [];
   for (const group of input.groups) {
+    const diet = group.diet.trim();
     extraRules.push(
-      `${group.slot}: ${group.count} recipe${group.count === 1 ? "" : "s"}. Diet: ${group.diet}.`,
+      diet
+        ? `${group.slot}: ${group.count} recipe${group.count === 1 ? "" : "s"}. Diet: ${diet}.`
+        : `${group.slot}: ${group.count} recipe${group.count === 1 ? "" : "s"}.`,
     );
     if (group.slot === "side") {
       extraRules.push(
