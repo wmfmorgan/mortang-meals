@@ -88,9 +88,21 @@ describe("LibraryGenerateForm", () => {
     ).toBe("false");
   });
 
+  it("uses a cook-style switch labeled Multiple Recipes and One Recipe", () => {
+    const { container } = render(<LibraryGenerateForm people={[alex]} />);
+    expect(container.querySelector(".cook-view-switch")).toBeTruthy();
+    const multiple = screen.getByRole("radio", { name: "Multiple Recipes" });
+    const one = screen.getByRole("radio", { name: "One Recipe" });
+    expect(multiple.getAttribute("aria-checked")).toBe("true");
+    expect(one.getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(one);
+    expect(one.getAttribute("aria-checked")).toBe("true");
+    expect(multiple.getAttribute("aria-checked")).toBe("false");
+  });
+
   it("sends a one-recipe request", async () => {
     render(<LibraryGenerateForm people={[alex]} />);
-    fireEvent.click(screen.getByRole("button", { name: "One recipe" }));
+    fireEvent.click(screen.getByRole("radio", { name: "One Recipe" }));
     fireEvent.change(screen.getByPlaceholderText("spaghetti sauce"), {
       target: { value: "spaghetti sauce" },
     });
