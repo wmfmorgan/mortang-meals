@@ -55,6 +55,7 @@ describe("DraftQueue", () => {
     expect(screen.getByText("1 to review")).toBeTruthy();
     expect(screen.getByText("Draft")).toBeTruthy();
     expect(container.querySelector(".library-drafts-band")).toBeTruthy();
+    expect(container.querySelector(".library-card-badge-draft")).toBeTruthy();
   });
 
   it("approves a draft", async () => {

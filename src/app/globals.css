@@ -2382,7 +2382,7 @@ a.badge-link:hover {
 
 .library-card-badge.library-card-badge-draft {
   border-color: transparent;
-  background: var(--color-olive);
+  background: var(--color-primary);
   color: var(--color-paper);
 }
 
